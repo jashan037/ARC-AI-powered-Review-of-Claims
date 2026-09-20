@@ -5,11 +5,13 @@ turn by calling `final_answer`; the backend validates it and renders the Markdow
 """
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 
 from ..config import settings
 from ..rendering import render as R
+from ..resilience import TurnAbort
 from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
 from .evidence import resolve
@@ -110,11 +112,14 @@ def _claim_or_error(ctx: TurnContext):
 # ---------------------------------------------------------------------------------------------
 def call_tool(name: str, args: dict, ctx: TurnContext) -> dict:
     """Never raises. Errors go back to the model as {'error': ...} so it can recover."""
+    t0 = time.perf_counter()
     try:
         out = _dispatch(name, args or {}, ctx)
+    except TurnAbort:   # deadline gone or Azure unavailable: the turn must stop, not go back to the model as a tool error
+        raise
     except Exception as e:  # noqa: BLE001 - tool errors must reach the model, not crash the request
         out = {"error": f"{type(e).__name__}: {e}"}
-    entry = dict(tool=name, args=args, ok="error" not in out)
+    entry = dict(tool=name, args=args, ok="error" not in out, ms=round((time.perf_counter() - t0) * 1000))
     if not entry["ok"]:   # keep the reason so evaluations and logs can say why a call failed (no claim data is added)
         entry["problems"] = out.get("problems") or [out["error"]]
     ctx.trace.append(entry)

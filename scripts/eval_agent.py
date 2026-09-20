@@ -105,6 +105,9 @@ def claim_result(res):
 
 def common_checks(res, retriever, fails: list[str], notes: list[str]):
     fa = [t for t in res.trace if t["tool"] == "final_answer"]
+    if res.status != "ok":
+        fails.append(f"turn ended with status {res.status} ({res.latency_ms // 1000}s)")
+        return
     if res.final is None:   # the runner only sets .final when final_answer was accepted
         fails.append("final_answer never accepted")
         return
@@ -143,7 +146,7 @@ def check_claim_case(cid: str, res, retriever) -> tuple[list[str], list[str]]:
             if abs(a[key] - exp[key]) > 0.5:
                 fails.append(f"{key} {a[key]}, expected {exp[key]}")
             elif exp[key] and inr(exp[key]) not in res.markdown:
-                fails.append(f"₹{inr(exp[key])} missing from the rendered answer")
+                fails.append(f"{inr(exp[key])} missing from the rendered answer")
     for k, v in (exp.get("bill_reductions") or {}).items():
         if abs(a["deductions"].get(k, 0) - v) > 0.5:
             fails.append(f"deduction {k} {a['deductions'].get(k)}, expected {v}")
@@ -197,7 +200,7 @@ def check_question(q: dict, res, retriever) -> tuple[list[str], list[str]]:
         grp, key = q["mention_amounts"]
         want = r["amounts"][grp][key]
         if want and inr(want) not in res.markdown:
-            fails.append(f"₹{inr(want)} ({grp}.{key}) missing from the answer")
+            fails.append(f"{inr(want)} ({grp}.{key}) missing from the answer")
     if q.get("whatif"):
         base = SAMPLES[q["claim"]]["claim"]
         oracle = E.assess(E.apply_what_if(base, q["whatif"]))
@@ -244,6 +247,10 @@ def run_case(kind: str, case, agent, retriever, run_no: int) -> dict:
         for attempt in range(4):   # a 429 from the model deployment is quota, not agent behaviour: wait and rerun the turn (fresh conversation)
             try:
                 res = agent.ask(session, msg)
+                if res.status == "unavailable" and attempt < 3:   # the backend already retried 429/5xx with backoff; wait longer and rerun the turn
+                    throttled += 1
+                    time.sleep(25 * (attempt + 1))
+                    continue
                 break
             except Exception as e:  # noqa: BLE001
                 if type(e).__name__ != "RateLimitError" or attempt == 3:
@@ -320,6 +327,8 @@ def main():
     if not cases:
         sys.exit("No cases selected.")
 
+    from app.observability import configure_logging
+    configure_logging()   # one JSON line per turn on stderr: `2> turns.jsonl` keeps latency and retry data for later
     agent, retriever = get_agent(), get_retriever()
     jobs = [(k, c, n) for n in range(1, args.repeat + 1) for k, c in cases]
     print(f"{len(cases)} cases x {args.repeat} run(s), retriever={settings.retriever}, agent={type(agent).__name__}", flush=True)

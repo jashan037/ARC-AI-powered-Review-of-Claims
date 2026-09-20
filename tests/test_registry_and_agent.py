@@ -60,12 +60,12 @@ class FakeOpenAI:
     """Plays the model: assess_claim -> (bad final_answer) -> good final_answer."""
     def __init__(self, bad_first=False):
         self.step, self.bad_first, self.deleted, self.rid = 0, bad_first, False, None
-        self.conversations = NS(create=lambda: NS(id="conv_1"), delete=self._delete)
+        self.conversations = NS(create=lambda **_: NS(id="conv_1"), delete=self._delete)
         self.responses = NS(create=self._create)
 
-    def _delete(self, conversation_id): self.deleted = True
+    def _delete(self, conversation_id, timeout=None): self.deleted = True
 
-    def _create(self, input, conversation, extra_body):
+    def _create(self, input, conversation, extra_body, timeout=None):
         self.step += 1
         fc = lambda name, args, cid: NS(type="function_call", name=name, arguments=json.dumps(args), call_id=cid)
         if self.step == 1:

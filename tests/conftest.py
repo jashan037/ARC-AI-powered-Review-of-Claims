@@ -6,3 +6,4 @@ import os
 
 os.environ["RETRIEVER"] = "local"
 os.environ["AGENT_MODE"] = "offline"
+os.environ["CORS_ORIGINS"] = ""

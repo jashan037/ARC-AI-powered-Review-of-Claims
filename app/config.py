@@ -38,5 +38,19 @@ class Settings:
     agent_name: str = os.getenv("AGENT_NAME", "claims-adjudication-agent-v2")
     max_agent_steps: int = int(os.getenv("MAX_AGENT_STEPS", "8"))
 
+    # Timeouts, retries and limits. Every Azure call has a timeout; a whole chat turn has a deadline.
+    turn_deadline_s: float = float(os.getenv("TURN_DEADLINE_S", "60"))     # the assistant answers or says "try again" within this
+    model_timeout_s: float = float(os.getenv("MODEL_TIMEOUT_S", "40"))     # one model call (capped by what is left of the deadline)
+    search_timeout_s: float = float(os.getenv("SEARCH_TIMEOUT_S", "10"))
+    embed_timeout_s: float = float(os.getenv("EMBED_TIMEOUT_S", "10"))
+    max_retries: int = int(os.getenv("MAX_RETRIES", "3"))                  # retries after the first try, for 429 and transient 5xx only
+    backoff_base_s: float = float(os.getenv("BACKOFF_BASE_S", "0.5"))
+    backoff_cap_s: float = float(os.getenv("BACKOFF_CAP_S", "8"))
+
+    # API
+    max_request_bytes: int = int(os.getenv("MAX_REQUEST_BYTES", "262144"))
+    cors_origins: tuple = tuple(o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip())   # empty = no cross-origin access
+    log_level: str = os.getenv("LOG_LEVEL", "INFO")
+
 
 settings = Settings()
