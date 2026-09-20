@@ -9,6 +9,7 @@ from ..config import settings
 from ..observability import log_turn
 from ..resilience import TurnAbort, call_with_retry, turn_scope
 from ..retrieval.azure_search import get_retriever
+from ..tools.focus import focus_for
 from ..tools.plain_questions import chat_answer, fact_answer, plain_kind
 from ..tools.registry import TurnContext, call_tool, render_final
 
@@ -145,10 +146,10 @@ class OfflineAgent:
             final = dict(answer_type="general_answer", headline=fact_answer(message, claim))
         elif kind == "chat":
             final = dict(answer_type="general_answer", headline=chat_answer(message))
-        elif claim and re.search(r"\bwhy\b.*\b(deduct|reduc|cut|not paid|non-payable|hold|held)|explain.*(deduction|room|amount)|how.*(calculated|worked out)", m):
+        elif claim and (re.search(r"\bwhy\b.*\b(deduct|reduc|cut|not paid|non-payable|hold|held)|explain.*(deduction|room|amount)|how.*(calculated|worked out)", m)
+                        or focus_for(message) in ("non_medical", "hold", "deductible", "associated")):
             rid = call_tool("assess_claim", {"what_if": what_if} if what_if else {}, ctx)["result_id"]
-            focus = ("room" if re.search(r"room|rent", m) else "non_medical" if re.search(r"non.?medical|glove|mask|annexure|consumable", m)
-                     else "hold" if re.search(r"hold|held|prescription", m) else "deductible" if re.search(r"deductible|co-?pay", m) else "all")
+            focus = focus_for(message) or "all"
             final = dict(answer_type="deduction_explanation", headline="", result_id=rid, focus=focus)
         elif claim and re.search(r"assess|evaluate|adjudicat|payable|how much|estimate|check (this|the) claim|what will be paid", m):
             rid = call_tool("assess_claim", {"what_if": what_if} if what_if else {}, ctx)["result_id"]

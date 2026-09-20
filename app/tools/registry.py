@@ -18,6 +18,7 @@ from ..resilience import TurnAbort
 from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
 from .evidence import resolve
+from .focus import focus_for
 from .plain_questions import NOT_IN_DOCUMENTS, claim_facts, fact_answer, plain_kind
 
 ANSWER_TYPES = ["claim_assessment", "coverage_answer", "waiting_period_answer", "deduction_explanation",
@@ -41,6 +42,7 @@ class TurnContext:
     internal_terms_rejected: bool = False   # and the "no result ids, chunk keys or tool names in officer text" guard
     length_caps_rejected: bool = False      # and the "keep it short" guard (headline, points, next steps)
     plain_rejected: bool = False            # and the "a plain question gets a one-line general_answer, not an assessment" guard
+    focus_corrected: list = field(default_factory=list)   # (model's focus, focus decided from the question) whenever they differed
 
     @property
     def plain(self) -> str | None:
@@ -337,6 +339,15 @@ def render_final(final: dict, ctx: TurnContext) -> R.Rendered:
     return customerize_rendered(out) if ctx.session.get("audience", "officer") == "customer" else out
 
 
+def _focus(final: dict, ctx: TurnContext) -> str:
+    """The question decides the focus; the model's choice stands only when the question does not point at a part."""
+    chosen, decided = final.get("focus") or "all", focus_for(ctx.question)
+    if decided and decided != chosen:
+        ctx.focus_corrected.append((chosen, decided))
+        return decided
+    return chosen
+
+
 def _render(final: dict, ctx: TurnContext) -> R.Rendered:
     final = scrub_final(final)   # last line of defence: no internal identifier reaches the officer, whatever the model wrote
     t, rid, ret = final["answer_type"], final.get("result_id"), ctx.retriever
@@ -345,7 +356,7 @@ def _render(final: dict, ctx: TurnContext) -> R.Rendered:
         note = " ".join(final.get("caveats") or []) or None
         return R.render_claim_assessment(ctx.results[rid]["data"], ret, note, aud)
     if t == "deduction_explanation":
-        return R.render_deduction_explanation(ctx.results[rid]["data"], final.get("focus") or "all", ret, audience=aud)
+        return R.render_deduction_explanation(ctx.results[rid]["data"], _focus(final, ctx), ret, audience=aud)
     if t == "waiting_period_answer" and rid in ctx.results:
         r = ctx.results[rid]
         data = r["data"] if r["kind"] == "waiting" else r["data"]["waiting"]
