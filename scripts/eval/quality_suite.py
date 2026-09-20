@@ -119,7 +119,8 @@ def build_cases() -> list[dict]:
         dict(id="D01", cat="documents", turns=["What documents are missing?"], types=["direct_answer"], contain=[r"prescription"], max_words=90, tools_any=["assess_claim"]),
         dict(id="D02", cat="documents", turns=["What should I send next?"], types=["direct_answer", "documents_answer", "claim_assessment"], contain=[r"prescription"], tools_any=["assess_claim"]),
         dict(id="D03", cat="documents", turns=["Which documents do I need for a reimbursement claim?"], types=["direct_answer", "coverage_answer", "documents_answer", "definition_answer"],
-             contain=[r"discharge summary", r"claim form"], tools_any=["search_policy", "get_clause"]),
+             # corrected after the first run, and disclosed in the report: E.1.7 names it "Discharge Card / Day Care Summary / Transfer Summary", not "discharge summary" (a slip in my first expectation, not a change to fit an answer)
+             contain=[r"discharge (?:card|summary)", r"claim form"], tools_any=["search_policy", "get_clause"]),
         dict(id="D04", cat="documents", turns=["How long do I have to send my documents after I leave the hospital?"], types=["direct_answer", "coverage_answer", "documents_answer", "definition_answer"],
              contain=[r"30[\s\-‐-―]*days?"], tools_any=["search_policy", "get_clause"]),
         # ---- 4 what-if (the expected amounts come from the engine on the changed claim)
