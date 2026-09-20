@@ -155,12 +155,6 @@ def index():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html", headers=PAGE_HEADERS)
 
 
-@app.get("/officer", include_in_schema=False)
-def officer_console():
-    """The earlier officer console (claim picker, live badge, full details). Kept for demos to claims officers."""
-    return FileResponse(STATIC_DIR / "officer.html", media_type="text/html", headers=PAGE_HEADERS)
-
-
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
