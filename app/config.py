@@ -28,8 +28,8 @@ class Settings:
     openai_endpoint: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
     openai_key: str = os.getenv("AZURE_OPENAI_KEY", "")
     openai_api_version: str = os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21")
-    embedding_deployment: str = os.getenv("EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
-    # text-embedding-3-* can return shorter vectors. 1536 keeps the index small and works for both small and large.
+    embedding_deployment: str = os.getenv("EMBEDDING_DEPLOYMENT", "text-embedding-3-large")
+    # text-embedding-3-* can return shorter vectors. 1536 keeps the index small and is what claims-kb-v2 was built with.
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
 
     # Foundry agent

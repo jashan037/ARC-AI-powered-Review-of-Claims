@@ -1,6 +1,6 @@
 """The tools the agent can call, and what happens when it does.
 
-Function tools run here in the backend (see agent/foundry_agent.py). The agent must finish every
+Function tools run here in the backend (see agent/runner.py). The agent must finish every
 turn by calling `final_answer`; the backend validates it and renders the Markdown itself.
 """
 from __future__ import annotations

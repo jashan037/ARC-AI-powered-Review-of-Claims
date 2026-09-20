@@ -1,71 +1,75 @@
-# Claims copilot backend
+# ARC: AI-powered Review of Claims
 
-FastAPI backend around your Foundry agent. Azure AI Search finds the policy clauses, deterministic Python tools do the dates and money, and a renderer prints every answer in a fixed format.
+A customer uploads health-insurance claim documents, ARC reads them and builds the claim, and the customer chats about it. The policy is the public HDFC ERGO my:Optima Secure wording. **A claims officer always decides**; ARC says "likely", never "approved".
 
-## How one question flows
+How it works: a Foundry agent (gpt-5-mini) chooses tools. Azure AI Search finds policy clauses, deterministic Python does every date and rupee amount, a validator checks that citations came from tool results in the same turn, and a renderer prints the answer, so numbers and citations never pass through the model's typing.
 
 ```
-question (+ claim loaded in the session)
-   -> Foundry agent (gpt-5-mini) chooses tools
-        search_policy / get_clause        -> Azure AI Search, filtered to the claim's policy UIN
-        check_waiting_period              -> claims_engine (Python)
-        assess_claim (+ what_if)          -> claims_engine (Python)
-        lookup_non_medical_item           -> Annexure B table
-   -> final_answer(answer_type, ...)      -> validated: citations must come from tool results this turn
-   -> renderer prints Markdown            -> numbers and citations never pass through the LLM's typing
+documents (PDF) -> intake (pypdf + rules, no model) -> claim
+question + claim -> Foundry agent -> tools (search_policy, get_clause, check_waiting_period, assess_claim, lookup_non_medical_item, get_claim_summary)
+                 -> final_answer -> validator -> renderer -> short summary + "Show more"
 ```
 
 Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `deduction_explanation`, `documents_answer`, `definition_answer`, `insufficient_information`, `general_answer`.
 
-## Run it offline first (no Azure)
+## Layout
+
+```
+app/        runtime code: API (main.py), intake, agent/, tools/, rendering/, retrieval/, static/ (the customer page)
+data/       policy chunks (186), rules, 12 sample claims, retrieval eval questions
+demo/       documents/ (10 synthetic PDFs the page loads), screenshots/, examples/ (generated answers), DEMO.md
+scripts/    run_demo.sh, setup/ (Azure), eval/ (evaluations), dev/ (CLI, renderers, screenshots)
+tools/      policy chunking (offline data prep), source/ (the policy PDF), kb_sources/ (source list for more wordings)
+tests/      all offline; golden answers in tests/golden, test-only helper in tests/helpers
+docs/       SYSTEM_REPORT.md (audit), CLEANUP_PLAN.md, CLEANUP_REPORT.md, evidence/ (eval report and transcripts)
+```
+
+## Run it
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env
-python -m pytest tests -q                       # 445 tests, all offline (browser tests need: pip install -r requirements-dev.txt)
-python scripts/dev/render_samples.py                # 12 claim assessments -> examples/
-python scripts/dev/render_examples.py               # one example per answer type -> examples/
-python scripts/eval/eval_retrieval.py --verbose      # keyword baseline on the 19 questions
-python scripts/dev/chat_cli.py --claim TC07         # try it in the terminal (follows RETRIEVER / AGENT_MODE in .env; .env.example = offline stand-in)
-scripts/run_demo.sh                             # the demo: customer page at http://127.0.0.1:8765/ (refuses to start unless .env is azure + foundry)
-uvicorn app.main:app --reload                   # dev: customer page at / , officer console at /officer , API docs at /docs (add ?dev=1 for the badge and trace panel)
-python scripts/dev/take_screenshots.py              # Playwright screenshots of both customer screens into docs/screenshots/
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt                 # requirements.txt is runtime only; the dev file adds pytest, httpx, playwright
+cp .env.example .env                                # fill it in for Azure; the defaults run offline
+python -m pytest tests -q                           # 439 tests, all offline; browser tests use the Chrome you already have
+scripts/run_demo.sh                                 # customer page at http://127.0.0.1:8765/  (refuses unless .env is azure + foundry)
+uvicorn app.main:app --reload                       # dev; API docs at /docs; add ?dev=1 to the page for the badge and trace panel
+python scripts/dev/chat_cli.py --claim TC07         # terminal chat (follows RETRIEVER / AGENT_MODE)
+python scripts/dev/render_samples.py                # 12 assessments -> demo/examples/
+python scripts/dev/render_examples.py               # one example per answer type -> demo/examples/
+python scripts/eval/eval_retrieval.py --verbose     # retrieval baseline on the 19 questions
 ```
 
 ## Connect it to Azure
 
 ```bash
-# fill .env (endpoints, keys, project endpoint), then:
-python scripts/setup/create_index.py                  # 1. new clause-level index (claims-kb-v2)
-python scripts/setup/upload_chunks.py                 # 2. embed + upload data/policy_clauses.jsonl
-RETRIEVER=azure python scripts/eval/eval_retrieval.py --verbose   # 3. compare with the baseline
-az login && python scripts/setup/create_agent.py      # 4. agent with function tools (SDK only; the portal cannot add them)
-RETRIEVER=azure AGENT_MODE=foundry python scripts/dev/chat_cli.py --claim TC07   # 5. real agent in the terminal
-RETRIEVER=azure AGENT_MODE=foundry uvicorn app.main:app --reload            # 6. API
+az login                                            # the account needs the Foundry User role on the project
+python scripts/setup/check_env.py                   # validates .env
+python scripts/setup/create_index.py                # claims-kb-v2 (clause-level index)
+python scripts/setup/upload_chunks.py               # embed + upload data/policy_clauses.jsonl
+RETRIEVER=azure python scripts/eval/eval_retrieval.py --verbose
+python scripts/setup/create_agent.py                # a new agent version with the function tools (SDK only)
+RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/eval_agent.py --workers 2   # 38 cases against the real agent
 ```
+
+Live settings: `RETRIEVER=azure`, `AGENT_MODE=foundry`. Embeddings use the deployment `text-embedding-3-large` with `EMBEDDING_DIMENSIONS=1536`. Rebuild the chunks from the policy PDF: `python tools/chunk_policy.py tools/source/optima-secure-HDFHLIP25041V062425.pdf --uin HDFHLIP25041V062425 --doc-id optima-secure-v062425 --out data/policy_clauses.jsonl`.
 
 ## API
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/sessions` | new session |
+| GET | `/` | the customer page |
+| POST | `/sessions` | new session, body optional `{"audience": "customer"}` |
+| POST | `/sessions/{id}/documents` , `/documents/sample` | upload PDFs / load the sample documents |
+| POST | `/sessions/{id}/intake` | build the claim: `ready` or `needs_attention` with plain reasons |
 | POST | `/sessions/{id}/claim` | `{"sample_id": "TC07"}` or `{"claim": {...}}` |
-| POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `answer_markdown`, `answer_type`, `citations`, `tool_trace` |
+| POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `summary_markdown`, `sections`, `citations`, `suggestions`, `trace_summary` |
 | POST | `/assess` | stateless deterministic assessment, no LLM |
-| GET | `/samples`, `/health` | |
+| GET | `/samples`, `/health` | sample claims; settings and whether the live agent is on |
 
-## What has and has not been tested
+## Status and known limits
 
-Tested (offline, `pytest`): claims engine on 12 hand-derived cases, clause-reference resolution, tool validation, the Foundry function-calling loop against a scripted fake client, the API, the renderer.
-Not tested (needs your Azure resources): `azure_search.py`, `create_index.py`, `upload_chunks.py`, `create_agent.py`, and the real `FoundryAgent` calls. They follow the current Microsoft docs (azure-ai-projects 2.x, azure-search-documents 11.x); expect to fix small API differences on first run.
-
-## Known limits
-
-- Policy wording indexed: HDFHLIP25041V062425 only. The 2026 wording needs the generic chunker (see the KB pack).
-- Non-medical check uses HDFC's Annexure B (68 items). IRDAI's longer standard list is not loaded yet.
-- Claim input is structured JSON. Extracting it from PDFs (Content Understanding) is the next stage.
-- The keyword baseline in `eval_retrieval.py` uses questions written from the same document, so its scores are optimistic.
-
-## Working with Claude Code
-
-`CLAUDE.md` holds the full project context and is read automatically. `FIRST_PROMPT.md` has the prompt to start with and follow-up prompts for later stages.
+- Tested: 439 offline tests and, on the real Azure agent, 38 evaluation cases (`docs/evidence/eval_report.md`) and the 8-step demo (`scripts/eval/demo_check.py`).
+- Intake reads text PDFs in the layout of `demo/documents/` only; scans and other layouts are refused, not guessed. Azure Content Understanding is not built.
+- Sessions are in memory, there is no authentication or rate limiting, and dependencies are pinned but not locked: see `docs/SYSTEM_REPORT.md` (P0 and P1 lists) before any deployment.
+- Only wording HDFHLIP25041V062425 is indexed. Non-medical items use HDFC's Annexure B (68 items), not IRDAI's longer list.
+- All data is synthetic. Never load a real person's documents.

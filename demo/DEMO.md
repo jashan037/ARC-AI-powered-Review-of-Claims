@@ -1,8 +1,8 @@
-# Demo script: the claims-officer assistant in 5 minutes
+# Demo script: ARC in 5 minutes
 
-**One sentence for the audience:** an AI assistant that answers policy questions with exact clause citations and assesses a claim in a fixed layout, while every number comes from code and the claims officer always decides.
+**One sentence for the audience:** an AI assistant that reads a customer's claim documents, answers policy questions with exact clause citations and assesses the claim in a fixed layout, while every number comes from code and a claims officer always decides.
 
-**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, version 5, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/eval/demo_check.py` after the last change (129 s of total agent time; 14 to 21 seconds per answer), so talk while it works.
+**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, **version 7**, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/eval/demo_check.py` (113 s of total agent time; 8 to 22 seconds per answer). One earlier run the same day scored 7 of 8 (I did not capture which step; the re-run was 8 of 8), so run it beforehand. The full evaluation (38 cases) passed on version 7: see `docs/evidence/eval_report.md`.
 
 ## Before you start (2 minutes, do it beforehand)
 
@@ -12,7 +12,7 @@ source .venv/bin/activate
 RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py     # about 3 minutes; you want "8/8 steps passed"
 ```
 
-Open three terminals in the repo folder, each with the real agent switched on (the prefix is redundant while `.env` says `azure` and `foundry`, and protects you if it does not):
+For the terminal script, open three terminals in the repo folder, each with the real agent switched on (the prefix is redundant while `.env` says `azure` and `foundry`, and protects you if it does not):
 
 | Terminal | Command | Used for |
 |---|---|---|
@@ -24,11 +24,21 @@ After each answer the CLI prints `[tools: ...]`, the tools the agent called. Poi
 
 Wording of question-and-answer replies changes a little between runs. The claim numbers, the recommendation and the cited clauses do not.
 
-## Or use the web page instead of the terminals
+## The customer page (the main demo)
 
-Start the demo with `scripts/run_demo.sh` and open **http://127.0.0.1:8765/**. That is the **customer page**: upload the ten sample documents (or press "Use sample documents"), continue to the chat, and ask the suggested questions. It is a different view of the same agent (see `docs/screenshots/`), with short summaries and a "Show more" button. The 8 steps below are the **officer console**, which is at **http://127.0.0.1:8765/officer**: it has the claim picker, one-click buttons for these same questions (they change with the loaded claim), the live/offline badge and the "How ARC got this answer" panel. For the customer page, add `?dev=1` to see the same badge and panel.
+Start it with `scripts/run_demo.sh` and open **http://127.0.0.1:8765/** (it refuses to start unless `.env` selects the real agent). Screenshots are in `demo/screenshots/`.
 
-## The 8 steps
+1. Press **Use sample documents** (or drop the 10 PDFs from `demo/documents/`). ARC recognises 10 files; the checklist shows 9 received and the pharmacy bills marked partial because the doctor's prescription is missing.
+2. **Continue to my claim.** The first message summarises the claim (Rohan Verma, Optima Lite, appendectomy, ₹1,84,500) and lists what is still needed.
+3. Tap **How much will be paid?**: estimated **₹1,22,125**, confirmed today **₹1,01,625**, held for documents **₹20,500**. "Show more" opens the working.
+4. Tap **Why was my room rent reduced?**, **What documents are missing?**, **Which items are not payable?**. Ask "what's my name": a one-line answer.
+5. **Add a document** works after the first message. To show a problem, upload a bill in another name: ARC says the name does not match the policy and asks for the right document.
+
+Add `?dev=1` to the address to see the live/offline badge and the "How ARC got this answer" panel (tool names, order, ms; never arguments). The earlier separate officer console has been removed; the officer wording still exists in the renderers and in the terminal script below.
+
+## Terminal script (officer wording)
+
+### The 8 steps
 
 | # | Terminal | You type | What the audience should see | Key numbers and citations |
 |---|---|---|---|---|
@@ -48,11 +58,11 @@ The model chooses tools and writes the explanation. Python does all dates and mo
 
 - **"This is taking longer than expected" or "temporarily unavailable"** is the timeout and rate-limit path working as designed (60-second turn deadline). Nothing was assessed. Just ask again. The gpt-5-mini deployment has a small per-minute quota, so do not rush the steps.
 - **A sentence is worded differently from this script.** Expected. Check the numbers and citations, not the prose.
-- **No internet or Azure problem.** Show the saved outputs instead: `examples/TC07_demo_claim_prescription_missing.md` (step 4), `examples/Q_why_room_rent_deducted.md` (step 5), `examples/Q_whatif_protect_benefit.md` (a what-if), `examples/TC02_30-day_waiting_period_not_met.md` (step 8). `RETRIEVER=local AGENT_MODE=offline python scripts/dev/chat_cli.py --claim TC07` runs the offline stand-in, which is a keyword router and not the real agent, so say so if you use it. (Your `.env` currently selects the real agent, so the prefix matters.)
+- **No internet or Azure problem.** Show the saved outputs instead: `demo/examples/TC07_demo_claim_prescription_missing.md` (step 4), `demo/examples/Q_why_room_rent_deducted.md` (step 5), `demo/examples/Q_whatif_protect_benefit.md` (a what-if), `demo/examples/TC02_30-day_waiting_period_not_met.md` (step 8). `RETRIEVER=local AGENT_MODE=offline python scripts/dev/chat_cli.py --claim TC07` runs the offline stand-in, which is a keyword router and not the real agent, so say so if you use it. (Your `.env` currently selects the real agent, so the prefix matters.)
 
 ## Known rough edges (say them before someone asks)
 
-- **Wording varies between runs.** Over the last full passes a few runs drifted on policy questions (an omitted accident exception, and once the accident-within-30-days question typed "Insufficient information"; the latter was fixed by the prompt change in agent version 5 and passed 10 of 10 afterwards). On Q01 the first point names the joint-replacement entry in 9 of 10 runs; in the tenth the rule comes first and the entry second. The 8 demo steps themselves passed every time. Transcripts are in `examples/eval_failures/`.
+- **Wording varies between runs.** Over the last full passes a few runs drifted on policy questions (an omitted accident exception, and once the accident-within-30-days question typed "Insufficient information"; the latter was fixed by the prompt change in agent version 5 and passed 10 of 10 afterwards). On Q01 the first point names the joint-replacement entry in 9 of 10 runs; in the tenth the rule comes first and the entry second. The 8 demo steps themselves passed every time. Transcripts are in `docs/evidence/eval_failures/`.
 - **No internal identifiers reach the officer.** Text the model writes (headline, points, next steps, caveats) may not mention result ids, chunk keys, field names or tool names. A guard sends such text back once for a rephrase, and the renderer removes whatever a second attempt still contains. Probed on the real agent with five questions that ask for those names, all five were rejected once and answered cleanly on the second attempt. This replaces an earlier step 3 rough edge where a next step mentioned a `result_id`.
 - **Next steps are checks, not decisions.** The model is told to phrase them as things to check, verify, confirm, request or flag, and the backend sends back any next step that reads as "do not pay", "reject", "approve" or "mark as non-payable" once for a rephrase. The demo runs showed none.
 - **Step 2** names where the ratio is published (annual report, IRDAI) from general knowledge. It is a pointer, not a policy fact, and it carries no citation.

@@ -129,7 +129,7 @@ class FoundryAgent:
 
 
 # =============================================================================================
-# Offline stand-in. NOT the agent: a keyword router that exercises the same tools and renderers
+# Offline stand-in. TEST AND DEVELOPMENT ONLY (AGENT_MODE=offline). NOT the agent: a keyword router that exercises the same tools and renderers
 # so the API, sessions, rendering and tests work without any Azure resources.
 # =============================================================================================
 class OfflineAgent:

@@ -104,6 +104,8 @@ def _tok(s: str) -> list[str]:
 
 
 class LocalRetriever(Retriever):
+    """BM25 over data/policy_clauses.jsonl. TEST AND DEVELOPMENT ONLY (RETRIEVER=local, forced by tests/conftest.py); the live app uses AzureSearchRetriever."""
+
     def __init__(self, path: Path):
         self.records = [json.loads(l) for l in open(path, encoding="utf-8")]
         self.by_key = {r["chunk_key"]: r for r in self.records}
