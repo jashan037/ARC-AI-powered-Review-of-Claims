@@ -129,7 +129,7 @@ def test_a_what_if_shows_before_and_after_computed_by_the_engine():
     base = E.assess(SAMPLES["TC07"]["claim"])["amounts"]["estimated_payable_if_docs_supplied"]
     assert res["baseline"]["estimated"] == base == 122125
     s = r.summary_markdown
-    assert f"Estimated payment ₹1,22,125 → ₹1,72,000" in s and "confirmed today ₹1,01,625 → ₹1,51,500" in s
+    assert "Estimated payment ₹1,22,125 → ₹1,72,000" in s and "confirmed today ₹1,01,625 → ₹1,51,500" in s
     assert "Room rent per day = ₹5,000" in s and "room rate per day = 5000" not in s and "What-if scenario, not the claim as submitted" in s
     assert "room rate per day = 5000" in r.markdown                                 # the full answer keeps its original banner
 

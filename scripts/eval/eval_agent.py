@@ -414,7 +414,7 @@ def write_report(path: Path, runs: list[dict], repeat: int):
     flaky = [i for i in order if 0 < sum(r["ok"] for r in by[i]) < len(by[i])]
     failing = [i for i in order if not any(r["ok"] for r in by[i])]
     total_ok, total = sum(r["ok"] for r in runs), len(runs)
-    md = [f"# Agent evaluation report", "",
+    md = ["# Agent evaluation report", "",
           f"Agent `{settings.agent_name}` · model `{settings.model_deployment}` · retriever `{settings.retriever}` · mode `{settings.agent_mode}` · "
           f"{len(order)} cases × {repeat} run(s) · generated {time.strftime('%Y-%m-%d %H:%M')}", "",
           f"**{passed}/{len(order)} cases passed every run · {total_ok}/{total} runs passed**"

@@ -391,7 +391,7 @@ def _categorise(lines: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------- what the customer is told
 def claim_summary_markdown(claim: dict, missing: list[str]) -> str:
     stay = (datetime.fromisoformat(claim["discharge_datetime"]).date() - datetime.fromisoformat(claim["admission_datetime"]).date()).days
-    out = [f"**Thanks. I've read your documents.** Here's what I understood about your claim.", "",
+    out = ["**Thanks. I've read your documents.** Here's what I understood about your claim.", "",
            f"- **Insured person:** {claim['insured_name']}", f"- **Plan:** {claim['plan']}, sum insured {inr(claim['base_si_lakh'] * 100000)}",
            f"- **Treatment:** {claim['procedure'] or 'Hospital stay'}" + (f" for {claim['diagnosis']}" if claim.get("diagnosis") else ""),
            f"- **Hospital:** {claim.get('hospital') or 'as on your bill'}",
