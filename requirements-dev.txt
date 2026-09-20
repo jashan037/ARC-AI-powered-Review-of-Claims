@@ -1,3 +1,6 @@
-# Optional: browser tests and screenshots (tests/test_e2e_customer.py, scripts/dev/take_screenshots.py). They use the Chrome you already have; no browser download.
+# Tests, browser tests and screenshots. The browser tests use the Chrome that is already installed (no browser download).
 -r requirements.txt
-playwright>=1.45
+pytest==9.1.1
+httpx==0.28.1
+playwright==1.63.0
+# Optional code-quality tools used for the cleanup audit: coverage==7.16.1, vulture==2.16, ruff==0.16.8
