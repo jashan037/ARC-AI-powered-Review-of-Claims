@@ -34,7 +34,7 @@ Start it with `scripts/run_demo.sh` and open **http://127.0.0.1:8765/** (it refu
 4. Tap **Why was my room rent reduced?**, **What documents are missing?**, **Which items are not payable?**. Ask "what's my name": a one-line answer.
 5. **Add a document** works after the first message. To show a problem, upload a bill in another name: ARC says the name does not match the policy and asks for the right document.
 
-Add `?dev=1` to the address to see the live/offline badge and the "How ARC got this answer" panel (tool names, order, ms; never arguments). The earlier separate officer console has been removed; the officer wording still exists in the renderers and in the terminal script below.
+Add `?dev=1` to the address to see the live/offline badge. The "How ARC got this answer" panel (tool names, order, ms; never arguments) also needs the server started with `DEBUG_TRACE=1`; without it the panel says the trace is off. The earlier separate officer console has been removed; the officer wording still exists in the renderers and in the terminal script below.
 
 ## Terminal script (officer wording)
 

@@ -6,14 +6,14 @@ Read this whole file before doing anything. Facts below are as of 20 Sep 2026 (a
 
 A customer uploads health-insurance claim documents (PDF), ARC reads them, builds the claim and answers questions about it, for the public **HDFC ERGO my:Optima Secure** wording (UIN HDFHLIP25041V062425). It uses Azure AI Search (RAG), a Foundry agent with function tools, and grounded, cited answers. **A claims officer always decides**: the wording is "likely", "appears", "flagged for review", never a decision.
 
-Served by FastAPI: **`/` is the customer page** (screen 1 upload and document check, screen 2 chat; short summaries with "Show more"; `?dev=1` adds a badge and a trace panel from `dev.js`). Static files in `app/static`, no build step, no CDN. The earlier officer console was removed; the **officer wording mode stays in the renderers** (19 golden files in `tests/golden` lock it).
+Served by FastAPI: **`/` is the customer page** (screen 1 upload and document check, screen 2 chat; short summaries with "Show more"; `?dev=1` adds a live/offline badge from `dev.js`; the trace panel needs the server to run with `DEBUG_TRACE=1`). Static files in `app/static`, no build step, no CDN. The earlier officer console was removed; the **officer wording mode stays in the renderers** (19 golden files in `tests/golden` lock it).
 
 ## 2. The user and how to work with them
 
 - CS student, **new to Azure**. For portal steps give exact click paths and wait for confirmation.
 - Never ask them to paste keys into chat. Secrets go only into `.env`. Never print, log or commit secrets.
 - Small, reviewable diffs; explain in plain language. Commits: one-line message, no co-author line, only when asked.
-- Keep the tests green (439, all offline; the markdown test needs Node, the browser tests need Playwright with the installed Chrome and skip themselves without them).
+- Keep the tests green (529, all offline; the markdown test needs Node, the browser tests need Playwright with the installed Chrome and skip themselves without them).
 - Ask before any destructive or costly Azure action (deleting an index or agent, changing tiers, creating resources). Do not touch the old index `rag-1789575754829` or the portal agent `claims-adjudication-agent` (v1).
 
 ## 3. Azure resources (all exist and are in use)
@@ -44,7 +44,8 @@ question -> Foundry agent (fresh conversation per turn) -> tools run in the back
 4. Function tools run in the backend loop (`responses.create` -> execute calls -> `function_call_output`). Chat history is kept by the backend and passed as a short text block.
 5. `LocalRetriever` (BM25) and `OfflineAgent` (keyword router) are **test and development only** (`RETRIEVER=local`, `AGENT_MODE=offline`; `tests/conftest.py` forces them). The live app needs `RETRIEVER=azure`, `AGENT_MODE=foundry`.
 6. Retrieval is version-aware (`uin`, `doc_id` on every chunk). Only wording HDFHLIP25041V062425 is indexed. A newer wording (HDFHLIP26058V082526) exists; `tools/chunk_policy.py` refuses it, use `tools/chunk_generic.py`.
-7. Hardening (`app/resilience.py`, `app/observability.py`): timeouts everywhere, 60 s turn deadline, retry of 429/5xx, JSON log per turn without content, clean error bodies, body-size limits.
+7. **Developer detail stays server-side:** `/chat` and `/assess` return no `tool_trace`, `trace_summary`, tool arguments or `chunk_key` unless the server sets `DEBUG_TRACE=1` (default off; no client parameter can enable it). Customer answers use plain names for policy clauses (`app/rendering/customer_labels.py`); the officer wording is locked by the golden files.
+8. Hardening (`app/resilience.py`, `app/observability.py`): timeouts everywhere, 60 s turn deadline, retry of 429/5xx, JSON log per turn without content, clean error bodies, body-size limits.
 
 ## 5. Repo map
 
@@ -68,7 +69,7 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 
 ```bash
 pip install -r requirements-dev.txt          # runtime is requirements.txt (pinned); dev adds pytest, httpx, playwright
-python -m pytest tests -q                    # 439 pass
+python -m pytest tests -q                    # 529 pass
 scripts/run_demo.sh                          # http://127.0.0.1:8765/ (refuses unless .env is azure + foundry)
 python scripts/dev/render_samples.py && python scripts/dev/render_examples.py      # -> demo/examples/
 python scripts/eval/eval_retrieval.py --verbose

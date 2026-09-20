@@ -568,8 +568,8 @@ Blockers or unknowns: whether the student subscription has App Service / Contain
 - **P0-3 No production packaging and a secrets trap.** No Dockerfile, no `.dockerignore`, `.env` in the project root; a container built from the folder would ship both keys.
 
 **P1 (does not match the stated intent, or a real quality problem)**
-- **P1-1 Customer sees officer/internal language** in "Show more" and popups: `Excl01/02/03`, `Annexure B/C`, `C.x.y`, `Def. 5`, "Estimated insurer payment" (evidence 10.3, `render.py`, `compact.py`). CLAUDE.md implies otherwise.
-- **P1-2 `/chat` returns `tool_trace` with tool arguments and `chunk_key` to every caller**; `?dev=1` is not checked server-side (`main.py:250-252`).
+- **P1-1 Customer sees officer/internal language** in "Show more" and popups: `Excl01/02/03`, `Annexure B/C`, `C.x.y`, `Def. 5`, "Estimated insurer payment" (evidence 10.3, `render.py`, `compact.py`). CLAUDE.md implies otherwise. **Fixed 20 Sep 2026** for customer sessions (`app/rendering/customer_labels.py`); the officer wording is unchanged.
+- **P1-2 `/chat` returns `tool_trace` with tool arguments and `chunk_key` to every caller**; `?dev=1` is not checked server-side (`main.py:250-252`). **Fixed 20 Sep 2026**: returned only with `DEBUG_TRACE=1` on the server (default off).
 - **P1-3 Model-written text is officer-voiced for customers** (`instructions.py` line 1; audience not passed to the model). Seen: "Verify the insured's first policy inception date…", lower-case "check the Policy Schedule…".
 - **P1-4 Question "Which items are not payable?" is answered with the room-rent explanation first** (Q4). The customer asked one thing and gets a long six-line calculation before the answer.
 - **P1-5 A chat message after a `needs_attention` result gets an officer-voiced "Insufficient information" answer** (API path; the UI hides the chat, but nothing on the server prevents it).

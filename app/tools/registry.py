@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from ..config import settings
 from ..rendering import render as R
+from ..rendering.customer_labels import customerize_rendered
 from ..rendering.scrub import find as find_internal, officer_texts, scrub_final
 from ..resilience import TurnAbort
 from ..retrieval.base import Chunk, Retriever
@@ -331,6 +332,12 @@ def trace_summary(trace: list) -> list[dict]:
 
 
 def render_final(final: dict, ctx: TurnContext) -> R.Rendered:
+    out = _render(final, ctx)
+    # the officer wording is locked by the golden files; a customer gets plain names instead of Excl codes, annexure letters and clause numbers
+    return customerize_rendered(out) if ctx.session.get("audience", "officer") == "customer" else out
+
+
+def _render(final: dict, ctx: TurnContext) -> R.Rendered:
     final = scrub_final(final)   # last line of defence: no internal identifier reaches the officer, whatever the model wrote
     t, rid, ret = final["answer_type"], final.get("result_id"), ctx.retriever
     aud = ctx.session.get("audience", "officer")

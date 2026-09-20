@@ -67,13 +67,19 @@ def test_the_api_still_answers_json_errors_next_to_the_page():
 
 
 # ---------------------------------------------------------------- the sanitized trace
+def debug_on(monkeypatch):
+    import dataclasses
+    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, debug_trace=True))
+
+
 def _chat(message):
     sid = client.post("/sessions").json()["session_id"]
     client.post(f"/sessions/{sid}/claim", json={"sample_id": "TC07"})
     return client.post(f"/sessions/{sid}/chat", json={"message": message}).json()
 
 
-def test_the_chat_response_has_a_trace_summary_with_only_tool_ok_and_ms():
+def test_with_debug_trace_the_chat_response_has_a_trace_summary_with_only_tool_ok_and_ms(monkeypatch):
+    debug_on(monkeypatch)
     body = _chat("Please assess this claim")
     steps = body["trace_summary"]
     assert steps and all(set(s) == {"tool", "ok", "ms"} for s in steps)
@@ -81,7 +87,8 @@ def test_the_chat_response_has_a_trace_summary_with_only_tool_ok_and_ms():
     assert steps[0]["tool"] == "assess_claim"
 
 
-def test_trace_summary_never_contains_argument_values():
+def test_trace_summary_never_contains_argument_values(monkeypatch):
+    debug_on(monkeypatch)
     body = _chat("Assess it, what if the room rent was 5,000 per day")
     raw = json.dumps(body["tool_trace"])
     assert "room_rate_per_day" in raw and "5000" in raw                              # the raw developer trace does carry the arguments ...

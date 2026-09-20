@@ -25,12 +25,12 @@ FORBIDDEN = re.compile(r"\b(tools?|traces?|tracing|chunks?|chunk_keys?|result_id
 RX = ["Doctor's Prescription", "Patient", "Rohan Verma, 28 years, male", "Rx: Ceftriaxone injection, Metronidazole IV, Pantoprazole injection"]
 
 
-@pytest.fixture(scope="module")
-def base():
+def serve(extra_env=None):
+    """Start the app with the offline agent on a free port and yield its URL; stop it afterwards."""
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    env = dict(os.environ, RETRIEVER="local", AGENT_MODE="offline", CORS_ORIGINS="")
+    env = {**os.environ, "RETRIEVER": "local", "AGENT_MODE": "offline", "CORS_ORIGINS": "", "DEBUG_TRACE": "0", **(extra_env or {})}
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--port", str(port), "--log-level", "warning"], cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     url = f"http://127.0.0.1:{port}"
@@ -46,6 +46,17 @@ def base():
     yield url
     proc.terminate()
     proc.wait(timeout=10)
+
+
+@pytest.fixture(scope="module")
+def base():
+    yield from serve()
+
+
+@pytest.fixture(scope="module")
+def base_debug():
+    """A server started with DEBUG_TRACE=1: the only kind that sends the developer trace."""
+    yield from serve({"DEBUG_TRACE": "1"})
 
 
 @pytest.fixture(scope="module")
@@ -238,7 +249,7 @@ def test_an_answer_is_a_short_summary_and_show_more_opens_the_details(page, base
     expect(answer.get_by_text("Room rent working")).to_be_visible()
     expect(answer.get_by_text("Documents (8 of 9 complete)")).to_be_visible()
     expect(answer.get_by_text("Policy references")).to_be_visible()
-    chip = answer.get_by_role("button", name="B.1.1.1 Note iii p.12")
+    chip = answer.get_by_role("button", name="Policy rule: room rent p.12")
     quote = answer.locator(".ref-quote").nth(2)
     expect(quote).to_be_hidden()
     chip.click()
@@ -423,8 +434,8 @@ def test_no_developer_words_appear_anywhere_in_a_normal_visit(page, base, tmp_pa
     assert page.locator("script[src*='dev']").count() == 0 and page.evaluate("typeof window.ARCDev") == "undefined"
 
 
-def test_dev_mode_adds_the_badge_the_banner_and_the_trace_panel(page, base):
-    page.goto(base + "/?dev=1")
+def test_dev_mode_adds_the_badge_the_banner_and_the_trace_panel(page, base_debug):
+    page.goto(base_debug + "/?dev=1")
     badge = page.locator(".dev-badge")
     expect(badge).to_have_text("Offline stand-in")                                   # the test server runs the offline agent
     expect(page.locator(".dev-banner")).to_contain_text("not the real ARC agent")
@@ -441,6 +452,20 @@ def test_dev_mode_adds_the_badge_the_banner_and_the_trace_panel(page, base):
     expect(trace).to_contain_text("Arguments are never shown.")
     text = trace.inner_text()
     assert "what_if" not in text and "room_rate" not in text and re.search(r"\d+ ms", text)     # tool name, ok, milliseconds only
+
+
+def test_dev_mode_alone_shows_no_trace_because_the_server_does_not_send_it(page, base):
+    page.goto(base + "/?dev=1")                                                      # ?dev=1 only loads the badge; it cannot switch the trace on
+    expect(page.locator(".dev-badge")).to_have_text("Offline stand-in")
+    page.click("#use-sample")
+    expect(page.locator("#ready")).to_be_visible()
+    page.click("#continue")
+    page.get_by_role("button", name="How much will be paid?").click()
+    trace = page.locator(".dev-trace")
+    expect(trace).to_have_count(1)
+    trace.locator("summary").click()
+    expect(trace).to_contain_text("The trace is off on this server")
+    assert "assess_claim" not in trace.inner_text() and not re.search(r"\d+ ms", trace.inner_text())
 
 
 # ---------------------------------------------------------------- layout

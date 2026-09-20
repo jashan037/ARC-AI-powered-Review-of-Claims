@@ -1,6 +1,7 @@
 /* Developer extras for the customer page. Loaded ONLY with ?dev=1 (see customer.js). Not part of what a customer sees.
  * - a live / offline badge from GET /health, with a warning banner when the offline stand-in is answering
- * - under each answer, a collapsed "How ARC got this answer" panel from the sanitized trace_summary field (tool name, ok, milliseconds; never arguments) */
+ * - under each answer, a collapsed "How ARC got this answer" panel from the sanitized trace_summary field (tool name, ok, milliseconds; never arguments).
+ *   The server includes that field only when it runs with DEBUG_TRACE=1; ?dev=1 in the address changes nothing on the server. */
 (function () {
   "use strict";
   var css = document.createElement("link");
@@ -34,11 +35,13 @@
   }, function () { badge.className = "dev-badge dev-down"; badge.textContent = "Server unreachable"; });
 
   document.addEventListener("arc:answer", function (e) {
+    var traced = e.detail.data.trace_summary !== undefined;   // the server sends it only when it was started with DEBUG_TRACE=1
     var steps = e.detail.data.trace_summary || [];
     var d = h("details", "dev-trace");
     d.appendChild(h("summary", null, "How ARC got this answer"));
     var body = h("div", "dev-body");
-    body.appendChild(h("p", null, steps.length ? "The tools ARC used, in order. Arguments are never shown." : "ARC used no tools for this answer."));
+    body.appendChild(h("p", null, !traced ? "The trace is off on this server. Start it with DEBUG_TRACE=1 to see the tools ARC used." :
+      steps.length ? "The tools ARC used, in order. Arguments are never shown." : "ARC used no tools for this answer."));
     if (steps.length) {
       var ol = h("ol", "dev-list");
       steps.forEach(function (s, i) {

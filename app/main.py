@@ -129,6 +129,11 @@ def _session(sid: str) -> dict:
     return SESSIONS[sid]
 
 
+def _public_citations(citations: list[dict]) -> list[dict]:
+    """What a caller may see of each citation: label, clause, citation text and excerpt. The internal chunk_key only with DEBUG_TRACE=1."""
+    return citations if settings.debug_trace else [{k: v for k, v in c.items() if k != "chunk_key"} for c in citations]
+
+
 def _summary(c: dict) -> dict:
     return dict(claim_id=c["claim_id"], insured=c.get("insured_name"), plan=c["plan"], diagnosis=c.get("diagnosis"), procedure=c.get("procedure"),
                 admission=c["admission_datetime"], discharge=c["discharge_datetime"], claimed_amount=c.get("claimed_amount"), policy_uin=c.get("policy_uin"))
@@ -239,11 +244,13 @@ def chat(sid: str, body: ChatIn):
     if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the officer will simply ask again
         headline = (result.final or {}).get("headline") or next((l.strip("# ").strip() for l in result.markdown.splitlines() if l.strip()), "")
         s["history"].append(dict(user=body.message, answer_type=result.answer_type, headline=headline))
-    return dict(session_id=sid, status=result.status, answer_type=result.answer_type, answer_markdown=result.markdown,
-                summary_markdown=result.summary_markdown or result.markdown, sections=result.sections, citations=result.citations,
-                suggestions=intake.suggestions(s.get("claim"), [h["user"] for h in s["history"]]),
-                trace_summary=trace_summary(result.trace),      # tool, ok, ms only: the one field a screen should use
-                tool_trace=result.trace)                        # developer detail, includes tool arguments: do not show it to officers
+    out = dict(session_id=sid, status=result.status, answer_type=result.answer_type, answer_markdown=result.markdown,
+               summary_markdown=result.summary_markdown or result.markdown, sections=result.sections, citations=_public_citations(result.citations),
+               suggestions=intake.suggestions(s.get("claim"), [h["user"] for h in s["history"]]))
+    if settings.debug_trace:   # developer detail only when the server was started with DEBUG_TRACE=1; nothing the caller sends can switch it on
+        out.update(trace_summary=trace_summary(result.trace),   # tool, ok, ms only
+                   tool_trace=result.trace)                     # includes tool arguments
+    return out
 
 
 @app.post("/assess")
@@ -261,4 +268,4 @@ def assess_stateless(body: ClaimIn):
     res = E.assess(claim)
     rendered = render_claim_assessment(res, get_retriever())
     return dict(recommendation=res["recommendation"], amounts=res["amounts"], answer_markdown=rendered.markdown,
-                summary_markdown=rendered.summary_markdown, sections=rendered.sections, citations=rendered.citations)
+                summary_markdown=rendered.summary_markdown, sections=rendered.sections, citations=_public_citations(rendered.citations))
