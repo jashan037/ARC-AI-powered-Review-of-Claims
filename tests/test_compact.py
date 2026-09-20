@@ -42,7 +42,7 @@ def key(ctx, ref):
 def test_answer_markdown_is_byte_for_byte_unchanged(tmp_path):
     """The 19 golden answers were saved before the compact fields existed. Any change to the full answer must be a deliberate update of tests/golden."""
     for script in ("render_samples.py", "render_examples.py"):
-        p = subprocess.run([sys.executable, str(ROOT / "scripts" / script), str(tmp_path)], capture_output=True, text=True, cwd=ROOT, timeout=120)
+        p = subprocess.run([sys.executable, str(ROOT / "scripts" / "dev" / script), str(tmp_path)], capture_output=True, text=True, cwd=ROOT, timeout=120)
         assert p.returncode == 0, p.stderr
     golden = {f.name: f.read_text(encoding="utf-8") for f in (ROOT / "tests" / "golden" / "answers").glob("*.md")}
     assert len(golden) == 19

@@ -1,14 +1,14 @@
 """Retrieval quality on data/rag_eval_questions.json.
 
-    python scripts/eval_retrieval.py                     # local BM25 baseline (no Azure)
-    RETRIEVER=azure python scripts/eval_retrieval.py     # your Azure AI Search index
+    python scripts/eval/eval_retrieval.py                     # local BM25 baseline (no Azure)
+    RETRIEVER=azure python scripts/eval/eval_retrieval.py     # your Azure AI Search index
 
 Reports hit@k (any expected chunk in the top k), full recall@k (all of them), MRR, and the top score
 for unanswerable questions so you can choose an abstention threshold.
 """
 import argparse, json, statistics, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from app.config import settings
 from app.retrieval.azure_search import get_retriever
 

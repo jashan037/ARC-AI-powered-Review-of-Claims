@@ -26,7 +26,7 @@ Scope right now: **backend plus two small web pages**, static files in `app/stat
 | Foundry | Project on resource `claims-agent-project-res` (Korea Central). Portal-made agent `claims-adjudication-agent` (v1, worked in the playground on a knee-replacement question) and a Foundry IQ knowledge base `policy-knowledge-base` pointing at the old index. **Do not modify v1.** |
 | Monitoring | Application Insights and Log Analytics were auto-provisioned with the project. |
 
-Foundry project name: `jashanpreetsingh3999-6322`, project endpoint `https://claims-agent-project-res.services.ai.azure.com/api/projects/jashanpreetsingh3999-6322`. Portal is on **New Foundry**. Deployment names and endpoints are in the user's `.env` (see `.env.example`); `python scripts/check_env.py` validates them. Roles: the user's account needs **Foundry User** (formerly Azure AI User) on the Foundry resource/project to create and run agents. Function tools cannot be added in the portal; they are added with the SDK (`scripts/create_agent.py`).
+Foundry project name: `jashanpreetsingh3999-6322`, project endpoint `https://claims-agent-project-res.services.ai.azure.com/api/projects/jashanpreetsingh3999-6322`. Portal is on **New Foundry**. Deployment names and endpoints are in the user's `.env` (see `.env.example`); `python scripts/setup/check_env.py` validates them. Roles: the user's account needs **Foundry User** (formerly Azure AI User) on the Foundry resource/project to create and run agents. Function tools cannot be added in the portal; they are added with the SDK (`scripts/setup/create_agent.py`).
 
 ## 4. Architecture and the decisions behind it
 
@@ -43,7 +43,7 @@ question (+ claim loaded in session)
 
 Decisions (do not undo without a strong reason):
 
-1. **New index `claims-kb-v2`**, not the wizard index. Needs clause-level chunks with `chunk_id`, `chunk_key`, `uin`, `citation`, page. Built from `data/policy_clauses.jsonl` (186 chunks) by `scripts/upload_chunks.py`, with embeddings computed in the backend.
+1. **New index `claims-kb-v2`**, not the wizard index. Needs clause-level chunks with `chunk_id`, `chunk_key`, `uin`, `citation`, page. Built from `data/policy_clauses.jsonl` (186 chunks) by `scripts/setup/upload_chunks.py`, with embeddings computed in the backend.
 2. **The LLM never computes dates or money.** Deterministic Python does. Claim numbers reach the answer only through tool results (`result_id`).
 3. **The agent must finish every turn with `final_answer`.** The backend validates it (citations must be `chunk_key`s returned by tools **in that same turn**; claim answer types need a `result_id`), lets the model retry twice, then strips unverifiable citations and adds a caveat. The backend renders the Markdown itself, so the format is exact.
 4. **Function tools run in the backend**, in a loop: `responses.create` -> execute `function_call` items -> send `function_call_output` -> repeat. A **fresh conversation per turn**; the backend keeps chat history and passes a short summary. This avoids dangling tool calls. Runs expire after 10 minutes.
@@ -85,15 +85,15 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 ```bash
 pip install -r requirements.txt      # add --pre if azure-ai-projects 2.x is only available as a pre-release
 python -m pytest tests -q            # 30 must pass
-python scripts/render_samples.py && python scripts/render_examples.py
-python scripts/eval_retrieval.py --verbose
-python scripts/chat_cli.py --claim TC07
+python scripts/dev/render_samples.py && python scripts/dev/render_examples.py
+python scripts/eval/eval_retrieval.py --verbose
+python scripts/dev/chat_cli.py --claim TC07
 uvicorn app.main:app --reload
 # Azure (needs .env filled, az login, Foundry User role):
-python scripts/create_index.py && python scripts/upload_chunks.py
-RETRIEVER=azure python scripts/eval_retrieval.py --verbose
-python scripts/create_agent.py
-RETRIEVER=azure AGENT_MODE=foundry python scripts/chat_cli.py --claim TC07
+python scripts/setup/create_index.py && python scripts/setup/upload_chunks.py
+RETRIEVER=azure python scripts/eval/eval_retrieval.py --verbose
+python scripts/setup/create_agent.py
+RETRIEVER=azure AGENT_MODE=foundry python scripts/dev/chat_cli.py --claim TC07
 # Rebuild chunks from the PDF:
 python tools/chunk_policy.py reference/policy/optima-secure-HDFHLIP25041V062425.pdf --uin HDFHLIP25041V062425 --doc-id optima-secure-v062425 --out data/policy_clauses.jsonl
 ```
@@ -138,7 +138,7 @@ Things to check first on real Azure:
 1. **Environment.** venv, install, `.env` from `.env.example`, tests pass. *Done when* `pytest` shows 30 passed.
 2. **Azure wiring, retrieval.** Create index, upload 186 chunks, run `eval_retrieval.py` with `RETRIEVER=azure`. *Done when* the index shows 186 documents, Search explorer returns results, and hit@5 is at least the local baseline (investigate every MISS).
 3. **Azure wiring, agent.** Create agent v2, run `chat_cli.py --claim TC07` with the real agent. *Done when* "assess this claim" returns the formatted assessment with 1,22,125 and 1,01,625, and the trace is `assess_claim > final_answer`.
-4. **Agent-level evaluation. Done** (`scripts/eval_agent.py`, report in `examples/eval_report.md`, transcripts of failed or retried runs in `examples/eval_failures/`; agent v3: 28 cases x 3 runs all passed). **Demo script** in `docs/DEMO.md`, re-verified with `scripts/demo_check.py`. Original brief: Write `scripts/eval_agent.py`: run all 12 samples ("assess this claim") and a set of coverage/waiting/definition/unanswerable questions through the real agent; check recommendation, amounts, citations exist, `final_answer` was accepted; report a table. Include the user's earlier test: "Is knee replacement covered and what is the waiting period?" (expect: joint replacement on the specified list, 24 months, accident exception, PED longer period, cited to C.1.b/C.1.a).
+4. **Agent-level evaluation. Done** (`scripts/eval/eval_agent.py`, report in `examples/eval_report.md`, transcripts of failed or retried runs in `examples/eval_failures/`; agent v3: 28 cases x 3 runs all passed). **Demo script** in `docs/DEMO.md`, re-verified with `scripts/eval/demo_check.py`. Original brief: Write `scripts/eval/eval_agent.py`: run all 12 samples ("assess this claim") and a set of coverage/waiting/definition/unanswerable questions through the real agent; check recommendation, amounts, citations exist, `final_answer` was accepted; report a table. Include the user's earlier test: "Is knee replacement covered and what is the waiting period?" (expect: joint replacement on the specified list, 24 months, accident exception, PED longer period, cited to C.1.b/C.1.a).
 5. **Hardening. Done.** `app/resilience.py`: every Azure call has a timeout, a chat turn has a 60 s deadline (`TURN_DEADLINE_S`), 429 and transient 5xx are retried with capped exponential backoff (honours Retry-After), and a timeout or exhausted retries gives a "please try again" answer with `status` `timeout` | `unavailable` (`AgentResult.status`, also in the `/chat` response). Model calls are never retried after a read timeout (the request may still be running). The SDK defaults (openai: 10 min timeout, 2 silent retries; azure-core: 10 retries) are switched off in favour of this. `app/observability.py`: one JSON log line per turn (tools, ms, answer type, status, latency, retries; never the question, claim data or secrets). API: clean `{"error": {"code", "message"}}` bodies, no stack traces, 413 above `MAX_REQUEST_BYTES`, CORS only for `CORS_ORIGINS`. Known limit: 3 parallel evaluation workers hit the gpt-5-mini quota (429); raise the deployment's tokens-per-minute in Foundry if that matters.
 6. **IRDAI non-payable list** as a table (ask the user for the PDF: Annexure A of IRDAI's 2020 standardization guidelines, or the current master circular annexure). Extend `lookup_non_medical_item` and the bill analysis with the four groups (non-payable vs subsumed into room/procedure/treatment costs). Add tests.
 7. **2026 wording support.** Adapt `chunk_policy.py` (or improve the generic chunker), index it with `--uin HDFHLIP26058V082526 --effective-from 2026-04-02`, make the engine honour differences (utilization order, Protect Benefit only if in schedule, Infinite Benefit). Test that a claim with each UIN retrieves only its own wording.

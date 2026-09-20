@@ -1,10 +1,10 @@
 """Create the clause-level search index (run once). Free tier allows 3 indexes; this is your second.
 
-    python scripts/create_index.py            # creates or updates claims-kb-v2
+    python scripts/setup/create_index.py            # creates or updates claims-kb-v2
 """
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents.indexes import SearchIndexClient

@@ -1,11 +1,11 @@
 """Embed and upload chunk files.
 
-    python scripts/upload_chunks.py                                   # data/policy_clauses.jsonl
-    python scripts/upload_chunks.py path/to/other_chunks.jsonl ...    # e.g. kb/chunks/all_chunks.jsonl from the KB pack
+    python scripts/setup/upload_chunks.py                                   # data/policy_clauses.jsonl
+    python scripts/setup/upload_chunks.py path/to/other_chunks.jsonl ...    # e.g. kb/chunks/all_chunks.jsonl from the KB pack
 """
 import hashlib, json, re, sys, time
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
@@ -47,4 +47,4 @@ for i in range(0, len(docs), BATCH):
     if failed:
         raise SystemExit(f"Upload failed for {len(failed)} documents, first: {failed[0].key} {failed[0].error_message}")
     print(f"uploaded {min(i + BATCH, len(docs))}/{len(docs)}")
-print("Done. Give the index a few seconds, then run: RETRIEVER=azure python scripts/eval_retrieval.py")
+print("Done. Give the index a few seconds, then run: RETRIEVER=azure python scripts/eval/eval_retrieval.py")

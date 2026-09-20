@@ -1,9 +1,9 @@
 """Agent-level evaluation: real agent, real tools, real index.
 
-    RETRIEVER=azure AGENT_MODE=foundry python scripts/eval_agent.py                # everything once
-    RETRIEVER=azure AGENT_MODE=foundry python scripts/eval_agent.py --repeat 3     # run each case 3 times to find flaky ones
-    python scripts/eval_agent.py --only TC07,Q01 --verbose                         # a few cases, show the answers
-    python scripts/eval_agent.py --offline                                         # harness self-check with the keyword stand-in (no Azure, no cost)
+    RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/eval_agent.py                # everything once
+    RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/eval_agent.py --repeat 3     # run each case 3 times to find flaky ones
+    python scripts/eval/eval_agent.py --only TC07,Q01 --verbose                         # a few cases, show the answers
+    python scripts/eval/eval_agent.py --offline                                         # harness self-check with the keyword stand-in (no Azure, no cost)
 
 Two suites:
   claims     the 12 sample claims, message "Assess this claim". Checked against the hand-derived `expected` block in
@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.agent.runner import get_agent  # noqa: E402
@@ -448,9 +448,9 @@ def main():
     ap.add_argument("--offline", action="store_true", help="harness self-check with the keyword stand-in agent (needs RETRIEVER=local AGENT_MODE=offline); not a measure of the real agent")
     args = ap.parse_args()
     if args.offline and settings.agent_mode != "offline":
-        sys.exit("--offline needs the stand-in agent: run  RETRIEVER=local AGENT_MODE=offline python scripts/eval_agent.py --offline")
+        sys.exit("--offline needs the stand-in agent: run  RETRIEVER=local AGENT_MODE=offline python scripts/eval/eval_agent.py --offline")
     if not args.offline and (settings.agent_mode != "foundry" or settings.retriever != "azure"):
-        sys.exit("Run against the real agent with  RETRIEVER=azure AGENT_MODE=foundry python scripts/eval_agent.py")
+        sys.exit("Run against the real agent with  RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/eval_agent.py")
 
     only = set(args.only.split(",")) if args.only else None
     cases = []

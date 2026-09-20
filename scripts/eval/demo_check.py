@@ -1,7 +1,7 @@
 """Runs the 8 steps of docs/DEMO.md through the real agent, in the same sessions the demo uses, and checks the key numbers and citations.
 
-    RETRIEVER=azure AGENT_MODE=foundry python scripts/demo_check.py            # run it before you present
-    RETRIEVER=azure AGENT_MODE=foundry python scripts/demo_check.py --show 4   # also print the full answer of step 4
+    RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py            # run it before you present
+    RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py --show 4   # also print the full answer of step 4
 
 Steps 1 to 3 share one session with no claim; steps 4 to 7 share one session with TC07 loaded (so the follow-ups use chat history, as in the
 demo); step 8 is a fresh session with TC02. Nothing here changes Azure. Numbers are what the deterministic engine produced, not the model.
@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.agent.runner import get_agent  # noqa: E402
@@ -59,7 +59,7 @@ def main():
     ap.add_argument("--show", type=int, action="append", default=[], help="print the full answer of this step number (repeatable)")
     args = ap.parse_args()
     if settings.agent_mode != "foundry" or settings.retriever != "azure":
-        sys.exit("Run against the real agent with  RETRIEVER=azure AGENT_MODE=foundry python scripts/demo_check.py")
+        sys.exit("Run against the real agent with  RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py")
     from app.observability import configure_logging
     configure_logging()
     agent, sessions, bad, total = get_agent(), {}, 0, 0.0

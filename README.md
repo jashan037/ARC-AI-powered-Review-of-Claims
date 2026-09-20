@@ -23,24 +23,24 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 pip install -r requirements.txt
 cp .env.example .env
 python -m pytest tests -q                       # 445 tests, all offline (browser tests need: pip install -r requirements-dev.txt)
-python scripts/render_samples.py                # 12 claim assessments -> examples/
-python scripts/render_examples.py               # one example per answer type -> examples/
-python scripts/eval_retrieval.py --verbose      # keyword baseline on the 19 questions
-python scripts/chat_cli.py --claim TC07         # try it in the terminal (follows RETRIEVER / AGENT_MODE in .env; .env.example = offline stand-in)
+python scripts/dev/render_samples.py                # 12 claim assessments -> examples/
+python scripts/dev/render_examples.py               # one example per answer type -> examples/
+python scripts/eval/eval_retrieval.py --verbose      # keyword baseline on the 19 questions
+python scripts/dev/chat_cli.py --claim TC07         # try it in the terminal (follows RETRIEVER / AGENT_MODE in .env; .env.example = offline stand-in)
 scripts/run_demo.sh                             # the demo: customer page at http://127.0.0.1:8765/ (refuses to start unless .env is azure + foundry)
 uvicorn app.main:app --reload                   # dev: customer page at / , officer console at /officer , API docs at /docs (add ?dev=1 for the badge and trace panel)
-python scripts/take_screenshots.py              # Playwright screenshots of both customer screens into docs/screenshots/
+python scripts/dev/take_screenshots.py              # Playwright screenshots of both customer screens into docs/screenshots/
 ```
 
 ## Connect it to Azure
 
 ```bash
 # fill .env (endpoints, keys, project endpoint), then:
-python scripts/create_index.py                  # 1. new clause-level index (claims-kb-v2)
-python scripts/upload_chunks.py                 # 2. embed + upload data/policy_clauses.jsonl
-RETRIEVER=azure python scripts/eval_retrieval.py --verbose   # 3. compare with the baseline
-az login && python scripts/create_agent.py      # 4. agent with function tools (SDK only; the portal cannot add them)
-RETRIEVER=azure AGENT_MODE=foundry python scripts/chat_cli.py --claim TC07   # 5. real agent in the terminal
+python scripts/setup/create_index.py                  # 1. new clause-level index (claims-kb-v2)
+python scripts/setup/upload_chunks.py                 # 2. embed + upload data/policy_clauses.jsonl
+RETRIEVER=azure python scripts/eval/eval_retrieval.py --verbose   # 3. compare with the baseline
+az login && python scripts/setup/create_agent.py      # 4. agent with function tools (SDK only; the portal cannot add them)
+RETRIEVER=azure AGENT_MODE=foundry python scripts/dev/chat_cli.py --claim TC07   # 5. real agent in the terminal
 RETRIEVER=azure AGENT_MODE=foundry uvicorn app.main:app --reload            # 6. API
 ```
 

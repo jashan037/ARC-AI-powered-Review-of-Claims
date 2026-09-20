@@ -1,13 +1,13 @@
 """Check .env before touching Azure.
 
-    python scripts/check_env.py            # format checks, then live checks (Search, embeddings, Foundry)
-    python scripts/check_env.py --offline  # format checks only
+    python scripts/setup/check_env.py            # format checks, then live checks (Search, embeddings, Foundry)
+    python scripts/setup/check_env.py --offline  # format checks only
 
 Never prints secret values.
 """
 import re, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from app.config import settings as s
 
 problems = []

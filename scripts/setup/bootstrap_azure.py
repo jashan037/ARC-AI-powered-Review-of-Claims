@@ -2,11 +2,11 @@
 """Discover your Azure settings with the Azure CLI, write .env, and (optionally) run the whole setup.
 
     az login                                        # once, with the account that owns the project
-    python scripts/bootstrap_azure.py env --dry-run # show what it found (secrets masked), change nothing
-    python scripts/bootstrap_azure.py env           # write .env (old one saved as .env.bak)
-    python scripts/bootstrap_azure.py role          # check the Foundry User role, offer to assign it
-    python scripts/bootstrap_azure.py all           # env, role, check_env, index, upload, eval, agent, smoke test
-    python scripts/bootstrap_azure.py selftest      # tests the parsing logic with fake `az` output (no Azure needed)
+    python scripts/setup/bootstrap_azure.py env --dry-run # show what it found (secrets masked), change nothing
+    python scripts/setup/bootstrap_azure.py env           # write .env (old one saved as .env.bak)
+    python scripts/setup/bootstrap_azure.py role          # check the Foundry User role, offer to assign it
+    python scripts/setup/bootstrap_azure.py all           # env, role, check_env, index, upload, eval, agent, smoke test
+    python scripts/setup/bootstrap_azure.py selftest      # tests the parsing logic with fake `az` output (no Azure needed)
 
 Secrets are written only to .env (which is git-ignored) and are never printed in full.
 Written from the documented `az` command shapes and NOT yet run against your subscription:
@@ -24,7 +24,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 # "Azure AI User", now renamed "Foundry User". Role IDs are unchanged by the rename.
 FOUNDRY_USER_ROLE_ID = "53ca6127-db72-4e31-b599-04dc5da150b4"
 SECRET_KEYS = {"AZURE_SEARCH_KEY", "AZURE_OPENAI_KEY"}
@@ -219,7 +219,7 @@ def cmd_role(args, found=None) -> str:
 # ------------------------------------------------------------------ the whole setup
 def run_script(name: str, extra_env: dict | None = None, capture: bool = False):
     env = {**os.environ, **(extra_env or {})}
-    return subprocess.run([sys.executable, str(ROOT / "scripts" / name)], cwd=ROOT, env=env, capture_output=capture, text=True)
+    return subprocess.run([sys.executable, str(ROOT / "scripts" / ("eval" if name.startswith("eval_") else "setup") / name)], cwd=ROOT, env=env, capture_output=capture, text=True)
 
 
 def smoke_test() -> bool:

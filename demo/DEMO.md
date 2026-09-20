@@ -2,23 +2,23 @@
 
 **One sentence for the audience:** an AI assistant that answers policy questions with exact clause citations and assesses a claim in a fixed layout, while every number comes from code and the claims officer always decides.
 
-**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, version 5, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/demo_check.py` after the last change (129 s of total agent time; 14 to 21 seconds per answer), so talk while it works.
+**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, version 5, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/eval/demo_check.py` after the last change (129 s of total agent time; 14 to 21 seconds per answer), so talk while it works.
 
 ## Before you start (2 minutes, do it beforehand)
 
 ```bash
 az login                       # same account as the subscription, if your session expired
 source .venv/bin/activate
-RETRIEVER=azure AGENT_MODE=foundry python scripts/demo_check.py     # about 3 minutes; you want "8/8 steps passed"
+RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py     # about 3 minutes; you want "8/8 steps passed"
 ```
 
 Open three terminals in the repo folder, each with the real agent switched on (the prefix is redundant while `.env` says `azure` and `foundry`, and protects you if it does not):
 
 | Terminal | Command | Used for |
 |---|---|---|
-| A | `RETRIEVER=azure AGENT_MODE=foundry python scripts/chat_cli.py` | steps 1 to 3 (no claim loaded) |
-| B | `RETRIEVER=azure AGENT_MODE=foundry python scripts/chat_cli.py --claim TC07` | steps 4 to 7 (the demo claim) |
-| C | `RETRIEVER=azure AGENT_MODE=foundry python scripts/chat_cli.py --claim TC02` | step 8 |
+| A | `RETRIEVER=azure AGENT_MODE=foundry python scripts/dev/chat_cli.py` | steps 1 to 3 (no claim loaded) |
+| B | `RETRIEVER=azure AGENT_MODE=foundry python scripts/dev/chat_cli.py --claim TC07` | steps 4 to 7 (the demo claim) |
+| C | `RETRIEVER=azure AGENT_MODE=foundry python scripts/dev/chat_cli.py --claim TC02` | step 8 |
 
 After each answer the CLI prints `[tools: ...]`, the tools the agent called. Point at it: for a claim it is always `assess_claim > final_answer`, so the numbers came from the engine.
 
@@ -48,7 +48,7 @@ The model chooses tools and writes the explanation. Python does all dates and mo
 
 - **"This is taking longer than expected" or "temporarily unavailable"** is the timeout and rate-limit path working as designed (60-second turn deadline). Nothing was assessed. Just ask again. The gpt-5-mini deployment has a small per-minute quota, so do not rush the steps.
 - **A sentence is worded differently from this script.** Expected. Check the numbers and citations, not the prose.
-- **No internet or Azure problem.** Show the saved outputs instead: `examples/TC07_demo_claim_prescription_missing.md` (step 4), `examples/Q_why_room_rent_deducted.md` (step 5), `examples/Q_whatif_protect_benefit.md` (a what-if), `examples/TC02_30-day_waiting_period_not_met.md` (step 8). `RETRIEVER=local AGENT_MODE=offline python scripts/chat_cli.py --claim TC07` runs the offline stand-in, which is a keyword router and not the real agent, so say so if you use it. (Your `.env` currently selects the real agent, so the prefix matters.)
+- **No internet or Azure problem.** Show the saved outputs instead: `examples/TC07_demo_claim_prescription_missing.md` (step 4), `examples/Q_why_room_rent_deducted.md` (step 5), `examples/Q_whatif_protect_benefit.md` (a what-if), `examples/TC02_30-day_waiting_period_not_met.md` (step 8). `RETRIEVER=local AGENT_MODE=offline python scripts/dev/chat_cli.py --claim TC07` runs the offline stand-in, which is a keyword router and not the real agent, so say so if you use it. (Your `.env` currently selects the real agent, so the prefix matters.)
 
 ## Known rough edges (say them before someone asks)
 
@@ -61,4 +61,4 @@ The model chooses tools and writes the explanation. Python does all dates and mo
 
 ## Re-verifying the script
 
-`RETRIEVER=azure AGENT_MODE=foundry python scripts/demo_check.py --show 4` runs these exact 8 steps in the same sessions and checks the numbers and citations above, printing the full answer of any step you list with `--show`. If the agent's prompt or the policy index changes, run it again and update this file.
+`RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py --show 4` runs these exact 8 steps in the same sessions and checks the numbers and citations above, printing the full answer of any step you list with `--show`. If the agent's prompt or the policy index changes, run it again and update this file.

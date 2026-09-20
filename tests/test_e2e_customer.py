@@ -14,7 +14,7 @@ import pytest
 
 from app.config import ROOT
 from app.intake import MAX_FILE_BYTES
-from tests.pdfmaker import edit, make_pdf
+from tests.helpers.pdfmaker import edit, make_pdf
 
 pw = pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect, sync_playwright  # noqa: E402

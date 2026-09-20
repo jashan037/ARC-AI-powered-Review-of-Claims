@@ -8,7 +8,7 @@ from app import intake as I
 from app import main
 from app.config import settings
 from app.observability import JsonFormatter
-from tests.pdfmaker import edit, make_pdf
+from tests.helpers.pdfmaker import edit, make_pdf
 
 client = TestClient(main.app, raise_server_exceptions=False)
 FILES = dict(I.sample_files())

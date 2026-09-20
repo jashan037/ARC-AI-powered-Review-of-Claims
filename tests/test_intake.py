@@ -8,7 +8,7 @@ from pypdf import PdfWriter
 from app import intake as I
 from app.config import ROOT, settings
 from app.tools import claims_engine as E
-from tests.pdfmaker import edit, make_pdf
+from tests.helpers.pdfmaker import edit, make_pdf
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
 MANIFEST = json.load(open(ROOT / "demo" / "documents" / "manifest.json", encoding="utf-8"))

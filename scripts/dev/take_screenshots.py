@@ -2,8 +2,8 @@
 """Playwright screenshots of the customer page: both screens, in a real browser (the Chrome that is already installed).
 
     scripts/run_demo.sh                                       # one terminal: the app on port 8765, real agent only
-    python scripts/take_screenshots.py                        # another: writes demo/screenshots/01-...png
-    python scripts/take_screenshots.py --base http://127.0.0.1:8790 --out demo/screenshots
+    python scripts/dev/take_screenshots.py                        # another: writes demo/screenshots/01-...png
+    python scripts/dev/take_screenshots.py --base http://127.0.0.1:8790 --out demo/screenshots
 
 It walks the flow a customer would: empty upload screen, the documents read, a problem with a document, the first chat message, an answer with its
 suggestions, the same answer with "Show more" open, and a phone-sized view. Like the demo script it refuses the offline stand-in unless you pass
@@ -16,9 +16,9 @@ import sys
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
-from tests.pdfmaker import edit  # noqa: E402
+from tests.helpers.pdfmaker import edit  # noqa: E402
 
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 

@@ -1,10 +1,10 @@
-"""The failure transcripts written by scripts/eval_agent.py show what happened without leaking tool argument values."""
+"""The failure transcripts written by scripts/eval/eval_agent.py show what happened without leaking tool argument values."""
 import importlib.util
 from types import SimpleNamespace as NS
 
 from app.config import ROOT
 
-spec = importlib.util.spec_from_file_location("eval_agent", ROOT / "scripts" / "eval_agent.py")
+spec = importlib.util.spec_from_file_location("eval_agent", ROOT / "scripts" / "eval" / "eval_agent.py")
 eval_agent = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(eval_agent)
 

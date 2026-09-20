@@ -1,11 +1,11 @@
 """Talk to the agent from the terminal, using exactly the code path the API uses.
 
-    python scripts/chat_cli.py --claim TC07
-    AGENT_MODE=foundry RETRIEVER=azure python scripts/chat_cli.py --claim TC07
+    python scripts/dev/chat_cli.py --claim TC07
+    AGENT_MODE=foundry RETRIEVER=azure python scripts/dev/chat_cli.py --claim TC07
 """
 import argparse, json, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from app.agent.runner import get_agent
 from app.config import settings
 

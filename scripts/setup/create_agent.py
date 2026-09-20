@@ -1,13 +1,13 @@
 """Create (or add a new version of) the tool-using agent in your Foundry project.
 
-    python scripts/create_agent.py
+    python scripts/setup/create_agent.py
 
 Function tools cannot be added in the Foundry portal, only through the SDK/REST, so this script does it.
 Run it again whenever you change instructions.py or the tool schemas: it creates a new agent version.
 """
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import FunctionTool, PromptAgentDefinition

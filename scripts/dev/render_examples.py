@@ -5,13 +5,13 @@ The final_answer payloads below are written by hand to show what a well-behaved 
 """
 import json, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from app.config import settings
 from app.retrieval.azure_search import get_retriever
 from app.tools.registry import TurnContext, call_tool, render_final
 
 samples = json.load(open(settings.data_dir / "sample_claims.json"))
-out_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "demo" / "examples"   # optional argument: another output folder
+out_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent.parent / "demo" / "examples"   # optional argument: another output folder
 out_dir.mkdir(parents=True, exist_ok=True)
 
 
