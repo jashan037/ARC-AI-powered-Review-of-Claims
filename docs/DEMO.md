@@ -24,6 +24,10 @@ After each answer the CLI prints `[tools: ...]`, the tools the agent called. Poi
 
 Wording of question-and-answer replies changes a little between runs. The claim numbers, the recommendation and the cited clauses do not.
 
+## Or use the web page instead of the terminals
+
+Start the demo with `scripts/run_demo.sh` and open **http://127.0.0.1:8765/**. That is the **customer page**: upload the ten sample documents (or press "Use sample documents"), continue to the chat, and ask the suggested questions. It is a different view of the same agent (see `docs/screenshots/`), with short summaries and a "Show more" button. The 8 steps below are the **officer console**, which is at **http://127.0.0.1:8765/officer**: it has the claim picker, one-click buttons for these same questions (they change with the loaded claim), the live/offline badge and the "How ARC got this answer" panel. For the customer page, add `?dev=1` to see the same badge and panel.
+
 ## The 8 steps
 
 | # | Terminal | You type | What the audience should see | Key numbers and citations |

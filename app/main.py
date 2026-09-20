@@ -2,21 +2,27 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import intake
 from .agent.runner import get_agent
 from .config import settings
 from .observability import configure_logging
 from .retrieval.azure_search import get_retriever
 from .rendering.render import render_claim_assessment
 from .tools import claims_engine as E
+from .tools.registry import trace_summary
 
 configure_logging()
 log = logging.getLogger("claims.api")
@@ -31,15 +37,16 @@ class BodyLimitMiddleware:
         # not an Exception on purpose: FastAPI turns any Exception raised while reading the body into a generic 400
         pass
 
-    def __init__(self, app, max_bytes: int):
-        self.app, self.max_bytes = app, max_bytes
+    def __init__(self, app, max_bytes: int, upload_bytes: int | None = None):
+        self.app, self.max_bytes, self.upload_bytes = app, max_bytes, upload_bytes or max_bytes
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        limit = self.upload_bytes if scope["path"].endswith("/documents") else self.max_bytes    # only document uploads may be large
         length = dict(scope["headers"]).get(b"content-length")
-        if length is not None and (not length.isdigit() or int(length) > self.max_bytes):
-            return await self._reject(send)
+        if length is not None and (not length.isdigit() or int(length) > limit):
+            return await self._reject(send, limit)
         received, started = 0, False
 
         async def limited_receive():
@@ -47,7 +54,7 @@ class BodyLimitMiddleware:
             msg = await receive()
             if msg["type"] == "http.request":
                 received += len(msg.get("body", b""))
-                if received > self.max_bytes:
+                if received > limit:
                     raise self._TooLarge()
             return msg
 
@@ -60,10 +67,11 @@ class BodyLimitMiddleware:
             await self.app(scope, limited_receive, tracking_send)
         except self._TooLarge:
             if not started:
-                await self._reject(send)
+                await self._reject(send, limit)
 
-    async def _reject(self, send):
-        body = json.dumps(_error_body("request_too_large", f"The request is larger than the {self.max_bytes // 1024} KB limit.")).encode()
+    async def _reject(self, send, limit):
+        size = f"{limit // (1024 * 1024)} MB" if limit >= 1024 * 1024 else f"{limit // 1024} KB"
+        body = json.dumps(_error_body("request_too_large", f"That is larger than the {size} limit. Please send less at a time.")).encode()
         await send({"type": "http.response.start", "status": 413, "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
         await send({"type": "http.response.body", "body": body})
 
@@ -72,13 +80,13 @@ def _error_body(code: str, message: str) -> dict:
     return {"error": {"code": code, "message": message}}
 
 
-def harden(target: FastAPI, *, cors_origins, max_bytes: int) -> None:
-    target.add_middleware(BodyLimitMiddleware, max_bytes=max_bytes)
+def harden(target: FastAPI, *, cors_origins, max_bytes: int, upload_bytes: int | None = None) -> None:
+    target.add_middleware(BodyLimitMiddleware, max_bytes=max_bytes, upload_bytes=upload_bytes)
     if cors_origins:   # CORS_ORIGINS="http://localhost:5173,https://app.example.com"; unset means no cross-origin access
         target.add_middleware(CORSMiddleware, allow_origins=list(cors_origins), allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
 
-harden(app, cors_origins=settings.cors_origins, max_bytes=settings.max_request_bytes)
+harden(app, cors_origins=settings.cors_origins, max_bytes=settings.max_request_bytes, upload_bytes=settings.max_upload_bytes)
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -107,6 +115,10 @@ class ClaimIn(BaseModel):
     claim: dict | None = Field(None, description="A full claim object (same shape as data/sample_claims.json)")
 
 
+class SessionIn(BaseModel):
+    audience: str = Field("officer", pattern="^(officer|customer)$", description="customer: plain wording for the person who made the claim")
+
+
 class ChatIn(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
 
@@ -130,9 +142,32 @@ def _check_claim(claim: dict) -> None:
         raise HTTPException(422, f"Unknown plan '{claim['plan']}'. Known plans: {list(E.PLANS)}")
 
 
+# ---------------------------------------------------------------- the demo web UI: static files, same origin as the API (no CORS needed)
+STATIC_DIR = Path(__file__).parent / "static"
+PAGE_HEADERS = {   # the page loads only its own scripts and styles and talks only to this server
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-cache"}
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    """The customer page: upload documents, then chat about the claim."""
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html", headers=PAGE_HEADERS)
+
+
+@app.get("/officer", include_in_schema=False)
+def officer_console():
+    """The earlier officer console (claim picker, live badge, full details). Kept for demos to claims officers."""
+    return FileResponse(STATIC_DIR / "officer.html", media_type="text/html", headers=PAGE_HEADERS)
+
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
 @app.get("/health")
 def health():
-    return dict(status="ok", retriever=settings.retriever, agent_mode=settings.agent_mode, default_uin=settings.default_uin)
+    live = settings.retriever == "azure" and settings.agent_mode == "foundry"   # the real Azure agent and index, not the offline stand-in
+    return dict(status="ok", live=live, retriever=settings.retriever, agent_mode=settings.agent_mode, default_uin=settings.default_uin)
 
 
 @app.get("/samples")
@@ -141,10 +176,49 @@ def samples():
 
 
 @app.post("/sessions")
-def create_session():
+def create_session(body: SessionIn | None = None):
     sid = uuid.uuid4().hex[:12]
-    SESSIONS[sid] = dict(id=sid, uin=settings.default_uin, claim=None, history=[])
-    return dict(session_id=sid)
+    SESSIONS[sid] = dict(id=sid, uin=settings.default_uin, claim=None, history=[], audience=(body.audience if body else "officer"))
+    return dict(session_id=sid, intake=True)     # lets the page notice a server that predates document intake
+
+
+# ---------------------------------------------------------------- claim intake: documents in, claim out
+def _shown_name(name: str | None) -> str:
+    return re.sub(r"[\x00-\x1f<>]", "", (name or "file").replace("\\", "/").split("/")[-1])[:100] or "file"
+
+
+async def _read_all(s: dict, named: list[tuple[str, bytes]]) -> dict:
+    results = [intake.store(s, name, await run_in_threadpool(intake.process_file, name, data)) for name, data in named]
+    log.info("documents", extra={"fields": dict(session=s["id"], files=len(results), recognised=sum(r["status"] == "recognised" for r in results))})   # counts only: never names or contents
+    return dict(files=results, checklist=intake.checklist(s.get("documents", {})))
+
+
+@app.post("/sessions/{sid}/documents")
+async def upload_documents(sid: str, files: list[UploadFile] = File(...)):
+    s = _session(sid)
+    if len(files) > intake.MAX_FILES_PER_UPLOAD:
+        raise HTTPException(422, f"Please upload up to {intake.MAX_FILES_PER_UPLOAD} files at a time.")
+    named = [(_shown_name(f.filename), await f.read(intake.MAX_FILE_BYTES + 1)) for f in files]
+    return await _read_all(s, named)
+
+
+@app.post("/sessions/{sid}/documents/sample")
+async def use_sample_documents(sid: str):
+    s = _session(sid)
+    return await _read_all(s, intake.sample_files())
+
+
+@app.post("/sessions/{sid}/intake")
+def run_intake(sid: str):
+    """Build the claim from the documents read so far. status: ready (a claim is loaded in the session) or needs_attention (with plain reasons)."""
+    s = _session(sid)
+    out = intake.build(s)
+    if out["status"] == "ready":
+        claim = out.pop("claim")
+        out["claim"] = _summary(claim)
+        out["summary_markdown"] = intake.claim_summary_markdown(claim, out["missing"])
+        out["suggestions"] = intake.suggestions(claim, [h["user"] for h in s["history"]])
+    return out
 
 
 @app.post("/sessions/{sid}/claim")
@@ -171,8 +245,11 @@ def chat(sid: str, body: ChatIn):
     if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the officer will simply ask again
         headline = (result.final or {}).get("headline") or next((l.strip("# ").strip() for l in result.markdown.splitlines() if l.strip()), "")
         s["history"].append(dict(user=body.message, answer_type=result.answer_type, headline=headline))
-    return dict(session_id=sid, status=result.status, answer_type=result.answer_type, answer_markdown=result.markdown, citations=result.citations,
-                tool_trace=result.trace)
+    return dict(session_id=sid, status=result.status, answer_type=result.answer_type, answer_markdown=result.markdown,
+                summary_markdown=result.summary_markdown or result.markdown, sections=result.sections, citations=result.citations,
+                suggestions=intake.suggestions(s.get("claim"), [h["user"] for h in s["history"]]),
+                trace_summary=trace_summary(result.trace),      # tool, ok, ms only: the one field a screen should use
+                tool_trace=result.trace)                        # developer detail, includes tool arguments: do not show it to officers
 
 
 @app.post("/assess")
@@ -189,4 +266,5 @@ def assess_stateless(body: ClaimIn):
     _check_claim(claim)
     res = E.assess(claim)
     rendered = render_claim_assessment(res, get_retriever())
-    return dict(recommendation=res["recommendation"], amounts=res["amounts"], answer_markdown=rendered.markdown, citations=rendered.citations)
+    return dict(recommendation=res["recommendation"], amounts=res["amounts"], answer_markdown=rendered.markdown,
+                summary_markdown=rendered.summary_markdown, sections=rendered.sections, citations=rendered.citations)

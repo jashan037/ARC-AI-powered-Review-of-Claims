@@ -10,6 +10,8 @@ Two suites:
              data/sample_claims.json: answer type, recommendation, both payable amounts, deductions, flags, required citations.
   questions  claims-officer questions (some with a claim loaded, 3 the wording cannot answer). Checked for answer type, citations,
              a few facts that must appear, and (for what-if and dated questions) numbers from the deterministic engine.
+             P01 to P10 are plain questions ("what's my name", "hello") asked with the claim built from reference/demo_documents loaded, as a
+             customer: they must get a short general_answer, no assessment, no sections.
 
 Checks that apply to every run: final_answer accepted, no citations stripped by the validator, every citation exists in the
 retriever (the deployed index when RETRIEVER=azure). A run that needed a rejected final_answer retry still passes but is counted.
@@ -35,9 +37,24 @@ from app.rendering.render import inr  # noqa: E402
 from app.retrieval.azure_search import get_retriever  # noqa: E402
 from app.rendering.scrub import find as find_internal, officer_texts  # noqa: E402
 from app.tools import claims_engine as E  # noqa: E402
-from app.tools.registry import _DECISION  # noqa: E402
+from app.tools.registry import _DECISION, MAX_HEADLINE_SENTENCES, MAX_NEXT_STEPS, MAX_POINT_CHARS, MAX_POINTS, count_sentences  # noqa: E402
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
+
+
+def demo_documents_claim() -> dict:
+    """The claim a customer gets after uploading reference/demo_documents (it has a hospital and a policy number, which the hand-written samples lack)."""
+    from app import intake
+    s = {"id": "eval", "history": []}
+    for name, data in intake.sample_files():
+        intake.store(s, name, intake.process_file(name, data))
+    out = intake.build(s)
+    assert out["status"] == "ready", out["reasons"]
+    return s["claim"]
+
+
+def case_claim(key: str) -> dict:
+    return demo_documents_claim() if key == "DEMO_DOCS" else SAMPLES[key]["claim"]
 STRIPPED = "Some citations could not be verified"
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -78,7 +95,21 @@ QUESTIONS = [
     dict(id="U1", msg="What was HDFC ERGO's claim settlement ratio last financial year?", types=["insufficient_information"], must_not=[r"\d+(\.\d+)?\s*%"], unanswerable=True),
     dict(id="U2", msg="Is Manipal Hospital Whitefield in our cashless network list?", types=["insufficient_information"], headline_not=[r"^\W*(yes|no)\b"], unanswerable=True),
     dict(id="U3", msg="How much premium has this policyholder paid so far?", types=["insufficient_information"], must_not=[r"₹\s?[\d,]{4,}"], unanswerable=True),
+    # --- plain questions with the claim loaded: one short sentence, never an assessment (asked as a customer, claim from the demo documents)
+    dict(id="P01", msg="what's my name", mention=[r"Rohan Verma"], **{"plain": True}),
+    dict(id="P02", msg="which hospital was I in", mention=[r"Riverside"], **{"plain": True}),
+    dict(id="P03", msg="when was I admitted", mention=[r"10 Sep(tember)? 2025"], **{"plain": True}),
+    dict(id="P04", msg="how many days did I stay", mention=[r"\b4\b"], **{"plain": True}),
+    dict(id="P05", msg="what is my policy number", mention_field=["policy_number"], **{"plain": True}),
+    dict(id="P06", msg="what plan do I have", mention=[r"Optima Lite"], **{"plain": True}),
+    dict(id="P07", msg="who are you", **{"plain": True}),
+    dict(id="P08", msg="hello", **{"plain": True}),
+    dict(id="P09", msg="thanks", **{"plain": True}),
+    dict(id="P10", msg="what's the weather", must_not=[r"°|degrees|sunny|rainy|forecast"], **{"plain": True}),
 ]
+for _q in QUESTIONS:
+    if _q.get("plain"):
+        _q.update(claim="DEMO_DOCS", types=["general_answer"])
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -118,6 +149,24 @@ def common_checks(res, retriever, fails: list[str], notes: list[str]):
     if rejected:
         why = "; ".join(p[:110] for t in fa if not t["ok"] for p in t.get("problems", []))
         notes.append(f"final_answer rejected {rejected}x then accepted: {why}")
+    # compact answer: present, shorter than the full answer, closes with the officer line
+    if not res.summary_markdown.strip():
+        fails.append("no summary_markdown")
+    else:
+        if res.final["answer_type"] != "general_answer" and "The officer decides." not in res.summary_markdown:
+            fails.append("summary lacks the 'The officer decides' line")
+        if len(res.summary_markdown) >= len(res.markdown) and res.final["answer_type"] not in ("general_answer", "insufficient_information"):
+            fails.append("summary is not shorter than the full answer")
+    # length caps on the accepted answer (the validator only asks once, so the harness checks what actually got through)
+    f = res.final
+    if f["answer_type"] not in ("claim_assessment", "deduction_explanation") and count_sentences(f.get("headline", "")) > MAX_HEADLINE_SENTENCES:
+        fails.append(f"headline has {count_sentences(f['headline'])} sentences (max {MAX_HEADLINE_SENTENCES})")
+    if len(f.get("points") or []) > MAX_POINTS:
+        fails.append(f"{len(f['points'])} points (max {MAX_POINTS})")
+    if any(len(p.get("detail", "")) > MAX_POINT_CHARS for p in f.get("points") or []):
+        fails.append(f"a point detail is over {MAX_POINT_CHARS} characters")
+    if len(f.get("next_steps") or []) > MAX_NEXT_STEPS:
+        fails.append(f"{len(f['next_steps'])} next steps (max {MAX_NEXT_STEPS})")
     shown = find_internal(res.markdown.split("### Evidence")[0])
     if shown:
         fails.append(f"internal terms reached the officer: {shown[:3]}")
@@ -169,6 +218,17 @@ def check_claim_case(cid: str, res, retriever) -> tuple[list[str], list[str]]:
     for f in exp.get("must_flag") or []:
         if f not in blob:
             fails.append(f"flag {f} not raised")
+    summary = res.summary_markdown
+    if exp["recommendation"] == "likely_not_payable" and not ("Not payable" in summary and "Likely not payable" in summary):
+        fails.append("red flag hidden: not payable is not in the summary")
+    if exp["recommendation"] == "needs_human_review" and "Needs human review" not in summary:
+        fails.append("red flag hidden: needs human review is not in the summary")
+    for i in r["inconsistencies"]:
+        if i["field"].replace("_", " ") not in summary:
+            fails.append(f"red flag hidden: document conflict '{i['field']}' is not in the summary")
+    for key in ("estimated_payable_if_docs_supplied", "payable_confirmed_now"):
+        if exp["recommendation"] != "likely_not_payable" and exp.get(key) and inr(exp[key]) not in summary:
+            fails.append(f"{inr(exp[key])} is not in the summary")
     have = {chunk_id(k) for k in cited_keys(res)}
     for c in exp.get("must_cite") or []:
         if c not in have:
@@ -189,7 +249,7 @@ def check_question(q: dict, res, retriever) -> tuple[list[str], list[str]]:
     tools = {t["tool"] for t in res.trace}
     if q.get("tools_any") and not tools & set(q["tools_any"]):
         fails.append(f"none of {q['tools_any']} used")
-    if not q.get("unanswerable") and not q.get("claim") and not q.get("waiting") and not tools & {"search_policy", "get_clause", "lookup_non_medical_item"}:
+    if not q.get("unanswerable") and not q.get("claim") and not q.get("waiting") and not q.get("plain") and not tools & {"search_policy", "get_clause", "lookup_non_medical_item"}:
         fails.append("answered without retrieving policy text")
     have = {chunk_id(k) for k in cited_keys(res)}
     if q.get("cite_any") and not have & set(q["cite_any"]):
@@ -211,6 +271,26 @@ def check_question(q: dict, res, retriever) -> tuple[list[str], list[str]]:
     for pat in q.get("must_not") or []:
         if re.search(pat, res.markdown, re.I):
             fails.append(f"answer matches forbidden /{pat}/")
+    if q.get("plain"):
+        claim = case_claim(q["claim"])
+        for key in q.get("mention_field") or []:
+            if str(claim.get(key)) not in res.markdown:
+                fails.append(f"the claim's {key} ({claim.get(key)}) is not in the answer")
+        if claim_result(res) is not None:
+            fails.append("the claim was assessed for a plain question")
+        if res.sections:
+            fails.append(f"a plain answer has {len(res.sections)} 'Show more' section(s)")
+        summary = res.summary_markdown.strip()
+        if len(summary) > 220 or count_sentences(summary) > 2:
+            fails.append(f"not a short direct answer ({len(summary)} characters, {count_sentences(summary)} sentences): {summary[:90]}")
+        if re.search(r"₹1,22,125|Estimated payment|Likely eligible|Main reasons", res.markdown):
+            fails.append("assessment content in a plain answer")
+        if (res.final or {}).get("citations") or (res.final or {}).get("points"):
+            fails.append("a plain answer carries citations or points")
+        if any(t["tool"] == "assess_claim" for t in res.trace):
+            notes.append("assess_claim was attempted (refused by the backend)")
+        if not tools <= {"get_claim_summary", "final_answer", "assess_claim"}:
+            notes.append(f"unnecessary tools: {sorted(tools - {'get_claim_summary', 'final_answer', 'assess_claim'})}")
     r = claim_result(res)
     if q.get("needs_claim_result") and r is None:
         fails.append("no assess_claim result behind the answer")
@@ -288,9 +368,11 @@ def run_case(kind: str, case, agent, retriever, run_no: int) -> dict:
         claim = SAMPLES[cid]["claim"]
         label = f"{cid} {SAMPLES[cid]['title'][:44]}"
     else:
-        cid, msg, claim = case["id"], case["msg"], SAMPLES[case["claim"]]["claim"] if case.get("claim") else None
+        cid, msg, claim = case["id"], case["msg"], case_claim(case["claim"]) if case.get("claim") else None
         label = f"{cid} {msg[:52]}"
     session = dict(uin=(claim or {}).get("policy_uin") or settings.default_uin, claim=claim, history=[])
+    if kind != "claim" and case.get("plain"):
+        session["audience"] = "customer"
     t0, throttled, res = time.time(), 0, None
     try:
         for attempt in range(4):   # a 429 from the model deployment is quota, not agent behaviour: wait and rerun the turn (fresh conversation)

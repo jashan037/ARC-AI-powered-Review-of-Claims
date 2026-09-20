@@ -11,11 +11,14 @@ from app.retrieval.azure_search import get_retriever
 from app.tools.registry import TurnContext, call_tool, render_final
 
 samples = json.load(open(settings.data_dir / "sample_claims.json"))
-out_dir = Path(__file__).resolve().parent.parent / "examples"
+out_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "examples"   # optional argument: another output folder
+out_dir.mkdir(parents=True, exist_ok=True)
 
 
 def new_ctx(claim=None):
-    return TurnContext(session=dict(uin=settings.default_uin, claim=claim, history=[]), retriever=get_retriever())
+    ctx = TurnContext(session=dict(uin=settings.default_uin, claim=claim, history=[]), retriever=get_retriever())
+    ctx.length_caps_rejected = True   # these hand-written payloads are longer than the caps a live model is held to; show the full layout anyway
+    return ctx
 
 
 def key(ctx, clause_ref):

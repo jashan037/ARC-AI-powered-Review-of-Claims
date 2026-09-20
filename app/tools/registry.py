@@ -17,6 +17,7 @@ from ..resilience import TurnAbort
 from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
 from .evidence import resolve
+from .plain_questions import NOT_IN_DOCUMENTS, claim_facts, fact_answer, plain_kind
 
 ANSWER_TYPES = ["claim_assessment", "coverage_answer", "waiting_period_answer", "deduction_explanation",
                 "documents_answer", "definition_answer", "insufficient_information", "general_answer"]
@@ -31,11 +32,19 @@ class TurnContext:
     seen: dict = field(default_factory=dict)      # chunk_key -> Chunk, everything the agent has been shown this turn
     results: dict = field(default_factory=dict)   # result_id -> {"kind": "claim"|"waiting", "data": ...}
     trace: list = field(default_factory=list)
+    question: str = ""                            # what the user typed this turn (used only to recognise plain questions, see plain_questions.py)
     final: dict | None = None
     final_errors: int = 0
     general_answer_rejected: bool = False   # the "you assessed a claim, so do not answer general_answer" guard fires once per turn
     decision_wording_rejected: bool = False # so does the "next_steps must not be decisions" guard
     internal_terms_rejected: bool = False   # and the "no result ids, chunk keys or tool names in officer text" guard
+    length_caps_rejected: bool = False      # and the "keep it short" guard (headline, points, next steps)
+    plain_rejected: bool = False            # and the "a plain question gets a one-line general_answer, not an assessment" guard
+
+    @property
+    def plain(self) -> str | None:
+        """"fact" (a detail of the loaded claim), "chat" (greeting, thanks, off topic) or None. Such a turn never needs assess_claim."""
+        return plain_kind(self.question, self.session.get("claim"))
 
     @property
     def uin(self) -> str:
@@ -65,7 +74,9 @@ SCHEMAS = [
                          ["first_policy_inception", "admission_date"])),
     dict(name="lookup_non_medical_item", description="Check whether a billed item is on the policy's Annexure B list of non-medical items (non-payable unless Protect Benefit is in force).",
          parameters=_obj({"item": _S}, ["item"])),
-    dict(name="get_claim_summary", description="Show which claim, if any, is loaded in this session (plan, dates, diagnosis, amounts).", parameters=_obj({})),
+    dict(name="get_claim_summary", description="The details of the claim loaded in this session: insured name, plan and sum insured, policy number, hospital, diagnosis, procedure, "
+         "admission and discharge (already formatted), days in hospital and the amount claimed. Use it, and nothing else, to answer a plain question about these details. "
+         "A null value is not in the customer's documents. Address, phone number and email are never in it.", parameters=_obj({})),
     dict(name="assess_claim", description="Run the full deterministic assessment on the claim loaded in this session: eligibility, waiting periods, room-rent proportion, "
          "non-medical items, documents, deductions and the estimated payment. Optionally pass what_if to test a change, for example {'room_rate_per_day': 5000}.",
          parameters=_obj({"what_if": {"type": "object", "description": "Optional overrides. Allowed keys: first_policy_inception, admission_datetime, plan, base_si_lakh, room_rate_per_day, "
@@ -75,13 +86,13 @@ SCHEMAS = [
          "Numbers and dates for claims come from tool results via result_id, so never type them yourself for claim_assessment or deduction_explanation.",
          parameters=_obj({
              "answer_type": {"type": "string", "enum": ANSWER_TYPES},
-             "headline": {**_S, "description": "One or two sentences that directly answer the question. For claim_assessment this is not shown, so keep it short."},
+             "headline": {**_S, "description": "At most 2 short sentences that directly answer the question. For claim_assessment this is not shown, so keep it short."},
              "verdict": {"type": "string", "enum": ["covered", "covered_with_conditions", "not_covered", "depends", "insufficient_information", "not_applicable"],
                          "description": "Only for coverage_answer."},
-             "points": {"type": "array", "description": "Key findings, most important first. Max 6.",
+             "points": {"type": "array", "description": "Key findings, most important first. At most 3 points; each detail at most 150 characters.",
                         "items": _obj({"label": _S, "status": {"type": "string", "enum": ["ok", "warning", "problem", "info"]}, "detail": _S,
                                        "citations": {"type": "array", "items": _S, "description": "chunk_key values returned by tools."}}, ["label", "status", "detail"])},
-             "next_steps": {"type": "array", "items": _S}, "caveats": {"type": "array", "items": _S},
+             "next_steps": {"type": "array", "items": _S, "description": "At most 3 things for the officer to check."}, "caveats": {"type": "array", "items": _S},
              "citations": {"type": "array", "items": _S, "description": "chunk_key values returned by search_policy, get_clause or the deterministic tools."},
              "result_id": {**_S, "description": "result_id from assess_claim (claim_assessment, deduction_explanation, documents_answer) or check_waiting_period (waiting_period_answer)."},
              "focus": {"type": "string", "enum": ["room", "associated", "non_medical", "hold", "deductible", "all"], "description": "For deduction_explanation."}},
@@ -171,16 +182,21 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
         claim = _claim_or_error(ctx)
         if not claim:
             return {"loaded": False, "message": "No claim is loaded in this session."}
-        return dict(loaded=True, claim_id=claim["claim_id"], insured=claim.get("insured_name"), plan=claim["plan"], base_si_lakh=claim["base_si_lakh"],
-                    policy_uin=claim.get("policy_uin"), diagnosis=claim.get("diagnosis"), procedure=claim.get("procedure"),
-                    admission=claim["admission_datetime"], discharge=claim["discharge_datetime"], claimed_amount=claim.get("claimed_amount"))
+        return dict(loaded=True, **claim_facts(claim), not_in_the_documents=NOT_IN_DOCUMENTS)
 
     if name == "assess_claim":
         claim = _claim_or_error(ctx)
         if not claim:
             return {"error": "No claim is loaded in this session. Ask the user to attach or select a claim first."}
+        if ctx.plain:
+            return {"error": "The user asked a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods "
+                             "or documents. Do not assess the claim. Use get_claim_summary if you need a detail, then final_answer with answer_type general_answer."}
         res = E.assess(E.apply_what_if(claim, a.get("what_if")))
         res["what_if"] = {k: v for k, v in (a.get("what_if") or {}).items() if k in E.WHAT_IF_KEYS or k == "documents"} or None
+        if res["what_if"]:   # the claim as submitted, computed by the same engine, so the answer can show "before -> after"
+            base = E.assess(claim)
+            res["baseline"] = dict(estimated=base["amounts"]["estimated_payable_if_docs_supplied"], confirmed=base["amounts"]["payable_confirmed_now"],
+                                   recommendation=base["recommendation"])
         rid = _new_result(ctx, "claim", res)
         return {**E.compact_summary(res), "result_id": rid, "what_if_applied": bool(a.get("what_if")), "evidence": _evidence_for(ctx, res["evidence_refs"])}
 
@@ -190,6 +206,22 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------
+# How much the officer is asked to read. Rejected once for rephrasing, like the other guards; the compact view then shows the top three anyway.
+MAX_HEADLINE_SENTENCES, MAX_POINTS, MAX_POINT_CHARS, MAX_NEXT_STEPS = 2, 3, 150, 3
+_ABBREVIATIONS = {"e.g", "i.e", "def", "rs", "no", "vs", "p", "pp", "approx", "sec", "cl", "mr", "mrs", "dr", "st", "fig", "excl", "cf", "etc"}
+
+
+def count_sentences(text: str) -> int:
+    """Sentences in a short text. A full stop after an abbreviation (Def. 5, p. 28, Rs. 1 lakh) or inside a number (1.5, C.1.b) does not end one."""
+    t = (text or "").strip()
+    n = 1 if t else 0
+    for m in re.finditer(r"([A-Za-z.]*)([.!?])\s+(?=[A-Z0-9₹\"“'(])", t):
+        if m.group(2) == "." and (m.group(1).lower().rstrip(".") in _ABBREVIATIONS or (len(m.group(1)) == 1 and m.group(1).isupper())):
+            continue
+        n += 1
+    return n
+
+
 # Next steps are for the officer to check or flag. These read as decisions or instructions to decide.
 _DECISION = re.compile(
     r"^\W*(do not|don't|dont|reject|deny|decline|approve|pay(?! attention)|admit|settle|repudiate|refuse|disallow)\b"
@@ -208,13 +240,32 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
         errs.append("headline must be under 500 characters.")
     rid = a.get("result_id")
     claim_rids = [k for k, r in ctx.results.items() if r["kind"] == "claim"]
-    if t == "general_answer" and claim_rids and not ctx.general_answer_rejected:
+    if ctx.plain and t != "general_answer" and not ctx.plain_rejected:
+        errs.append("This is a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods or documents. "
+                    "Do not assess the claim and do not use a longer answer type. Answer with answer_type general_answer: one short sentence, no points, no citations. "
+                    f"For a detail of the claim use get_claim_summary; if it does not hold what was asked (address, phone number, email), say \"{NOT_IN_DOCUMENTS}\"")
+    if t == "general_answer" and claim_rids and not ctx.general_answer_rejected and not ctx.plain:
         errs.append(f"You called assess_claim this turn, so general_answer is the wrong answer type. Use claim_assessment (assess or evaluate the claim), "
                     f"deduction_explanation (why an amount was deducted or held) or documents_answer (missing documents), with result_id={claim_rids[-1]}.")
     decisions = [s for s in a.get("next_steps") or [] if _DECISION.search(s)]
     if decisions and not ctx.decision_wording_rejected:
         errs.append("next_steps are things for the claims officer to check, verify, confirm, request or flag. They must never be a decision or an instruction to "
                     "decide (pay, admit, approve, reject, deny, decline, settle). Rephrase these: " + " | ".join(s[:90] for s in decisions[:3]))
+    if not ctx.length_caps_rejected:
+        long_ = []
+        if t not in NEEDS_CLAIM_RESULT and count_sentences(a.get("headline", "")) > MAX_HEADLINE_SENTENCES:
+            long_.append(f"the headline has {count_sentences(a.get('headline', ''))} sentences (max {MAX_HEADLINE_SENTENCES})")
+        pts = a.get("points") or []
+        if len(pts) > MAX_POINTS:
+            long_.append(f"{len(pts)} points (max {MAX_POINTS})")
+        wordy = [p.get("label", "?") for p in pts if len(p.get("detail", "")) > MAX_POINT_CHARS]
+        if wordy:
+            long_.append(f"point detail over {MAX_POINT_CHARS} characters in: " + ", ".join(f"'{w}'" for w in wordy[:3]))
+        if len(a.get("next_steps") or []) > MAX_NEXT_STEPS:
+            long_.append(f"{len(a['next_steps'])} next_steps (max {MAX_NEXT_STEPS})")
+        if long_:
+            errs.append("Keep the answer short for the claims officer: " + "; ".join(long_) + f". Use at most {MAX_HEADLINE_SENTENCES} sentences in the headline, at most "
+                        f"{MAX_POINTS} points of at most {MAX_POINT_CHARS} characters each, and at most {MAX_NEXT_STEPS} next_steps. Put the most important first and rephrase.")
     leaks = [(where, term) for where, text in officer_texts(a) for term in find_internal(text)]
     if leaks and not ctx.internal_terms_rejected:
         errs.append("Text the claims officer reads (headline, points, next_steps, caveats) must never mention result ids, chunk keys, field names or tool names "
@@ -239,11 +290,18 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
 
 
 def _final(a: dict, ctx: TurnContext) -> dict:
+    if ctx.plain == "fact" and ctx.plain_rejected and a.get("answer_type") != "general_answer" and ctx.session.get("claim"):
+        # told once, and the model still wants a longer answer for a plain question: the claim's own fields answer it, not the model
+        a = dict(answer_type="general_answer", headline=fact_answer(ctx.question, ctx.session["claim"]) or NOT_IN_DOCUMENTS)
     errs = validate_final(a, ctx)
     if a.get("answer_type") == "general_answer" and any(e.startswith("You called assess_claim") for e in errs):
         ctx.general_answer_rejected = True   # rejected once: if the model insists on general_answer, its second choice stands
     if any(e.startswith("next_steps are things for the claims officer") for e in errs):
         ctx.decision_wording_rejected = True   # likewise once: a rephrase is asked for, not an endless loop
+    if any(e.startswith("Keep the answer short") for e in errs):
+        ctx.length_caps_rejected = True         # once: the officer's view shows the top three points either way
+    if any(e.startswith("This is a plain question") for e in errs):
+        ctx.plain_rejected = True               # once; a persistent fact question is then answered from the claim itself (see the top of this function)
     if any(e.startswith("Text the claims officer reads") for e in errs):
         ctx.internal_terms_rejected = True      # once, like the others; the renderer removes whatever a second attempt still contains
     if errs and ctx.final_errors < 2:
@@ -259,18 +317,32 @@ def _final(a: dict, ctx: TurnContext) -> dict:
     return {"status": "accepted"}
 
 
+TOOL_NAMES = frozenset(s["name"] for s in SCHEMAS)
+
+
+def trace_summary(trace: list) -> list[dict]:
+    """What a screen may show about how an answer was produced: tool name, success and milliseconds. Never arguments, results or problem texts."""
+    out = []
+    for t in trace or []:
+        ms = t.get("ms")
+        out.append(dict(tool=t.get("tool") if t.get("tool") in TOOL_NAMES else "other", ok=bool(t.get("ok")),
+                        ms=int(ms) if isinstance(ms, (int, float)) and not isinstance(ms, bool) else None))
+    return out
+
+
 def render_final(final: dict, ctx: TurnContext) -> R.Rendered:
     final = scrub_final(final)   # last line of defence: no internal identifier reaches the officer, whatever the model wrote
     t, rid, ret = final["answer_type"], final.get("result_id"), ctx.retriever
+    aud = ctx.session.get("audience", "officer")
     if t == "claim_assessment":
         note = " ".join(final.get("caveats") or []) or None
-        return R.render_claim_assessment(ctx.results[rid]["data"], ret, note)
+        return R.render_claim_assessment(ctx.results[rid]["data"], ret, note, aud)
     if t == "deduction_explanation":
-        return R.render_deduction_explanation(ctx.results[rid]["data"], final.get("focus") or "all", ret)
+        return R.render_deduction_explanation(ctx.results[rid]["data"], final.get("focus") or "all", ret, audience=aud)
     if t == "waiting_period_answer" and rid in ctx.results:
         r = ctx.results[rid]
         data = r["data"] if r["kind"] == "waiting" else r["data"]["waiting"]
-        return R.render_waiting(data, final, ret, ctx.uin)
+        return R.render_waiting(data, final, ret, ctx.uin, aud)
     if t == "documents_answer" and rid in ctx.results and ctx.results[rid]["kind"] == "claim":
-        return R.render_documents(ctx.results[rid]["data"], final, ret)
-    return R.render_qa(final, ret, ctx.uin)
+        return R.render_documents(ctx.results[rid]["data"], final, ret, aud)
+    return R.render_qa(final, ret, ctx.uin, aud)

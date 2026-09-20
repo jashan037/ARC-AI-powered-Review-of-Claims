@@ -1,4 +1,4 @@
-"""Render every sample claim into examples/<id>.md (no Azure needed)."""
+"""Render every sample claim into examples/<id>.md (no Azure needed). Optional argument: another output folder."""
 import json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -8,8 +8,8 @@ from app.tools.claims_engine import assess
 from app.rendering.render import render_claim_assessment
 
 samples = json.load(open(settings.data_dir / "sample_claims.json"))
-out = Path(__file__).resolve().parent.parent / "examples"
-out.mkdir(exist_ok=True)
+out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "examples"
+out.mkdir(parents=True, exist_ok=True)
 r = get_retriever()
 for sid, s in samples.items():
     md = render_claim_assessment(assess(s["claim"]), r).markdown

@@ -49,6 +49,7 @@ class Settings:
 
     # API
     max_request_bytes: int = int(os.getenv("MAX_REQUEST_BYTES", "262144"))
+    max_upload_bytes: int = int(os.getenv("MAX_UPLOAD_BYTES", str(15 * 1024 * 1024)))   # the whole body of one document upload (up to 15 files of up to 5 MB each are checked separately)
     cors_origins: tuple = tuple(o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip())   # empty = no cross-origin access
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
 

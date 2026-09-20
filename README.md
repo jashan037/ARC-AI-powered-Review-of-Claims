@@ -22,12 +22,14 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
-python -m pytest tests -q                       # 151 tests, all offline
+python -m pytest tests -q                       # 445 tests, all offline (browser tests need: pip install -r requirements-dev.txt)
 python scripts/render_samples.py                # 12 claim assessments -> examples/
 python scripts/render_examples.py               # one example per answer type -> examples/
 python scripts/eval_retrieval.py --verbose      # keyword baseline on the 19 questions
 python scripts/chat_cli.py --claim TC07         # try it in the terminal (follows RETRIEVER / AGENT_MODE in .env; .env.example = offline stand-in)
-uvicorn app.main:app --reload                   # http://127.0.0.1:8000/docs
+scripts/run_demo.sh                             # the demo: customer page at http://127.0.0.1:8765/ (refuses to start unless .env is azure + foundry)
+uvicorn app.main:app --reload                   # dev: customer page at / , officer console at /officer , API docs at /docs (add ?dev=1 for the badge and trace panel)
+python scripts/take_screenshots.py              # Playwright screenshots of both customer screens into docs/screenshots/
 ```
 
 ## Connect it to Azure

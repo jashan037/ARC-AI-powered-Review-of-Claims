@@ -62,8 +62,20 @@ def _excerpt(text: str, n: int = 240) -> str:
 
 @dataclass
 class Rendered:
-    markdown: str
+    markdown: str                                                # the full answer, unchanged
     citations: list[dict] = field(default_factory=list)
+    summary_markdown: str = ""                                   # the compact version shown first (see compact.py)
+    sections: list[dict] = field(default_factory=list)          # [{id, title, status, markdown}] shown on demand
+
+
+def norm_clause(text: str) -> str:
+    """One spelling of a clause label everywhere: 'A.1.2 Def. 5', never 'A1.2 Def. 5'."""
+    return re.sub(r"\bA(1\.[12]) Def", r"A.\1 Def", text)
+
+
+def short_label(citation: str) -> str:
+    """'Policy C.1.b, p.28' -> 'C.1.b p.28' (a chip)."""
+    return re.sub(r",\s*p\.", " p.", norm_clause(re.sub(r"^Policy\s+", "", citation)))
 
 
 class Evidence:
@@ -116,7 +128,8 @@ class Evidence:
         return "### Evidence (why the AI said this)\n" + "\n".join(rows)
 
     def as_list(self) -> list[dict]:
-        return [dict(chunk_key=c.chunk_key, citation=c.citation, clause=c.clause, excerpt=self.quote(c, 300)) for c in self.chunks.values()]
+        return [dict(chunk_key=c.chunk_key, citation=norm_clause(c.citation), label=short_label(c.citation), clause=c.clause, excerpt=self.quote(c, 300))
+                for c in self.chunks.values()]
 
 
 def _rule_text(rule: dict, base_si_lakh: float) -> str:
@@ -132,7 +145,7 @@ def _sum(lines, cat, key):
 
 
 # ---------------------------------------------------------------- claim assessment
-def render_claim_assessment(res: dict, retriever: Retriever, officer_note: str | None = None) -> Rendered:
+def render_claim_assessment(res: dict, retriever: Retriever, officer_note: str | None = None, audience: str = "officer") -> Rendered:
     c, bill, a = res["claim"], res["bill"], res["amounts"]
     ev = Evidence(retriever, c.get("policy_uin"))
     lines = bill["lines"]
@@ -153,22 +166,8 @@ def render_claim_assessment(res: dict, retriever: Retriever, officer_note: str |
            "needs_human_review": "Needs human review — a provisional estimate is shown below"}[res["recommendation"]]
     out += ["### Recommendation", f"**{rec}**", ""]
 
-    # --- coverage
-    cov = res["coverage"]
-    icon, head = {"covered": ("🟢", "Hospitalization: Covered"), "not_covered": ("🔴", "Not covered"), "needs_review": ("🟠", "Needs review")}[cov["status"]]
-    out += ["### Coverage", f"{icon} **{head}**", cov["detail"] + ".", ev.cite_line(cov["evidence"]), ""]
-
-    # --- waiting period
-    w = res["waiting"]
-    ctx, wchecks = w["context"], w["checks"]
-    bad = any(k["status"] == "violated" for k in wchecks)
-    out += ["### Waiting Period", "🔴 **Not satisfied**" if bad else "🟢 **Satisfied**",
-            f"- First policy inception: {d_fmt(ctx['first_inception'])} → admission {d_fmt(ctx['admission_date'])} "
-            f"({ctx['elapsed_months']} months, {ctx['elapsed_days']} days)"]
-    for k in wchecks:
-        word = {"satisfied": "satisfied", "violated": "**not satisfied**", "not_applicable": "not applicable"}[k["status"]]
-        out.append(f"- {k['name']} ({k['code']}): {word}. {k['detail']}")
-    out += [ev.cite_line([r for k in wchecks if k["status"] != "not_applicable" for r in k["evidence"]] or ["C.1.c"]), ""]
+    out += _coverage_section(res, ev)
+    out += _waiting_section(res, ev)
 
     stop_early = res["recommendation"] == "likely_not_payable"
     if stop_early:
@@ -182,7 +181,30 @@ def render_claim_assessment(res: dict, retriever: Retriever, officer_note: str |
     if not stop_early:
         out += _docs_section(res, ev)
     out += _rest(res, ev, officer_note, retriever)
-    return Rendered(_tidy(out), ev.as_list())
+    full = Rendered(_tidy(out), ev.as_list())
+    from . import compact
+    full.summary_markdown, full.sections = compact.claim_summary(res, audience), compact.claim_sections(res, ev, officer_note)
+    return full
+
+
+def _coverage_section(res, ev):
+    cov = res["coverage"]
+    icon, head = {"covered": ("🟢", "Hospitalization: Covered"), "not_covered": ("🔴", "Not covered"), "needs_review": ("🟠", "Needs review")}[cov["status"]]
+    return ["### Coverage", f"{icon} **{head}**", cov["detail"] + ".", ev.cite_line(cov["evidence"]), ""]
+
+
+def _waiting_section(res, ev):
+    w = res["waiting"]
+    ctx, wchecks = w["context"], w["checks"]
+    bad = any(k["status"] == "violated" for k in wchecks)
+    out = ["### Waiting Period", "🔴 **Not satisfied**" if bad else "🟢 **Satisfied**",
+           f"- First policy inception: {d_fmt(ctx['first_inception'])} → admission {d_fmt(ctx['admission_date'])} "
+           f"({ctx['elapsed_months']} months, {ctx['elapsed_days']} days)"]
+    for k in wchecks:
+        word = {"satisfied": "satisfied", "violated": "**not satisfied**", "not_applicable": "not applicable"}[k["status"]]
+        out.append(f"- {k['name']} ({k['code']}): {word}. {k['detail']}")
+    out += [ev.cite_line([r for k in wchecks if k["status"] != "not_applicable" for r in k["evidence"]] or ["C.1.c"]), ""]
+    return out
 
 
 def _room_section(res, ev):
@@ -250,47 +272,73 @@ def _docs_section(res, ev):
     return out
 
 
-def _rest(res, ev, officer_note, retriever):
-    c, bill, a = res["claim"], res["bill"], res["amounts"]
-    out = []
+def _conflict_section(res, ev):
+    if not res["inconsistencies"]:
+        return []
+    out = ["### Conflicts between documents"]
+    for i in res["inconsistencies"]:
+        out.append(f"- ⚠️ **{i['field'].replace('_', ' ').capitalize()}**: discharge summary says “{_val(i['discharge_summary'])}”, bill says “{_val(i['bill'])}”")
+    return out + [ev.cite_line(["E.1.7"]), ""]
 
-    # --- conflicts and review points
-    if res["inconsistencies"]:
-        out.append("### Conflicts between documents")
-        for i in res["inconsistencies"]:
-            out.append(f"- ⚠️ **{i['field'].replace('_', ' ').capitalize()}**: discharge summary says “{_val(i['discharge_summary'])}”, bill says “{_val(i['bill'])}”")
-        out += [ev.cite_line(["E.1.7"]), ""]
+
+def _review_section(res, ev):
     review = [k for k in res["checks"] if k["status"] == "needs_review"]
-    if review:
-        out.append("### For the claims officer to review")
-        out += [f"- 🟠 **{k['code']}** — {k['detail']}" for k in review]
-        out += [ev.cite_line([r for k in review for r in k["evidence"]]), ""]
+    if not review:
+        return []
+    return ["### For the claims officer to review"] + [f"- 🟠 **{k['code']}** — {k['detail']}" for k in review] + [ev.cite_line([r for k in review for r in k["evidence"]]), ""]
 
-    # --- estimate
-    out += ["### Estimated Assessment", "```text"]
+
+def _estimate_rows(res):
+    a = res["amounts"]
 
     def row(label, val):
         return f"{label:<36}{val:>14}"
 
     d_ = a["deductions"]
     if res["recommendation"] == "likely_not_payable":
-        out += [row("Hospital bill", inr(a["gross_billed"])), row("Not payable under the policy", inr(a["gross_billed"], True)),
+        return [row("Hospital bill", inr(a["gross_billed"])), row("Not payable under the policy", inr(a["gross_billed"], True)),
                 "-" * 50, row("Estimated insurer payment", inr(0))]
-    else:
-        out.append(row("Hospital bill", inr(a["gross_billed"])))
-        for key, label in (("room", "Room-rent adjustment"), ("associated", "Associated-expense adjustment"), ("non_medical", "Non-payable items (Annexure B)")):
-            if d_[key]:
-                out.append(row(label, inr(d_[key], True)))
-        calc = a["calc"]
-        if calc["aggregate_deductible"]:
-            out.append(row("Aggregate deductible", inr(calc["aggregate_deductible"], True)))
-        if calc["copay"]:
-            out.append(row("Co-payment", inr(calc["copay"], True)))
-        label = "Provisional payment (pending review)" if res["recommendation"] == "needs_human_review" else "Estimated insurer payment"
-        out += ["-" * 50, row(label, inr(a["estimated_payable_if_docs_supplied"]))]
-        if a["held_pending"]:
-            out += [row("  of which held for documents", inr(a["held_pending"])), row("  Confirmed payable today", inr(a["payable_confirmed_now"]))]
-    out += ["```", ""]
+    out = [row("Hospital bill", inr(a["gross_billed"]))]
+    for key, label in (("room", "Room-rent adjustment"), ("associated", "Associated-expense adjustment"), ("non_medical", "Non-payable items (Annexure B)")):
+        if d_[key]:
+            out.append(row(label, inr(d_[key], True)))
+    calc = a["calc"]
+    if calc["aggregate_deductible"]:
+        out.append(row("Aggregate deductible", inr(calc["aggregate_deductible"], True)))
+    if calc["copay"]:
+        out.append(row("Co-payment", inr(calc["copay"], True)))
+    label = "Provisional payment (pending review)" if res["recommendation"] == "needs_human_review" else "Estimated insurer payment"
+    out += ["-" * 50, row(label, inr(a["estimated_payable_if_docs_supplied"]))]
+    if a["held_pending"]:
+        out += [row("  of which held for documents", inr(a["held_pending"])), row("  Confirmed payable today", inr(a["payable_confirmed_now"]))]
+    return out
+
+
+def _next_steps(res, audience="officer"):
+    customer = audience == "customer"
+    steps = []
+    for d in res["documents"]["missing"] + res["documents"]["incomplete"]:
+        parts = " and ".join(d.get("missing_parts", [])) or "document"
+        name = DOC_SHORT.get(d["id"], d["name"])
+        if customer:
+            steps.append(f"Please send the missing {parts}." if d.get("missing_parts") and parts.split(" and ")[0].lower() in name.lower() else f"Please send the {parts} for: {name}.")
+        else:
+            steps.append(f"Request the {parts} for: {name.lower()}.")
+    if any(k["status"] == "needs_review" for k in res["checks"]) or res["inconsistencies"]:
+        steps.append("A claims officer will review the points flagged above." if customer else "Route to a claims officer for judgement on the flagged points.")
+    if res["recommendation"] == "likely_not_payable":
+        steps.append("A claims officer will confirm this before any decision is made." if customer else "Confirm the exclusion with the claims officer before communicating a rejection.")
+    return steps
+
+
+def _rest(res, ev, officer_note, retriever):
+    c, bill, a = res["claim"], res["bill"], res["amounts"]
+    out = []
+
+    out += _conflict_section(res, ev) + _review_section(res, ev)
+
+    # --- estimate
+    out += ["### Estimated Assessment", "```text"] + _estimate_rows(res) + ["```", ""]
     calc = a.get("calc")
     if res["recommendation"] != "likely_not_payable" and calc and calc["aggregate_deductible"]:
         out += [ev.cite_line(["B.2.7", "D.1.19"]), ""]
@@ -298,14 +346,7 @@ def _rest(res, ev, officer_note, retriever):
         out += [ev.cite_line(["B.2.3", "C.3.k"]), ""]
 
     # --- next steps
-    steps = []
-    for d in res["documents"]["missing"] + res["documents"]["incomplete"]:
-        parts = " and ".join(d.get("missing_parts", [])) or "document"
-        steps.append(f"Request the {parts} for: {DOC_SHORT.get(d['id'], d['name']).lower()}.")
-    if review or res["inconsistencies"]:
-        steps.append("Route to a claims officer for judgement on the flagged points.")
-    if res["recommendation"] == "likely_not_payable":
-        steps.append("Confirm the exclusion with the claims officer before communicating a rejection.")
+    steps = _next_steps(res)
     if steps:
         out += ["### Next steps"] + [f"- {s}" for s in steps] + [""]
     if officer_note:
@@ -316,7 +357,7 @@ def _rest(res, ev, officer_note, retriever):
 
 
 # ---------------------------------------------------------------- deduction explanation
-def render_deduction_explanation(res: dict, focus: str, retriever: Retriever, headline: str | None = None) -> Rendered:
+def render_deduction_explanation(res: dict, focus: str, retriever: Retriever, headline: str | None = None, audience: str = "officer") -> Rendered:
     c, bill, a = res["claim"], res["bill"], res["amounts"]
     ev = Evidence(retriever, c.get("policy_uin"))
     lines = bill["lines"]
@@ -368,15 +409,28 @@ def render_deduction_explanation(res: dict, focus: str, retriever: Retriever, he
         out.append("")
     out += ["### Result", f"Estimated insurer payment: **{inr(a['estimated_payable_if_docs_supplied'])}**"
             + (f" ({inr(a['payable_confirmed_now'])} confirmed today)" if a["held_pending"] else ""), "", ev.section(), "", FOOTER_ASSESS]
-    return Rendered(_tidy(out), ev.as_list())
+    full = Rendered(_tidy(out), ev.as_list())
+    from . import compact
+    full.summary_markdown, full.sections = compact.deduction(res, full.markdown, ev, audience)
+    return full
 
 
 # ---------------------------------------------------------------- waiting period answer
-def render_waiting(data: dict, final: dict, retriever: Retriever, uin: str | None) -> Rendered:
+def render_waiting(data: dict, final: dict, retriever: Retriever, uin: str | None, audience: str = "officer") -> Rendered:
     ev = Evidence(retriever, uin)
     ctx, checks = data["context"], data["checks"]
-    out = ["## Waiting period check", "", final["headline"], "",
-           f"First policy inception {d_fmt(ctx['first_inception'])} · treatment date {d_fmt(ctx['admission_date'])} · "
+    out = ["## Waiting period check", "", final["headline"], ""] + _waiting_table_lines(ctx, checks)
+    for k in checks:
+        ev.add_refs(k["evidence"])
+    out += _tail(final, ev, uin)
+    full = Rendered(_tidy(out), ev.as_list())
+    from . import compact
+    full.summary_markdown, full.sections = compact.waiting(data, final, ev, audience)
+    return full
+
+
+def _waiting_table_lines(ctx, checks):
+    out = [f"First policy inception {d_fmt(ctx['first_inception'])} · treatment date {d_fmt(ctx['admission_date'])} · "
            f"**{ctx['elapsed_months']} months ({ctx['elapsed_days']} days)** of continuous cover", "",
            "| Waiting period | Applies? | Required | Elapsed | Result |", "|---|---|---|---|---|"]
     for k in checks:
@@ -388,14 +442,11 @@ def render_waiting(data: dict, final: dict, retriever: Retriever, uin: str | Non
     for k in checks:
         if k.get("eligible_from"):
             out.append(f"- **{k['name']}** is served from **{d_fmt(k['eligible_from'])}** (after {k['required']} of continuous cover).")
-    for k in checks:
-        ev.add_refs(k["evidence"])
-    out += _tail(final, ev, uin)
-    return Rendered(_tidy(out), ev.as_list())
+    return out
 
 
 # ---------------------------------------------------------------- documents answer
-def render_documents(res: dict, final: dict, retriever: Retriever) -> Rendered:
+def render_documents(res: dict, final: dict, retriever: Retriever, audience: str = "officer") -> Rendered:
     ev = Evidence(retriever, res["claim"].get("policy_uin"))
     out = ["## Documents check", "", final["headline"], ""]
     for d in res["documents"]["checklist"]:
@@ -404,7 +455,10 @@ def render_documents(res: dict, final: dict, retriever: Retriever) -> Rendered:
                     "missing": f"- ❌ {name} — not submitted"}[d["status"]])
     ev.add_refs(["E.1.7", "E.1.6"])
     out += _tail(final, ev, res["claim"].get("policy_uin"))
-    return Rendered(_tidy(out), ev.as_list())
+    full = Rendered(_tidy(out), ev.as_list())
+    from . import compact
+    full.summary_markdown, full.sections = compact.documents(res, final, ev, audience)
+    return full
 
 
 # ---------------------------------------------------------------- generic Q&A (coverage, definitions, insufficient info, general)
@@ -423,7 +477,7 @@ def _tail(final: dict, ev: Evidence, uin: str | None) -> list[str]:
     return out
 
 
-def render_qa(final: dict, retriever: Retriever, uin: str | None) -> Rendered:
+def render_qa(final: dict, retriever: Retriever, uin: str | None, audience: str = "officer") -> Rendered:
     ev = Evidence(retriever, uin)
     t = final["answer_type"]
     if t == "insufficient_information":
@@ -444,7 +498,10 @@ def render_qa(final: dict, retriever: Retriever, uin: str | None) -> Rendered:
             out.append(f"{STATUS_ICON.get(p['status'], '🔹')} **{p['label']}** — {p['detail']}{ref}")
         out.append("")
     out += _tail(final, ev, uin)
-    return Rendered(_tidy(out), ev.as_list())
+    full = Rendered(_tidy(out), ev.as_list())
+    from . import compact
+    full.summary_markdown, full.sections = compact.qa(final, ev, audience)
+    return full
 
 
 def _tidy(parts: list[str]) -> str:

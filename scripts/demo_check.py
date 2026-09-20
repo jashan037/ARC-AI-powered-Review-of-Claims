@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 from app.agent.runner import get_agent  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.rendering.scrub import find as find_internal, officer_texts  # noqa: E402
-from app.tools.registry import _DECISION  # noqa: E402
+from app.tools.registry import _DECISION, MAX_HEADLINE_SENTENCES, MAX_NEXT_STEPS, MAX_POINT_CHARS, MAX_POINTS, count_sentences  # noqa: E402
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
 
@@ -37,15 +37,16 @@ STEPS = [
          types=["waiting_period_answer"], contains=[r"1 Mar 2027", r"16 months"], cites_any=["C1-b"]),
     dict(n=4, session="tc07", claim="TC07", q="Assess this claim", types=["claim_assessment"],
          contains=[r"Likely eligible — pending documents", r"1,22,125", r"1,01,625", r"20,500", r"12,000", r"37,875", r"12,500", r"prescription"],
-         cites_all=["B1.1.1-Note-iii", "E1.7"]),
+         summary_has=[r"1,22,125", r"1,01,625", r"20,500", r"49,875", r"12,500", r"12 non-medical items"], cites_all=["B1.1.1-Note-iii", "E1.7"]),
     dict(n=5, session="tc07", claim="TC07", q="Why was the room rent deducted on this claim?", types=["deduction_explanation"],
-         contains=[r"62\.5\s*%", r"5,000", r"8,000", r"12,000", r"37,875"], cites_all=["B1.1.1-Note-iii"]),
+         contains=[r"62\.5\s*%", r"5,000", r"8,000", r"12,000", r"37,875"], summary_has=[r"62\.5\s*%", r"12,000", r"37,875", r"1,22,125"], cites_all=["B1.1.1-Note-iii"]),
     dict(n=6, session="tc07", claim="TC07", q="Which documents are still missing for this claim?", types=["documents_answer"],
-         contains=[r"prescription"], cites_all=["E1.7"]),
+         contains=[r"prescription"], summary_has=[r"8 of 9", r"prescription"], cites_all=["E1.7"]),
     dict(n=7, session="tc07", claim="TC07", q="What would the payable amount be if the room rent had been 5,000 a day?", types=["claim_assessment"],
-         contains=[r"1,72,000", r"1,51,500", r"What-if", r"Within the plan limit"], cites_all=["C3-k", "E1.7"]),   # no room deduction left, so no Note iii
+         contains=[r"1,72,000", r"1,51,500", r"What-if", r"Within the plan limit"], summary_has=[r"1,22,125\s*→\s*₹1,72,000", r"Room rent per day = ₹5,000"],
+         cites_all=["C3-k", "E1.7"]),   # no room deduction left, so no Note iii
     dict(n=8, session="tc02", claim="TC02", q="Assess this claim", types=["claim_assessment"],
-         contains=[r"Likely not payable", r"Excl03", r"14 days", r"₹0\b"], cites_all=["C1-c"]),
+         contains=[r"Likely not payable", r"Excl03", r"14 days", r"₹0\b"], summary_has=[r"Not payable", r"30-day waiting period", r"14 days"], cites_all=["C1-c"]),
 ]
 
 
@@ -86,6 +87,21 @@ def main():
         if st.get("first_point") and not (pts and re.search(st["first_point"], f"{pts[0].get('label', '')} {pts[0].get('detail', '')}", re.I)):
             problems.append(f"first supporting point does not name /{st['first_point']}/")
         problems += [f"next step reads as a decision: {x[:80]}" for x in (r.final or {}).get("next_steps") or [] if _DECISION.search(x)]
+        if not r.summary_markdown.strip():
+            problems.append("no summary_markdown")
+        else:
+            if "The officer decides." not in r.summary_markdown:
+                problems.append("summary lacks the 'The officer decides' line")
+            if len(r.summary_markdown) >= len(r.markdown):
+                problems.append("summary is not shorter than the full answer")
+            problems += [f"missing from the summary: /{p}/" for p in st.get("summary_has", []) if not re.search(p, r.summary_markdown, re.I)]
+        f = r.final or {}
+        if f and f["answer_type"] not in ("claim_assessment", "deduction_explanation") and count_sentences(f.get("headline", "")) > MAX_HEADLINE_SENTENCES:
+            problems.append("headline is longer than 2 sentences")
+        if len(f.get("points") or []) > MAX_POINTS or any(len(p.get("detail", "")) > MAX_POINT_CHARS for p in f.get("points") or []):
+            problems.append("more than 3 points, or a point over 150 characters")
+        if len(f.get("next_steps") or []) > MAX_NEXT_STEPS:
+            problems.append("more than 3 next steps")
         shown = find_internal(r.markdown.split("### Evidence")[0])
         if shown:
             problems.append(f"internal terms reached the officer: {shown[:3]}")

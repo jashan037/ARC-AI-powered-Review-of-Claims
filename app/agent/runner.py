@@ -11,6 +11,7 @@ from ..rendering import render as R
 from ..resilience import TurnAbort, call_with_retry, turn_scope
 from ..retrieval.azure_search import get_retriever
 from ..tools import claims_engine as E
+from ..tools.plain_questions import chat_answer, fact_answer, plain_kind
 from ..tools.registry import TurnContext, call_tool, render_final
 
 
@@ -24,6 +25,8 @@ class AgentResult:
     results: dict = field(default_factory=dict)   # result_id -> {"kind", "data"}: the deterministic tool outputs behind the answer
     status: str = "ok"                            # ok | timeout | unavailable | incomplete
     latency_ms: int = 0
+    summary_markdown: str = ""                    # the compact answer (see rendering/compact.py); markdown stays the full answer
+    sections: list = field(default_factory=list)  # [{id, title, status, markdown}] to open on demand
 
 
 def _history_block(session: dict, n_turns: int = 4) -> str:
@@ -80,7 +83,7 @@ class FoundryAgent:
 
     def ask(self, session: dict, message: str) -> AgentResult:
         t0 = time.perf_counter()
-        ctx = TurnContext(session=session, retriever=get_retriever())
+        ctx = TurnContext(session=session, retriever=get_retriever(), question=message)
         conv, status, error = None, "ok", None
         with turn_scope() as scope:
             try:
@@ -124,7 +127,7 @@ class FoundryAgent:
         if ctx.final is None:
             return AgentResult(_notice(status), "general_answer", [], ctx.trace, None, ctx.results, status, latency)
         out = render_final(ctx.final, ctx)
-        return AgentResult(out.markdown, ctx.final["answer_type"], out.citations, ctx.trace, ctx.final, ctx.results, "ok", latency)
+        return AgentResult(out.markdown, ctx.final["answer_type"], out.citations, ctx.trace, ctx.final, ctx.results, "ok", latency, out.summary_markdown, out.sections)
 
 
 # =============================================================================================
@@ -134,12 +137,17 @@ class FoundryAgent:
 class OfflineAgent:
     def ask(self, session: dict, message: str) -> AgentResult:
         t0 = time.perf_counter()
-        ctx = TurnContext(session=session, retriever=get_retriever())
+        ctx = TurnContext(session=session, retriever=get_retriever(), question=message)
         m = message.lower()
         claim = session.get("claim")
         what_if = _parse_what_if(m)
 
-        if claim and re.search(r"\bwhy\b.*\b(deduct|reduc|cut|not paid|non-payable|hold|held)|explain.*(deduction|room|amount)|how.*(calculated|worked out)", m):
+        kind = plain_kind(message, claim)
+        if kind == "fact":
+            final = dict(answer_type="general_answer", headline=fact_answer(message, claim))
+        elif kind == "chat":
+            final = dict(answer_type="general_answer", headline=chat_answer(message))
+        elif claim and re.search(r"\bwhy\b.*\b(deduct|reduc|cut|not paid|non-payable|hold|held)|explain.*(deduction|room|amount)|how.*(calculated|worked out)", m):
             rid = call_tool("assess_claim", {"what_if": what_if} if what_if else {}, ctx)["result_id"]
             focus = ("room" if re.search(r"room|rent", m) else "non_medical" if re.search(r"non.?medical|glove|mask|annexure|consumable", m)
                      else "hold" if re.search(r"hold|held|prescription", m) else "deductible" if re.search(r"deductible|co-?pay", m) else "all")
@@ -163,7 +171,7 @@ class OfflineAgent:
         out = render_final(final, ctx)
         latency = round((time.perf_counter() - t0) * 1000)
         log_turn(agent="offline", session=session, message=message, status="ok", answer_type=final["answer_type"], trace=ctx.trace, latency_ms=latency)
-        return AgentResult(out.markdown, final["answer_type"], out.citations, ctx.trace, final, ctx.results, "ok", latency)
+        return AgentResult(out.markdown, final["answer_type"], out.citations, ctx.trace, final, ctx.results, "ok", latency, out.summary_markdown, out.sections)
 
 
 def _parse_what_if(m: str) -> dict:

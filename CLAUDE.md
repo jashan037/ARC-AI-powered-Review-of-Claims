@@ -6,13 +6,13 @@ Read this whole file before doing anything. It is the full context of the projec
 
 A health-insurance **claims-officer assistant** for the public **HDFC ERGO my:Optima Secure** policy wording. It answers policy questions with exact citations and assesses a structured claim (eligibility, waiting periods, room-rent deduction, non-payable items, missing documents, estimated payment) in a fixed, nicely formatted layout. **The human officer always decides.** It is a university project (AI-103, Azure AI), so it must clearly use Azure AI Search (RAG), a Foundry agent with function tools, and grounded, cited answers.
 
-Scope right now: **backend only**. A frontend comes later. Do not build UI.
+Scope right now: **backend plus two small web pages**, static files in `app/static`, served by FastAPI, same origin as the API, no build step, no CDN. **`/` is the customer page** ("ARC: AI-powered Review of Claims"): screen 1 uploads and checks documents, screen 2 is a chat about the claim; it shows summaries, never tool names, traces or chunk keys (those exist only behind `?dev=1`, in `dev.js`). **`/officer` is the earlier officer console** (claim picker, live badge, trace panel). A full frontend comes later.
 
 ## 2. The user, and how to work with them
 
 - CS student, **new to Azure**. When a step happens in a portal, give exact click paths (portal.azure.com or ai.azure.com), say what they should see afterwards, and wait for confirmation before the next step.
 - Never ask them to paste keys into chat. Secrets go only into `.env`. Never print, log or commit secrets.
-- Prefer small, reviewable diffs. Explain what you changed and why in plain language. Keep the tests green (151, all offline).
+- Prefer small, reviewable diffs. Explain what you changed and why in plain language. Keep the tests green (445, all offline; the markdown and label tests need Node and the browser tests need Playwright with the installed Chrome; each skips itself when its tool is missing).
 - Ask before any destructive or costly Azure action (deleting an index or agent, changing pricing tiers, creating new resources).
 
 ## 3. Azure resources that already exist (all built by the user last week)
@@ -57,22 +57,25 @@ Decisions (do not undo without a strong reason):
 CLAUDE.md, README.md, requirements.txt, .env.example, .gitignore
 app/
   config.py                    settings from env
-  main.py                      FastAPI: /health /samples /sessions /sessions/{id}/claim /sessions/{id}/chat /assess
+  main.py                      FastAPI: /health /samples /sessions (audience officer|customer) /sessions/{id}/claim /sessions/{id}/chat /assess and the intake routes /sessions/{id}/documents, /documents/sample, /intake; pages at / and /officer
+  intake.py                    claim intake: reads text PDFs (pypdf), recognises the document type, extracts fields, builds the claim; ready | needs_attention with plain reasons
   retrieval/base.py            Chunk, Retriever ABC, LocalRetriever (BM25 + tiny synonym map)
   retrieval/azure_search.py    AzureSearchRetriever, embed(), get_retriever()
   tools/claims_engine.py       all deterministic checks, assess(), apply_what_if(), compact_summary()
+  tools/plain_questions.py     plain questions (name, hospital, dates, plan ...; hello/thanks): recognised in the backend, answered as a one-line general_answer, never an assessment
   tools/evidence.py            clause ref ("C.1.b", "B.1.1.1 Note iii", "A.1.2 Def. 5") -> chunk_id
   tools/registry.py            tool JSON schemas, call_tool(), final_answer validation, render_final()
   rendering/render.py          Markdown templates for every answer type
+  static/                      customer page: index.html, customer.css, customer.js, md.js (small vendored markdown renderer); dev.js/dev.css only with ?dev=1; officer console: officer.html, arc.css, arc.js, labels.js
   rendering/scrub.py           internal terms (result ids, chunk keys, tool names): find() for the validator guard, scrub_final() in the renderer
   agent/instructions.py        the agent's system prompt
   agent/runner.py              FoundryAgent (tool loop), OfflineAgent, get_agent()
-scripts/                       create_index, upload_chunks, create_agent, eval_retrieval, chat_cli, render_samples, render_examples
+scripts/                       create_index, upload_chunks, create_agent, eval_retrieval, chat_cli, render_samples, render_examples, run_demo.sh (starts the app on 8765, real agent only), take_screenshots.py (Playwright, customer page), take_screenshots.mjs (officer console), demo_check.py, eval_agent.py
 tools/                         chunk_policy.py (clause-aware, tuned to V062425), chunk_generic.py
 data/                          policy_clauses.jsonl, rules/*.json, sample_claims.json (12), rag_eval_questions.json (19)
-tests/                         151 tests, all offline (engine, tools, agent loop with a fake client, API, timeouts/retries/logging/API hardening, general_answer guard, eval transcripts, query-aware excerpts, decision-wording guard, internal-terms guard and scrub)
+tests/                         445 tests, all offline (engine, tools, agent loop with a fake client, API, timeouts/retries/logging/API hardening, general_answer guard, eval transcripts, query-aware excerpts, decision-wording guard, internal-terms guard and scrub, web UI and its renderer)
 examples/                      rendered outputs (12 assessments, 7 Q&A types)
-reference/                     policy PDF, claims_data_pack (demo claim PDFs, expected_extraction.json), kb_sources_pack (28-document source list, downloader)
+reference/                     demo_documents (10 synthetic PDFs for the upload demo), policy PDF, claims_data_pack (demo claim PDFs, expected_extraction.json), kb_sources_pack (28-document source list, downloader)
 ```
 
 Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `deduction_explanation`, `documents_answer`, `definition_answer`, `insufficient_information`, `general_answer`.
@@ -139,10 +142,10 @@ Things to check first on real Azure:
 5. **Hardening. Done.** `app/resilience.py`: every Azure call has a timeout, a chat turn has a 60 s deadline (`TURN_DEADLINE_S`), 429 and transient 5xx are retried with capped exponential backoff (honours Retry-After), and a timeout or exhausted retries gives a "please try again" answer with `status` `timeout` | `unavailable` (`AgentResult.status`, also in the `/chat` response). Model calls are never retried after a read timeout (the request may still be running). The SDK defaults (openai: 10 min timeout, 2 silent retries; azure-core: 10 retries) are switched off in favour of this. `app/observability.py`: one JSON log line per turn (tools, ms, answer type, status, latency, retries; never the question, claim data or secrets). API: clean `{"error": {"code", "message"}}` bodies, no stack traces, 413 above `MAX_REQUEST_BYTES`, CORS only for `CORS_ORIGINS`. Known limit: 3 parallel evaluation workers hit the gpt-5-mini quota (429); raise the deployment's tokens-per-minute in Foundry if that matters.
 6. **IRDAI non-payable list** as a table (ask the user for the PDF: Annexure A of IRDAI's 2020 standardization guidelines, or the current master circular annexure). Extend `lookup_non_medical_item` and the bill analysis with the four groups (non-payable vs subsumed into room/procedure/treatment costs). Add tests.
 7. **2026 wording support.** Adapt `chunk_policy.py` (or improve the generic chunker), index it with `--uin HDFHLIP26058V082526 --effective-from 2026-04-02`, make the engine honour differences (utilization order, Protect Benefit only if in schedule, Infinite Benefit). Test that a claim with each UIN retrieves only its own wording.
-8. **Claim intake from PDFs.** Azure AI Content Understanding (or Document Intelligence) to turn the PDFs in `reference/claims_data_pack/demo_claim/` into claim JSON; score against `expected_extraction.json`. Show extracted values for officer confirmation.
+8. **Claim intake from PDFs. Partly done.** `app/intake.py` is a local, rule-based reader for text PDFs in the format of `reference/demo_documents` (no Azure): it reproduces the TC07 claim exactly from the 10 sample PDFs, flags wrong-person, wrong-total and wrong-date documents, and refuses scans, photos and unfamiliar files with a plain message. **Still to do:** Azure AI Content Understanding (or Document Intelligence) behind the same `process_file` / `build` interface so real, scanned or differently laid-out documents work. Original brief: Azure AI Content Understanding (or Document Intelligence) to turn the PDFs in `reference/claims_data_pack/demo_claim/` into claim JSON; score against `expected_extraction.json`. Show extracted values for officer confirmation.
 9. **Optional deployment** (Azure Container Apps or App Service in Central India, managed identity, Key Vault). Student quotas may block it; running locally is acceptable for the demo.
 
-Out of scope for now: frontend, real patient data, payments, production hardening beyond item 5.
+Out of scope for now: a full frontend, real patient data, payments, production hardening beyond item 5.
 
 ## 11. Rules for you
 
