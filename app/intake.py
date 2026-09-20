@@ -1,6 +1,6 @@
 """Claim intake: read the customer's documents and build the claim the engine needs.
 
-Scope, stated plainly: this reads TEXT PDFs in the format of the synthetic sample documents (reference/demo_documents). It is a small rule-based
+Scope, stated plainly: this reads TEXT PDFs in the format of the synthetic sample documents (demo/documents). It is a small rule-based
 reader, not OCR and not a general document understanding service. Scans, photos and unfamiliar layouts are reported back to the customer as
 "we couldn't read this", never guessed at. Roadmap step 8 (Azure AI Content Understanding) can replace `read_pdf` / `extract` behind the same
 `process_file` / `build_claim` interface.
@@ -19,7 +19,7 @@ from .config import ROOT
 from .rendering.render import inr
 from .tools import claims_engine as E
 
-SAMPLE_DIR = ROOT / "reference" / "demo_documents"
+SAMPLE_DIR = ROOT / "demo" / "documents"
 MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_PAGES = 20
 MAX_FILES_PER_UPLOAD = 15

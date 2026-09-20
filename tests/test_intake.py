@@ -11,8 +11,8 @@ from app.tools import claims_engine as E
 from tests.pdfmaker import edit, make_pdf
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
-MANIFEST = json.load(open(ROOT / "reference" / "demo_documents" / "manifest.json", encoding="utf-8"))
-EXPECTED = json.load(open(ROOT / "reference" / "claims_data_pack" / "demo_claim" / "expected_extraction.json", encoding="utf-8"))
+MANIFEST = json.load(open(ROOT / "demo" / "documents" / "manifest.json", encoding="utf-8"))
+EXPECTED = json.load(open(ROOT / "demo" / "documents" / "expected_extraction.json", encoding="utf-8"))
 FILES = dict(I.sample_files())
 
 

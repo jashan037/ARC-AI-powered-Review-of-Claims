@@ -19,7 +19,7 @@ from tests.pdfmaker import edit, make_pdf
 pw = pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 
-DOCS = ROOT / "reference" / "demo_documents"
+DOCS = ROOT / "demo" / "documents"
 ALL = sorted(str(p) for p in DOCS.glob("*.pdf"))
 FORBIDDEN = re.compile(r"\b(tools?|traces?|tracing|chunks?|chunk_keys?|result_ids?|tool_trace|trace_summary|assess_claim|search_policy|get_clause|final_answer)\b", re.I)
 RX = ["Doctor's Prescription", "Patient", "Rohan Verma, 28 years, male", "Rx: Ceftriaxone injection, Metronidazole IV, Pantoprazole injection"]

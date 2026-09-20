@@ -10,7 +10,7 @@ Two suites:
              data/sample_claims.json: answer type, recommendation, both payable amounts, deductions, flags, required citations.
   questions  claims-officer questions (some with a claim loaded, 3 the wording cannot answer). Checked for answer type, citations,
              a few facts that must appear, and (for what-if and dated questions) numbers from the deterministic engine.
-             P01 to P10 are plain questions ("what's my name", "hello") asked with the claim built from reference/demo_documents loaded, as a
+             P01 to P10 are plain questions ("what's my name", "hello") asked with the claim built from demo/documents loaded, as a
              customer: they must get a short general_answer, no assessment, no sections.
 
 Checks that apply to every run: final_answer accepted, no citations stripped by the validator, every citation exists in the
@@ -43,7 +43,7 @@ SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf
 
 
 def demo_documents_claim() -> dict:
-    """The claim a customer gets after uploading reference/demo_documents (it has a hospital and a policy number, which the hand-written samples lack)."""
+    """The claim a customer gets after uploading demo/documents (it has a hospital and a policy number, which the hand-written samples lack)."""
     from app import intake
     s = {"id": "eval", "history": []}
     for name, data in intake.sample_files():
@@ -441,8 +441,8 @@ def main():
     ap.add_argument("--only", help="comma list of case ids, e.g. TC07,Q01")
     ap.add_argument("--suite", choices=["all", "claims", "questions"], default="all")
     ap.add_argument("--workers", type=int, default=3, help="parallel agent turns (lower it if you see 429 errors)")
-    ap.add_argument("--report", default=str(ROOT / "examples" / "eval_report.md"))
-    ap.add_argument("--failures-dir", default=str(ROOT / "examples" / "eval_failures"),
+    ap.add_argument("--report", default=str(ROOT / "docs" / "evidence" / "eval_report.md"))
+    ap.add_argument("--failures-dir", default=str(ROOT / "docs" / "evidence" / "eval_failures"),
                     help="a transcript of every failed or retried run is saved here (tools, argument keys, final_answer arguments, rendered answer)")
     ap.add_argument("--verbose", action="store_true", help="print the rendered answer of every failing run")
     ap.add_argument("--offline", action="store_true", help="harness self-check with the keyword stand-in agent (needs RETRIEVER=local AGENT_MODE=offline); not a measure of the real agent")

@@ -2,8 +2,8 @@
 """Playwright screenshots of the customer page: both screens, in a real browser (the Chrome that is already installed).
 
     scripts/run_demo.sh                                       # one terminal: the app on port 8765, real agent only
-    python scripts/take_screenshots.py                        # another: writes docs/screenshots/01-...png
-    python scripts/take_screenshots.py --base http://127.0.0.1:8790 --out docs/screenshots
+    python scripts/take_screenshots.py                        # another: writes demo/screenshots/01-...png
+    python scripts/take_screenshots.py --base http://127.0.0.1:8790 --out demo/screenshots
 
 It walks the flow a customer would: empty upload screen, the documents read, a problem with a document, the first chat message, an answer with its
 suggestions, the same answer with "Show more" open, and a phone-sized view. Like the demo script it refuses the offline stand-in unless you pass
@@ -22,7 +22,7 @@ from tests.pdfmaker import edit  # noqa: E402
 
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 
-DOCS = ROOT / "reference" / "demo_documents"
+DOCS = ROOT / "demo" / "documents"
 ALL = sorted(str(p) for p in DOCS.glob("*.pdf"))
 WAIT_MS = 100000      # the real agent needs 15 to 25 seconds per answer; expect() has its own (short) default timeout
 
@@ -30,7 +30,7 @@ WAIT_MS = 100000      # the real agent needs 15 to 25 seconds per answer; expect
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base", default="http://127.0.0.1:8765")
-    ap.add_argument("--out", default=str(ROOT / "docs" / "screenshots"))
+    ap.add_argument("--out", default=str(ROOT / "demo" / "screenshots"))
     ap.add_argument("--allow-offline", action="store_true")
     a = ap.parse_args()
     base, out = a.base.rstrip("/"), Path(a.out)

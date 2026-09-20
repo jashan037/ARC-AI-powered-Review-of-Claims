@@ -169,13 +169,13 @@ def test_markdown_cannot_inject_markup():
 
 @needs_node
 def test_every_saved_example_answer_renders_cleanly():
-    files = [f for f in sorted((ROOT / "examples").glob("*.md")) if f.name != "eval_report.md"]      # the report is a document, not an answer
+    files = sorted((ROOT / "demo" / "examples").glob("*.md"))
     assert len(files) == 19
     for f, html in zip(files, render_all([p.read_text(encoding="utf-8") for p in files])):
         assert "<script" not in html and "```" not in html, f.name                       # fences are consumed
         assert "**" not in re.sub(r"<pre.*?</pre>", "", html, flags=re.S), f.name        # no unconverted bold left outside code blocks
         assert html.startswith("<h2>"), f.name
-    claim = render_all([(ROOT / "examples" / "TC07_demo_claim_prescription_missing.md").read_text(encoding="utf-8")])[0]
+    claim = render_all([(ROOT / "demo" / "examples" / "TC07_demo_claim_prescription_missing.md").read_text(encoding="utf-8")])[0]
     assert '<pre class="md-code">' in claim and "₹1,22,125" in claim and "₹1,01,625" in claim and "<table>" in claim and "<blockquote>" in claim
     assert "🟢" in claim and "<h3>Recommendation</h3>" in claim
 
