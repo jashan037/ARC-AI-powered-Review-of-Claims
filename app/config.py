@@ -44,6 +44,7 @@ class Settings:
     model_timeout_s: float = float(os.getenv("MODEL_TIMEOUT_S", "40"))     # one model call (capped by what is left of the deadline)
     search_timeout_s: float = float(os.getenv("SEARCH_TIMEOUT_S", "10"))
     embed_timeout_s: float = float(os.getenv("EMBED_TIMEOUT_S", "10"))
+    chunk_cache_size: int = int(os.getenv("CHUNK_CACHE_SIZE", "512"))      # clauses kept in memory by (chunk id, wording); 0 = no cache. The index changes only when you re-upload chunks: restart the app then.
     max_retries: int = int(os.getenv("MAX_RETRIES", "3"))                  # retries after the first try, for 429 and transient 5xx only
     backoff_base_s: float = float(os.getenv("BACKOFF_BASE_S", "0.5"))
     backoff_cap_s: float = float(os.getenv("BACKOFF_CAP_S", "8"))

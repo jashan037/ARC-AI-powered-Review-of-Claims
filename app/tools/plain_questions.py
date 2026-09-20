@@ -13,6 +13,7 @@ import re
 from datetime import datetime
 
 from ..rendering.render import inr
+from .sanitize import clean
 
 NOT_IN_DOCUMENTS = "I don't see that in your documents."
 
@@ -75,9 +76,10 @@ def stay_days(claim: dict) -> int | None:
 def claim_facts(claim: dict) -> dict:
     """Everything get_claim_summary tells the model. A missing value is None: it is not in the customer's documents."""
     base = claim.get("base_si_lakh")
-    return dict(claim_id=claim.get("claim_id"), insured=claim.get("insured_name"), plan=claim.get("plan"),
-                sum_insured=inr(base * 100000) if base else None, policy_number=claim.get("policy_number"), policy_uin=claim.get("policy_uin"),
-                hospital=claim.get("hospital"), diagnosis=claim.get("diagnosis") or None, procedure=claim.get("procedure") or None,
+    c = lambda k: clean(claim.get(k)) or None   # noqa: E731 - text from the customer's documents: one line, no control characters, capped
+    return dict(claim_id=c("claim_id"), insured=c("insured_name"), plan=claim.get("plan"),
+                sum_insured=inr(base * 100000) if base else None, policy_number=c("policy_number"), policy_uin=claim.get("policy_uin"),
+                hospital=c("hospital"), diagnosis=c("diagnosis"), procedure=c("procedure"),
                 admitted=_when(claim.get("admission_datetime")), discharged=_when(claim.get("discharge_datetime")), days_in_hospital=stay_days(claim),
                 claimed_amount=inr(claim["claimed_amount"]) if claim.get("claimed_amount") else None)
 

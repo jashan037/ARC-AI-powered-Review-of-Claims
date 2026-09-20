@@ -22,6 +22,7 @@ from .observability import configure_logging
 from .retrieval.azure_search import get_retriever
 from .rendering.render import render_claim_assessment
 from .tools import claims_engine as E
+from .tools.canned import NOT_READY
 from .tools.registry import trace_summary
 
 configure_logging()
@@ -240,6 +241,8 @@ def load_claim(sid: str, body: ClaimIn):
 @app.post("/sessions/{sid}/chat")
 def chat(sid: str, body: ChatIn):
     s = _session(sid)
+    if s.get("audience") == "customer" and not s.get("claim"):   # no upload yet, or the documents need attention: a fixed answer, no model call
+        return dict(session_id=sid, status="ok", answer_type="direct_answer", answer_markdown=NOT_READY, summary_markdown=NOT_READY, sections=[], citations=[], suggestions=[])
     result = get_agent().ask(s, body.message)
     if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the officer will simply ask again
         headline = (result.final or {}).get("headline") or (result.final or {}).get("reply") or next((l.strip("# ").strip() for l in result.markdown.splitlines() if l.strip()), "")
