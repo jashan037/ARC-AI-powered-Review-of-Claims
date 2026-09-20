@@ -50,6 +50,8 @@ class TurnContext:
     plain_rejected: bool = False            # and the "a plain question gets a one-line general_answer, not an assessment" guard
     focus_corrected: list = field(default_factory=list)   # (model's focus, focus decided from the question) whenever they differed
     tool_outputs: list = field(default_factory=list)      # what the tools returned this turn (final_answer excluded): the number guard checks direct answers against it
+    voice_rejected: bool = False            # the customer-voice guard asks for a rewrite once
+    figures_rejected: bool = False          # a payment answer with no figure in it is sent back once
     number_rejected: bool = False           # the number guard asks for a rewrite once
     numbers_dropped: list = field(default_factory=list)   # offending numbers that were still there after the rewrite (their sentence was dropped)
     number_fallbacks: int = 0               # replies rebuilt in code because nothing was left after dropping
@@ -250,6 +252,24 @@ _DECISION = re.compile(
     r"|\bmark (\w+ ){0,3}(as )?(non-?payable|payable|rejected|approved)\b", re.I)
 
 
+# Customer mode: words that speak about the customer in the third person, tell someone to check things for an officer, point at the screen, or tell the insurer what to decide.
+_VOICE = re.compile(
+    r"\bthe insured\b|\bthe claimant\b|\bthe policy ?holder\b|\binsured person\b|\bverify\b|\bconfirm whether\b|\bcheck whether\b|\bensure that\b"
+    r"|\bfor the (?:claims )?officer\b|\bthe (?:claims )?officer (?:should|must|will need|to)\b|\broute to\b|\bescalate\b|\bflag(?:ged)? for review\b"
+    r"|\bshow more\b|\bsee below\b|\b(?:details|working) below\b|\badjudicat\w*|\bthe insurer (?:should|must)\b|\bshould (?:pay|approve|reject|deny|settle)\b|\bAudience\b"
+    r"|(?:^|[.!?]\s+)(?:please\s+)?(?:approve|reject|deny|decline|settle|pay)\b(?! attention)", re.I)
+
+
+def voice_problems(a: dict) -> list[tuple[str, str]]:
+    """(where, phrase) for every phrase in the model's customer-facing text that a customer should not be spoken to with."""
+    out = []
+    for where, text in officer_texts(a):
+        out += [(where, m.group(0)) for m in _VOICE.finditer(text)]
+        if where.startswith("next_steps"):   # a next step must not be a decision; a reply may say "I can't approve your claim"
+            out += [(where, line.strip()[:50]) for line in text.split("\n") if _DECISION.search(line.strip())]
+    return out
+
+
 def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
     """The rules of a direct_answer: short, a list only for three or more items, known details that have something to show, and only numbers the tools returned."""
     errs, reply = [], (a.get("reply") or "").strip()
@@ -275,6 +295,9 @@ def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
             errs.append("details 'waiting_period' needs assess_claim or check_waiting_period in this turn. Call one first, or leave it out.")
         if d == "policy_reference" and not a.get("citations"):
             errs.append("details 'policy_reference' needs citations from search_policy or get_clause.")
+    if have_claim and not ctx.figures_rejected and not ctx.number_rejected and not re.search(r"\d", reply):
+        errs.append("Answer with the figures: a payment answer states the actual amounts, percentages or counts from the assess_claim result, "
+                    "for example what was deducted and why. Rewrite the reply with them.")
     if not ctx.number_rejected:
         bad = offenders(reply, allowed_from(ctx.tool_outputs))
         if bad:
@@ -322,6 +345,11 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
         if long_:
             errs.append("Keep the answer short for the claims officer: " + "; ".join(long_) + f". Use at most {MAX_HEADLINE_SENTENCES} sentences in the headline, at most "
                         f"{MAX_POINTS} points of at most {MAX_POINT_CHARS} characters each, and at most {MAX_NEXT_STEPS} next_steps. Put the most important first and rephrase.")
+    if ctx.session.get("audience") == "customer" and not ctx.voice_rejected:
+        voice = voice_problems(a)
+        if voice:
+            errs.append("Customer wording: you are writing for the customer. Rewrite in \"you\" and \"your claim\", plain words, next steps as \"Please ...\", and do not point at the screen. "
+                        "Never say the insured, the claimant, verify, confirm whether, for the officer, or tell anyone to decide. Remove or rephrase: " + " | ".join(f"{w}: '{p}'" for w, p in voice[:4]))
     leaks = [(where, term) for where, text in officer_texts(a) for term in find_internal(text)]
     if leaks and not ctx.internal_terms_rejected:
         errs.append("Text the claims officer reads (headline, points, next_steps, caveats) must never mention result ids, chunk keys, field names or tool names "
@@ -390,6 +418,10 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         ctx.length_caps_rejected = True         # once: the officer's view shows the top three points either way
     if any(e.startswith("This is a plain question") for e in errs):
         ctx.plain_rejected = True               # once; a persistent fact question is then answered from the claim itself (see the top of this function)
+    if any(e.startswith("Answer with the figures") for e in errs):
+        ctx.figures_rejected = True
+    if any(e.startswith("Customer wording:") for e in errs):
+        ctx.voice_rejected = True               # once, like the others
     if any(e.startswith("Text the claims officer reads") for e in errs):
         ctx.internal_terms_rejected = True      # once, like the others; the renderer removes whatever a second attempt still contains
     if errs and ctx.final_errors < 2:

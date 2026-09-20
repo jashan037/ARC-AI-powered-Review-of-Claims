@@ -80,7 +80,7 @@ def test_a_list_of_three_is_allowed():
 
 
 def test_details_need_the_tool_result_they_are_built_from():
-    _, model = run([[("final_answer", direct("Here it is.", details=["room_working"]))], [("assess_claim", {})], [("final_answer", direct("Here it is.", details=["room_working"]))]], "why was my room rent reduced")
+    _, model = run([[("final_answer", direct("Here it is.", details=["room_working"]))], [("assess_claim", {})], [("final_answer", direct("Your room rent was reduced by ₹12,000.", details=["room_working"]))]], "why was my room rent reduced")
     assert "needs assess_claim" in model.outputs[0]["problems"][0]
     _, model = run([[("final_answer", direct("Here it is.", details=["policy_reference"]))], [("final_answer", direct("Here it is."))]], "hello")
     assert "needs citations" in model.outputs[0]["problems"][0]
@@ -171,3 +171,17 @@ def test_agent_version_pins_the_agent_reference_for_a_rollback(monkeypatch, vers
     monkeypatch.setattr(identity, "DefaultAzureCredential", lambda: None)
     monkeypatch.setattr(runner, "settings", dataclasses.replace(runner.settings, agent_version=version))
     assert runner.FoundryAgent().ref == {"agent_reference": expected}
+
+
+def test_a_payment_answer_without_any_figure_is_sent_back_once_for_the_actual_amounts():
+    vague = direct("Your room rent was reduced because of a proportional rule.")
+    res, model = run([[("assess_claim", {})], [("final_answer", vague)], [("final_answer", direct("Your room rent was reduced by ₹12,000 because of the room limit."))]],
+                     "Why was my room rent reduced?")
+    assert "Answer with the figures" in model.outputs[1]["problems"][0] and "₹12,000" in res.summary_markdown
+    res, _ = run([[("assess_claim", {})], [("final_answer", vague)], [("final_answer", vague)]], "Why was my room rent reduced?")
+    assert [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [False, True]          # asked once, then accepted
+
+
+def test_the_figures_rule_does_not_apply_without_a_claim_result():
+    res, _ = run([[("final_answer", direct("Hello, how can I help with your claim?"))]], "hello")
+    assert res.status == "ok" and [t["ok"] for t in res.trace] == [True]
