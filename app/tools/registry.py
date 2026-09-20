@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from ..config import settings
 from ..rendering import render as R
+from ..rendering.scrub import find as find_internal, officer_texts, scrub_final
 from ..resilience import TurnAbort
 from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
@@ -34,6 +35,7 @@ class TurnContext:
     final_errors: int = 0
     general_answer_rejected: bool = False   # the "you assessed a claim, so do not answer general_answer" guard fires once per turn
     decision_wording_rejected: bool = False # so does the "next_steps must not be decisions" guard
+    internal_terms_rejected: bool = False   # and the "no result ids, chunk keys or tool names in officer text" guard
 
     @property
     def uin(self) -> str:
@@ -213,6 +215,11 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     if decisions and not ctx.decision_wording_rejected:
         errs.append("next_steps are things for the claims officer to check, verify, confirm, request or flag. They must never be a decision or an instruction to "
                     "decide (pay, admit, approve, reject, deny, decline, settle). Rephrase these: " + " | ".join(s[:90] for s in decisions[:3]))
+    leaks = [(where, term) for where, text in officer_texts(a) for term in find_internal(text)]
+    if leaks and not ctx.internal_terms_rejected:
+        errs.append("Text the claims officer reads (headline, points, next_steps, caveats) must never mention result ids, chunk keys, field names or tool names "
+                    "(result_id, chunk_key, assess_claim, check_waiting_period and so on). Say \"the waiting-period check\" or \"the claim assessment\" in plain words, "
+                    "and put clause references in citations. Remove or rephrase: " + " | ".join(f"{w}: '{t}'" for w, t in leaks[:4]))
     if t in NEEDS_CLAIM_RESULT and (rid not in ctx.results or ctx.results[rid]["kind"] != "claim"):
         errs.append(f"{t} needs result_id from assess_claim. Call assess_claim first.")
     if t == "waiting_period_answer" and rid and rid not in ctx.results:
@@ -237,6 +244,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         ctx.general_answer_rejected = True   # rejected once: if the model insists on general_answer, its second choice stands
     if any(e.startswith("next_steps are things for the claims officer") for e in errs):
         ctx.decision_wording_rejected = True   # likewise once: a rephrase is asked for, not an endless loop
+    if any(e.startswith("Text the claims officer reads") for e in errs):
+        ctx.internal_terms_rejected = True      # once, like the others; the renderer removes whatever a second attempt still contains
     if errs and ctx.final_errors < 2:
         ctx.final_errors += 1
         return {"error": "final_answer rejected. Fix and call final_answer again.", "problems": errs}
@@ -251,6 +260,7 @@ def _final(a: dict, ctx: TurnContext) -> dict:
 
 
 def render_final(final: dict, ctx: TurnContext) -> R.Rendered:
+    final = scrub_final(final)   # last line of defence: no internal identifier reaches the officer, whatever the model wrote
     t, rid, ret = final["answer_type"], final.get("result_id"), ctx.retriever
     if t == "claim_assessment":
         note = " ".join(final.get("caveats") or []) or None

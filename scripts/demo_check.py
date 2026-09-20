@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from app.agent.runner import get_agent  # noqa: E402
 from app.config import settings  # noqa: E402
+from app.rendering.scrub import find as find_internal, officer_texts  # noqa: E402
 from app.tools.registry import _DECISION  # noqa: E402
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
@@ -85,9 +86,16 @@ def main():
         if st.get("first_point") and not (pts and re.search(st["first_point"], f"{pts[0].get('label', '')} {pts[0].get('detail', '')}", re.I)):
             problems.append(f"first supporting point does not name /{st['first_point']}/")
         problems += [f"next step reads as a decision: {x[:80]}" for x in (r.final or {}).get("next_steps") or [] if _DECISION.search(x)]
+        shown = find_internal(r.markdown.split("### Evidence")[0])
+        if shown:
+            problems.append(f"internal terms reached the officer: {shown[:3]}")
+        raw = [t for _, text in officer_texts(r.final or {}) for t in find_internal(text)]
+        rejections = sum(1 for t in r.trace if t["tool"] == "final_answer" and not t["ok"])
         bad += bool(problems)
         print(f"Step {st['n']}  {'PASS' if not problems else 'FAIL'}  {secs:4.0f}s  {r.answer_type:24} {' > '.join(t['tool'] for t in r.trace)}")
         print(f"        \"{st['q'][:90]}\"\n        cited: {sorted(cited)}")
+        if raw or rejections:
+            print(f"        note: the model's own text contained {raw or 'nothing internal'}; final_answer rejected {rejections}x (the guard and scrub handled it)")
         for p in problems:
             print(f"        - {p}")
         if st["n"] in args.show:

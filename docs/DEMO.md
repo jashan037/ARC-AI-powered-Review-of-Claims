@@ -2,7 +2,7 @@
 
 **One sentence for the audience:** an AI assistant that answers policy questions with exact clause citations and assesses a claim in a fixed layout, while every number comes from code and the claims officer always decides.
 
-**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, version 5, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/demo_check.py` after the last change (129 s of total agent time; 13 to 24 seconds per answer), so talk while it works.
+**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, version 5, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/demo_check.py` after the last change (129 s of total agent time; 14 to 21 seconds per answer), so talk while it works.
 
 ## Before you start (2 minutes, do it beforehand)
 
@@ -49,7 +49,7 @@ The model chooses tools and writes the explanation. Python does all dates and mo
 ## Known rough edges (say them before someone asks)
 
 - **Wording varies between runs.** Over the last full passes a few runs drifted on policy questions (an omitted accident exception, and once the accident-within-30-days question typed "Insufficient information"; the latter was fixed by the prompt change in agent version 5 and passed 10 of 10 afterwards). On Q01 the first point names the joint-replacement entry in 9 of 10 runs; in the tenth the rule comes first and the entry second. The 8 demo steps themselves passed every time. Transcripts are in `examples/eval_failures/`.
-- **Step 3** can end a next step with "Refer to the waiting-period check result (result_id) ...", which mentions an internal id. Ignore it if it appears; the date in the table is what to show.
+- **No internal identifiers reach the officer.** Text the model writes (headline, points, next steps, caveats) may not mention result ids, chunk keys, field names or tool names. A guard sends such text back once for a rephrase, and the renderer removes whatever a second attempt still contains. Probed on the real agent with five questions that ask for those names, all five were rejected once and answered cleanly on the second attempt. This replaces an earlier step 3 rough edge where a next step mentioned a `result_id`.
 - **Next steps are checks, not decisions.** The model is told to phrase them as things to check, verify, confirm, request or flag, and the backend sends back any next step that reads as "do not pay", "reject", "approve" or "mark as non-payable" once for a rephrase. The demo runs showed none.
 - **Step 2** names where the ratio is published (annual report, IRDAI) from general knowledge. It is a pointer, not a policy fact, and it carries no citation.
 - Not modelled yet: IRDAI's longer non-payable list, sub-limits, bonus and restore benefits, network lookup, and the newer 2026 wording (`HDFHLIP26058V082526`). Only wording `HDFHLIP25041V062425` is indexed.

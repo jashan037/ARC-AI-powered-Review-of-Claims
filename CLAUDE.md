@@ -12,7 +12,7 @@ Scope right now: **backend only**. A frontend comes later. Do not build UI.
 
 - CS student, **new to Azure**. When a step happens in a portal, give exact click paths (portal.azure.com or ai.azure.com), say what they should see afterwards, and wait for confirmation before the next step.
 - Never ask them to paste keys into chat. Secrets go only into `.env`. Never print, log or commit secrets.
-- Prefer small, reviewable diffs. Explain what you changed and why in plain language. Keep the tests green (100, all offline).
+- Prefer small, reviewable diffs. Explain what you changed and why in plain language. Keep the tests green (151, all offline).
 - Ask before any destructive or costly Azure action (deleting an index or agent, changing pricing tiers, creating new resources).
 
 ## 3. Azure resources that already exist (all built by the user last week)
@@ -64,12 +64,13 @@ app/
   tools/evidence.py            clause ref ("C.1.b", "B.1.1.1 Note iii", "A.1.2 Def. 5") -> chunk_id
   tools/registry.py            tool JSON schemas, call_tool(), final_answer validation, render_final()
   rendering/render.py          Markdown templates for every answer type
+  rendering/scrub.py           internal terms (result ids, chunk keys, tool names): find() for the validator guard, scrub_final() in the renderer
   agent/instructions.py        the agent's system prompt
   agent/runner.py              FoundryAgent (tool loop), OfflineAgent, get_agent()
 scripts/                       create_index, upload_chunks, create_agent, eval_retrieval, chat_cli, render_samples, render_examples
 tools/                         chunk_policy.py (clause-aware, tuned to V062425), chunk_generic.py
 data/                          policy_clauses.jsonl, rules/*.json, sample_claims.json (12), rag_eval_questions.json (19)
-tests/                         100 tests, all offline (engine, tools, agent loop with a fake client, API, timeouts/retries/logging/API hardening, general_answer guard, eval transcripts, query-aware excerpts, decision-wording guard)
+tests/                         151 tests, all offline (engine, tools, agent loop with a fake client, API, timeouts/retries/logging/API hardening, general_answer guard, eval transcripts, query-aware excerpts, decision-wording guard, internal-terms guard and scrub)
 examples/                      rendered outputs (12 assessments, 7 Q&A types)
 reference/                     policy PDF, claims_data_pack (demo claim PDFs, expected_extraction.json), kb_sources_pack (28-document source list, downloader)
 ```

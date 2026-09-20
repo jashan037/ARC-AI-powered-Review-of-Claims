@@ -33,6 +33,7 @@ from app.agent.runner import get_agent  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.rendering.render import inr  # noqa: E402
 from app.retrieval.azure_search import get_retriever  # noqa: E402
+from app.rendering.scrub import find as find_internal, officer_texts  # noqa: E402
 from app.tools import claims_engine as E  # noqa: E402
 from app.tools.registry import _DECISION  # noqa: E402
 
@@ -117,6 +118,12 @@ def common_checks(res, retriever, fails: list[str], notes: list[str]):
     if rejected:
         why = "; ".join(p[:110] for t in fa if not t["ok"] for p in t.get("problems", []))
         notes.append(f"final_answer rejected {rejected}x then accepted: {why}")
+    shown = find_internal(res.markdown.split("### Evidence")[0])
+    if shown:
+        fails.append(f"internal terms reached the officer: {shown[:3]}")
+    raw = [t for _, text in officer_texts(res.final) for t in find_internal(text)]
+    if raw:
+        notes.append(f"the model's own text contained internal terms {raw[:3]} (scrubbed)")
     for step in res.final.get("next_steps") or []:   # the accepted answer, even if the validator let a second attempt through
         if _DECISION.search(step):
             fails.append(f"next step reads as a decision: {step[:90]}")
