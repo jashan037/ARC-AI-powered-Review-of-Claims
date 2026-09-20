@@ -34,6 +34,7 @@ from app.config import settings  # noqa: E402
 from app.rendering.render import inr  # noqa: E402
 from app.retrieval.azure_search import get_retriever  # noqa: E402
 from app.tools import claims_engine as E  # noqa: E402
+from app.tools.registry import _DECISION  # noqa: E402
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
 STRIPPED = "Some citations could not be verified"
@@ -45,17 +46,18 @@ STRIPPED = "Some citations could not be verified"
 QCOVER = ["coverage_answer", "waiting_period_answer"]
 QUESTIONS = [
     dict(id="Q01", msg="Is knee replacement covered and what is the waiting period?", types=QCOVER,
-         cite_any=["C1-b", "C1-b-list"], mention=[r"24\s*months?|two years", r"accident"], tools_any=["search_policy", "get_clause"]),
+         cite_any=["C1-b", "C1-b-list"], mention=[r"24[\s\-‐-―]*months?|two years", r"accident"], tools_any=["search_policy", "get_clause"],
+         first_point=[r"joint replacement"]),   # the entry that names the treatment, not an illness that merely sounds related
     dict(id="Q02", msg="The insured met with a road accident 12 days after buying a fresh policy. Does the 30-day waiting period stop us paying?",
          types=QCOVER, cite_any=["C1-c"], mention=[r"accident"]),
     dict(id="Q03", msg="What is the waiting period for pre-existing diseases?", types=QCOVER + ["definition_answer"],
-         cite_any=["C1-a"], mention=[r"36\s*months?"]),
+         cite_any=["C1-a"], mention=[r"36[\s\-‐-―]*months?"]),
     dict(id="Q04", msg="Is maternity payable under this policy?", types=["coverage_answer"], verdict=["not_covered", "covered_with_conditions"],
          cite_any=["C2-o"]),
     dict(id="Q05", msg="Are gloves and masks in the bill payable?", types=QCOVER, cite_any=["C3-k", "ANX-B", "B2.3"],
          mention=[r"non-?\s?medical|not payable|non-?payable"]),
     dict(id="Q06", msg="How many days does the insured have to send us the reimbursement documents after discharge?",
-         types=QCOVER + ["documents_answer", "definition_answer"], cite_any=["E1.6"], mention=[r"30\s*days"]),
+         types=QCOVER + ["documents_answer", "definition_answer"], cite_any=["E1.6"], mention=[r"30[\s\-‐-―]*days?"]),
     dict(id="Q07", msg="Which documents do we need to process a reimbursement claim?", types=["documents_answer", "coverage_answer"], cite_any=["E1.7"]),
     dict(id="Q08", msg="What counts as associated medical expenses for the room rent proportion?", types=["definition_answer", "coverage_answer"],
          cite_any=["A1.2-Def5", "B1.1.1-Note-iii"]),
@@ -115,6 +117,9 @@ def common_checks(res, retriever, fails: list[str], notes: list[str]):
     if rejected:
         why = "; ".join(p[:110] for t in fa if not t["ok"] for p in t.get("problems", []))
         notes.append(f"final_answer rejected {rejected}x then accepted: {why}")
+    for step in res.final.get("next_steps") or []:   # the accepted answer, even if the validator let a second attempt through
+        if _DECISION.search(step):
+            fails.append(f"next step reads as a decision: {step[:90]}")
     if any(STRIPPED in c for c in res.final.get("caveats") or []):
         fails.append("validator stripped unverifiable citations")
     for k in sorted(cited_keys(res)):
@@ -187,6 +192,12 @@ def check_question(q: dict, res, retriever) -> tuple[list[str], list[str]]:
     for pat in q.get("mention") or []:
         if not re.search(pat, res.markdown, re.I):
             fails.append(f"answer does not mention /{pat}/")
+    if q.get("first_point"):
+        pts = (res.final or {}).get("points") or []
+        first = f"{pts[0].get('label', '')} {pts[0].get('detail', '')}" if pts else ""
+        for pat in q["first_point"]:
+            if not re.search(pat, first, re.I):
+                fails.append(f"first supporting point does not name /{pat}/: {first[:100]}")
     for pat in q.get("headline_not") or []:
         if re.search(pat, (res.final or {}).get("headline", ""), re.I):
             fails.append(f"headline gives a yes/no answer: {(res.final or {}).get('headline', '')[:80]}")

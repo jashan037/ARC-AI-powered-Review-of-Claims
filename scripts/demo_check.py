@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from app.agent.runner import get_agent  # noqa: E402
 from app.config import settings  # noqa: E402
+from app.tools.registry import _DECISION  # noqa: E402
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
 
@@ -27,7 +28,8 @@ SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf
 # cited; `cites_all` must all be cited.
 STEPS = [
     dict(n=1, session="policy", claim=None, q="Is knee replacement covered and what is the waiting period?",
-         types=["coverage_answer", "waiting_period_answer"], contains=[r"24\s*months?", r"accident"], cites_any=["C1-b", "C1-b-list"]),
+         types=["coverage_answer", "waiting_period_answer"], contains=[r"24[\s\-‐-―]*months?", r"accident"], cites_any=["C1-b", "C1-b-list"],
+         first_point=r"joint replacement"),
     dict(n=2, session="policy", claim=None, q="What was HDFC ERGO's claim settlement ratio last financial year?",
          types=["insufficient_information"], contains=[], forbid=[r"\d+(\.\d+)?\s*%"], cites_any=[]),
     dict(n=3, session="policy", claim=None, q="Policy started 1 March 2025. The insured was admitted on 15 July 2026 for cataract surgery. Has the waiting period been served?",
@@ -79,6 +81,10 @@ def main():
         if st.get("cites_any") and not cited & set(st["cites_any"]):
             problems.append(f"none of {st['cites_any']} cited")
         problems += [f"{c} not cited" for c in st.get("cites_all", []) if c not in cited]
+        pts = (r.final or {}).get("points") or []
+        if st.get("first_point") and not (pts and re.search(st["first_point"], f"{pts[0].get('label', '')} {pts[0].get('detail', '')}", re.I)):
+            problems.append(f"first supporting point does not name /{st['first_point']}/")
+        problems += [f"next step reads as a decision: {x[:80]}" for x in (r.final or {}).get("next_steps") or [] if _DECISION.search(x)]
         bad += bool(problems)
         print(f"Step {st['n']}  {'PASS' if not problems else 'FAIL'}  {secs:4.0f}s  {r.answer_type:24} {' > '.join(t['tool'] for t in r.trace)}")
         print(f"        \"{st['q'][:90]}\"\n        cited: {sorted(cited)}")

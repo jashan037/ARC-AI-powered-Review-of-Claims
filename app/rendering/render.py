@@ -10,7 +10,7 @@ import datetime as dt
 import re
 from dataclasses import dataclass, field
 
-from ..retrieval.base import Chunk, Retriever
+from ..retrieval.base import Chunk, Retriever, best_window
 from ..tools.evidence import resolve
 
 FOOTER_ASSESS = ("> **Important:** This is an AI-assisted estimate based on the policy wording and the documents provided. "
@@ -70,7 +70,7 @@ class Evidence:
     """Collects chunks in order of first use and renders the evidence list."""
 
     def __init__(self, retriever: Retriever, uin: str | None):
-        self.r, self.uin, self.chunks = retriever, uin, {}
+        self.r, self.uin, self.chunks, self.hints = retriever, uin, {}, {}
 
     def add_refs(self, refs) -> list[Chunk]:
         out = []
@@ -81,14 +81,21 @@ class Evidence:
                 out.append(ch)
         return out
 
-    def add_keys(self, keys) -> list[Chunk]:
+    def add_keys(self, keys, hint: str | None = None) -> list[Chunk]:
+        """hint = the words of the point that cites these chunks; a long clause is then quoted where it says that, not from its first line."""
         out = []
         for k in keys or []:
             ch = self.chunks.get(k) or self.r.get_by_key(k)
             if ch:
                 self.chunks.setdefault(ch.chunk_key, ch)
+                if hint:
+                    self.hints[ch.chunk_key] = f"{self.hints.get(ch.chunk_key, '')} {hint}".strip()
                 out.append(ch)
         return out
+
+    def quote(self, c: Chunk, n: int) -> str:
+        hint = self.hints.get(c.chunk_key)
+        return best_window(c.text, hint, n) if hint else _excerpt(c.text, n)
 
     @staticmethod
     def label(chs: list[Chunk]) -> str:
@@ -105,11 +112,11 @@ class Evidence:
     def section(self, limit: int = 8) -> str:
         if not self.chunks:
             return ""
-        rows = [f"{i}. **{re.sub(r'\bA(1\.[12]) Def', r'A.\1 Def', c.citation)}** — “{_excerpt(c.text)}”" for i, c in enumerate(list(self.chunks.values())[:limit], 1)]
+        rows = [f"{i}. **{re.sub(r'\bA(1\.[12]) Def', r'A.\1 Def', c.citation)}** — “{self.quote(c, 240)}”" for i, c in enumerate(list(self.chunks.values())[:limit], 1)]
         return "### Evidence (why the AI said this)\n" + "\n".join(rows)
 
     def as_list(self) -> list[dict]:
-        return [dict(chunk_key=c.chunk_key, citation=c.citation, clause=c.clause, excerpt=_excerpt(c.text, 300)) for c in self.chunks.values()]
+        return [dict(chunk_key=c.chunk_key, citation=c.citation, clause=c.clause, excerpt=self.quote(c, 300)) for c in self.chunks.values()]
 
 
 def _rule_text(rule: dict, base_si_lakh: float) -> str:
@@ -432,7 +439,7 @@ def render_qa(final: dict, retriever: Retriever, uin: str | None) -> Rendered:
         heading = {"coverage_answer": "Conditions and checks", "definition_answer": "Key points"}.get(t, "Key points")
         out.append(f"### {heading}")
         for p in final["points"]:
-            chs = ev.add_keys(p.get("citations"))
+            chs = ev.add_keys(p.get("citations"), hint=f"{p['label']} {p['detail']}")
             ref = f" *({Evidence.label(chs)})*" if chs else ""
             out.append(f"{STATUS_ICON.get(p['status'], '🔹')} **{p['label']}** — {p['detail']}{ref}")
         out.append("")

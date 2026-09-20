@@ -9,6 +9,44 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 
+def best_window(text: str, query: str, n: int) -> str:
+    """The text itself if it fits in n characters; otherwise the n-character window that best matches the query.
+
+    Long clauses (a list of 45 conditions and procedures, a table of limits) used to be cut at their first n characters, so the model never saw
+    the entry it needed. Query words are matched by their first five letters. A word that occurs once in the text counts more than one that
+    occurs everywhere, and two query words that sit next to each other in the text in the same order count extra (a phrase match).
+    With no matching word the head of the text is returned, as before.
+    """
+    t = re.sub(r"\s+", " ", text).strip()
+    if len(t) <= n:
+        return t
+    q_words = [w for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 2 and w not in _STOP]
+    stems = {w[:5] for w in q_words}
+    q_pairs = {(a[:5], b[:5]) for a, b in zip(q_words, q_words[1:])}
+    words = [(m.start(), m.group()) for m in re.finditer(r"[a-z0-9]+", t.lower())]
+    stem_at = [next((st for st in stems if w.startswith(st)), None) for _, w in words]
+    hits = [(words[i][0], stem_at[i]) for i in range(len(words)) if stem_at[i]]
+    if not hits:
+        return t[:n].rsplit(" ", 1)[0] + " ..."
+    count = Counter(st for _, st in hits)
+    phrase_at = [(words[i][0], (stem_at[i], stem_at[i + 1])) for i in range(len(words) - 1) if stem_at[i] and (stem_at[i], stem_at[i + 1]) in q_pairs]
+    best_start, best_score = 0, -1.0
+    for pos in [p for p, _ in hits] + [p for p, _ in phrase_at]:
+        start = max(0, min(pos - n // 3, len(t) - n))
+        score = (sum(1 / count[st] for st in {st for p, st in hits if start <= p < start + n})
+                 + len({pair for p, pair in phrase_at if start <= p < start + n}))      # each distinct phrase counts once, however often it repeats
+        if score > best_score + 1e-9:
+            best_start, best_score = start, score
+    inside = [(p, 1 / count[st]) for p, st in hits if best_start <= p < best_start + n]
+    if inside:   # centre the window on the distinctive matches (weighted by rarity) instead of leaving them at its edge
+        centre = int(sum(p * w for p, w in inside) / sum(w for _, w in inside)) + 8
+        best_start = max(0, min(centre - n // 2, len(t) - n))
+    start = 0 if best_start == 0 else t.find(" ", best_start) + 1
+    end = min(len(t), start + n)
+    window = t[start:end] if end == len(t) else t[start:end].rsplit(" ", 1)[0]
+    return ("… " if start else "") + window + (" …" if start + len(window) < len(t) else "")
+
+
 @dataclass
 class Chunk:
     chunk_key: str
@@ -22,10 +60,12 @@ class Chunk:
     text: str
     score: float = 0.0
 
-    def short(self, n: int = 700) -> dict:
+    def short(self, n: int = 700, query: str | None = None) -> dict:
+        """The tool-result form of a chunk. With a query, a long chunk is shown as the window that best matches it instead of its first n characters."""
         t = re.sub(r"\s+", " ", self.text).strip()
+        excerpt = best_window(t, query, n) if query else (t if len(t) <= n else t[: n].rsplit(" ", 1)[0] + " ...")
         return dict(chunk_key=self.chunk_key, citation=self.citation, clause=self.clause, title=self.title,
-                    excerpt=t if len(t) <= n else t[: n].rsplit(" ", 1)[0] + " ...", score=round(self.score, 3))
+                    excerpt=excerpt, score=round(self.score, 3))
 
     def as_dict(self) -> dict:
         return asdict(self)

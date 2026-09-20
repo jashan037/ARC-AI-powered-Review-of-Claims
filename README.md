@@ -22,7 +22,7 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
-python -m pytest tests -q                       # 77 tests, all offline
+python -m pytest tests -q                       # 100 tests, all offline
 python scripts/render_samples.py                # 12 claim assessments -> examples/
 python scripts/render_examples.py               # one example per answer type -> examples/
 python scripts/eval_retrieval.py --verbose      # keyword baseline on the 19 questions

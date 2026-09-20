@@ -5,6 +5,7 @@ turn by calling `final_answer`; the backend validates it and renders the Markdow
 """
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -32,6 +33,7 @@ class TurnContext:
     final: dict | None = None
     final_errors: int = 0
     general_answer_rejected: bool = False   # the "you assessed a claim, so do not answer general_answer" guard fires once per turn
+    decision_wording_rejected: bool = False # so does the "next_steps must not be decisions" guard
 
     @property
     def uin(self) -> str:
@@ -132,7 +134,7 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
         top_k = max(1, min(int(a.get("top_k") or 5), 8))
         chunks = ctx.retriever.search(a["query"], uin=ctx.uin, top_k=top_k)
         _remember(ctx, chunks)
-        return {"policy_uin": ctx.uin, "results": [c.short(600) for c in chunks],
+        return {"policy_uin": ctx.uin, "results": [c.short(1500, query=a["query"]) for c in chunks],
                 "note": "" if chunks else "No passages matched. Try different words or answer with insufficient_information."}
 
     if name == "get_clause":
@@ -141,7 +143,7 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
         if not chunks:
             return {"error": f"Could not resolve clause '{a['clause_ref']}'. Use search_policy instead."}
         _remember(ctx, chunks)
-        return {"clauses": [c.short(1500) for c in chunks]}
+        return {"clauses": [c.short(4000) for c in chunks]}
 
     if name == "check_waiting_period":
         mini = dict(first_policy_inception=a["first_policy_inception"], admission_datetime=a["admission_date"] + "T00:00",
@@ -186,6 +188,14 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------
+# Next steps are for the officer to check or flag. These read as decisions or instructions to decide.
+_DECISION = re.compile(
+    r"^\W*(do not|don't|dont|reject|deny|decline|approve|pay(?! attention)|admit|settle|repudiate|refuse|disallow)\b"
+    r"|\b(do not|don't|should not|must not|cannot|can't|shall not) (be )?(pay|paid|admit|admitted|approve|approved|settle|settled|accept|accepted)\b"
+    r"|\b(reject|deny|decline|repudiate|disallow) (the|this|that) (claim|request)\b"
+    r"|\bmark (\w+ ){0,3}(as )?(non-?payable|payable|rejected|approved)\b", re.I)
+
+
 def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     errs, t = [], a.get("answer_type")
     if t not in ANSWER_TYPES:
@@ -199,6 +209,10 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     if t == "general_answer" and claim_rids and not ctx.general_answer_rejected:
         errs.append(f"You called assess_claim this turn, so general_answer is the wrong answer type. Use claim_assessment (assess or evaluate the claim), "
                     f"deduction_explanation (why an amount was deducted or held) or documents_answer (missing documents), with result_id={claim_rids[-1]}.")
+    decisions = [s for s in a.get("next_steps") or [] if _DECISION.search(s)]
+    if decisions and not ctx.decision_wording_rejected:
+        errs.append("next_steps are things for the claims officer to check, verify, confirm, request or flag. They must never be a decision or an instruction to "
+                    "decide (pay, admit, approve, reject, deny, decline, settle). Rephrase these: " + " | ".join(s[:90] for s in decisions[:3]))
     if t in NEEDS_CLAIM_RESULT and (rid not in ctx.results or ctx.results[rid]["kind"] != "claim"):
         errs.append(f"{t} needs result_id from assess_claim. Call assess_claim first.")
     if t == "waiting_period_answer" and rid and rid not in ctx.results:
@@ -221,6 +235,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
     errs = validate_final(a, ctx)
     if a.get("answer_type") == "general_answer" and any(e.startswith("You called assess_claim") for e in errs):
         ctx.general_answer_rejected = True   # rejected once: if the model insists on general_answer, its second choice stands
+    if any(e.startswith("next_steps are things for the claims officer") for e in errs):
+        ctx.decision_wording_rejected = True   # likewise once: a rephrase is asked for, not an endless loop
     if errs and ctx.final_errors < 2:
         ctx.final_errors += 1
         return {"error": "final_answer rejected. Fix and call final_answer again.", "problems": errs}
