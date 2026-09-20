@@ -28,6 +28,7 @@ class AgentResult:
     latency_ms: int = 0
     summary_markdown: str = ""                    # the compact answer (see rendering/compact.py); markdown stays the full answer
     sections: list = field(default_factory=list)  # [{id, title, status, markdown}] to open on demand
+    guards: dict = field(default_factory=dict)    # what the guards did this turn: focus corrected, numbers dropped, replies rebuilt in code (for the quality report)
 
 
 def _history_block(session: dict, n_turns: int = 4) -> str:
@@ -151,7 +152,8 @@ class FoundryAgent:
         if ctx.final is None:
             return AgentResult(_notice(status), "general_answer", [], ctx.trace, None, ctx.results, status, latency)
         out = render_final(ctx.final, ctx)
-        return AgentResult(out.markdown, ctx.final["answer_type"], out.citations, ctx.trace, ctx.final, ctx.results, "ok", latency, out.summary_markdown, out.sections)
+        return AgentResult(out.markdown, ctx.final["answer_type"], out.citations, ctx.trace, ctx.final, ctx.results, "ok", latency, out.summary_markdown, out.sections,
+                           guards=dict(focus_corrected=len(ctx.focus_corrected), numbers_dropped=len(ctx.numbers_dropped), number_fallbacks=ctx.number_fallbacks))
 
 
 # =============================================================================================

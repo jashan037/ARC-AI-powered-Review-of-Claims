@@ -117,6 +117,9 @@ def test_bare_amounts_are_written_as_rupees_without_changing_the_value():
     assert reformat_amounts("Admitted 10 Sep 2025 at 14:30, policy year 2025, 62.5% of ₹5,000, CLM-20250910-0001, 12 items") == \
         "Admitted 10 Sep 2025 at 14:30, policy year 2025, 62.5% of ₹5,000, CLM-20250910-0001, 12 items"
     assert reformat_amounts("total 184500") == "total ₹1,84,500"
+    assert reformat_amounts("you would get ₹129333.33; room ₹5333.33, fees ₹16833.34, items ₹12500.0 and ₹20500") == \
+        "you would get ₹1,29,333; room ₹5,333, fees ₹16,833, items ₹12,500 and ₹20,500"
+    assert reformat_amounts("₹1,22,125 and 62.5% of ₹5,000 stay as they are") == "₹1,22,125 and 62.5% of ₹5,000 stay as they are"
 
 
 def test_a_reply_with_a_raw_amount_is_shown_as_rupees_and_still_passes_the_guard():

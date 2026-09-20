@@ -51,6 +51,7 @@ class TurnContext:
     focus_corrected: list = field(default_factory=list)   # (model's focus, focus decided from the question) whenever they differed
     tool_outputs: list = field(default_factory=list)      # what the tools returned this turn (final_answer excluded): the number guard checks direct answers against it
     voice_rejected: bool = False            # the customer-voice guard asks for a rewrite once
+    type_rejected: bool = False             # a customer's documents_answer or deduction_explanation is sent back once, to become a direct_answer
     figures_rejected: bool = False          # a payment answer with no figure in it is sent back once
     number_rejected: bool = False           # the number guard asks for a rewrite once
     numbers_dropped: list = field(default_factory=list)   # offending numbers that were still there after the rewrite (their sentence was dropped)
@@ -319,6 +320,9 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
         errs.append("headline must be under 500 characters.")
     rid = a.get("result_id")
     claim_rids = [k for k, r in ctx.results.items() if r["kind"] == "claim"]
+    if ctx.session.get("audience") == "customer" and t in ("documents_answer", "deduction_explanation") and not ctx.type_rejected:
+        errs.append("Customer answer type: a customer's question about one payment topic or about documents gets answer_type direct_answer. Write reply (at most 4 sentences and about 80 words, "
+                    "with the figures from assess_claim) and details (documents_checklist, room_working, non_medical_list, estimate_breakdown), and call final_answer again.")
     if ctx.plain and t not in ("general_answer", "direct_answer") and not ctx.plain_rejected:
         errs.append("This is a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods or documents. "
                     "Do not assess the claim and do not use a longer answer type. Answer with answer_type general_answer: one short sentence, no points, no citations. "
@@ -418,6 +422,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         ctx.length_caps_rejected = True         # once: the officer's view shows the top three points either way
     if any(e.startswith("This is a plain question") for e in errs):
         ctx.plain_rejected = True               # once; a persistent fact question is then answered from the claim itself (see the top of this function)
+    if any(e.startswith("Customer answer type:") for e in errs):
+        ctx.type_rejected = True
     if any(e.startswith("Answer with the figures") for e in errs):
         ctx.figures_rejected = True
     if any(e.startswith("Customer wording:") for e in errs):

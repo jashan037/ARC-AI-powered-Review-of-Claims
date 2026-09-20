@@ -30,7 +30,8 @@ def deduction(focus):
 
 def run(question, model_focus):
     final = {"answer_type": "deduction_explanation", "headline": "x", "focus": model_focus}
-    model = Script([[("assess_claim", {})], [("final_answer", lambda m: dict(final, result_id=m.rid))]])
+    again = lambda m: dict(final, result_id=m.rid)   # noqa: E731 - a customer's deduction_explanation is sent back once (see test_voice_guard); here the model insists
+    model = Script([[("assess_claim", {})], [("final_answer", again)], [("final_answer", again)]])
     return agent(model).ask(customer_session(), question)
 
 

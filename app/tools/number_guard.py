@@ -99,7 +99,7 @@ def offenders(text: str, allowed: dict) -> list[str]:
 
 
 # A rupee amount written without the rupee sign or Indian grouping ("12000.0", "20500", "37,875"). Years and dates are taken out first.
-_BARE = re.compile(r"(?<![₹\w.,\-])(\d{1,3}(?:,\d{2,3})+|\d{4,})(?:\.0+)?(?![\d,]|\.\d|\s*%)")
+_BARE = re.compile(r"(?<![\w.,\-])(₹\s?)?(\d{1,3}(?:,\d{2,3})+|\d{4,})(\.\d+)?(?!\d|,\d|\.\d|\s*%)")
 
 
 def _indian(n: int) -> str:
@@ -116,8 +116,10 @@ def _indian(n: int) -> str:
 def reformat_amounts(text: str) -> str:
     """Rupee amounts as ₹1,22,125. Presentation only: the value is unchanged, so the number guard still sees the same number."""
     def one(m):
-        raw = m.group(1).replace(",", "")
-        return m.group(0) if 1900 <= int(raw) <= 2100 and "," not in m.group(1) else "₹" + _indian(int(raw))
+        raw, sign, dec = m.group(2).replace(",", ""), m.group(1), m.group(3)
+        if not sign and not dec and "," not in m.group(2) and 1900 <= int(raw) <= 2100:
+            return m.group(0)                                              # a year
+        return "₹" + _indian(int(round(float(raw + (dec or "")))))         # whole rupees, as the assessment shows them
     keep = {}
     def hold(m):
         keep[f"\x00{len(keep)}\x00"] = m.group(0)

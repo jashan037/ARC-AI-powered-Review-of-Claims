@@ -51,3 +51,22 @@ def test_the_officer_is_not_held_to_the_customer_voice():
 def test_customer_section_titles_have_no_officer_wording():
     from app.rendering.customer_labels import customerize
     assert customerize("What to check next") == "What to do next" and customerize("For the claims officer to review") == "A claims officer will look at this"
+
+
+def test_a_customers_documents_or_deduction_answer_is_sent_back_once_to_become_a_direct_answer():
+    for kind, extra in (("documents_answer", {}), ("deduction_explanation", {"focus": "room"})):
+        first = lambda m, kind=kind, extra=extra: dict({"answer_type": kind, "headline": "Here it is.", "result_id": m.rid}, **extra)   # noqa: E731
+        good = {"answer_type": "direct_answer", "reply": "Your room rent was reduced by ₹12,000.", "details": ["room_working"]}
+        model = Script([[("assess_claim", {})], [("final_answer", first)], [("final_answer", good)]])
+        res = agent(model).ask(customer_session(), "Why was my room rent reduced?")
+        assert res.answer_type == "direct_answer" and [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [False, True]
+        assert model.outputs[1]["problems"][0].startswith("Customer answer type:")
+        again = Script([[("assess_claim", {})], [("final_answer", first)], [("final_answer", first)]])
+        assert agent(again).ask(customer_session(), "Why was my room rent reduced?").answer_type == kind             # asked once, then the model's choice stands
+
+
+def test_an_officer_still_gets_documents_and_deduction_answers():
+    s = dict(customer_session(), audience="officer")
+    model = Script([[("assess_claim", {})], [("final_answer", lambda m: {"answer_type": "deduction_explanation", "headline": "x", "result_id": m.rid, "focus": "room"})]])
+    res = agent(model).ask(s, "Why was the room rent deducted?")
+    assert res.answer_type == "deduction_explanation" and [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [True]

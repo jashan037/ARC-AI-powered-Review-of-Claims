@@ -16,6 +16,7 @@ OFFICER_VOICE = ("Request the", "from the insured", "Re-run", "Verify", "the off
 def render(sample, answer, audience, **final):
     ctx = TurnContext(session={"claim": SAMPLES[sample]["claim"], "uin": settings.default_uin, "history": [], "audience": audience}, retriever=R)
     rid = call_tool("assess_claim", {}, ctx)["result_id"]
+    ctx.type_rejected = True    # and a customer's documents_answer or deduction_explanation has been sent back once too
     ctx.voice_rejected = True   # the customer-voice guard has already sent this text back once; this is the model insisting, and the renderer must still protect the customer
     assert call_tool("final_answer", dict(answer_type=answer, headline="Short headline.", result_id=rid, **final), ctx) == {"status": "accepted"}
     return render_final(ctx.final, ctx)
