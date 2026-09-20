@@ -5,7 +5,7 @@ import math
 import re
 from abc import ABC, abstractmethod
 from collections import Counter
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -66,9 +66,6 @@ class Chunk:
         excerpt = best_window(t, query, n) if query else (t if len(t) <= n else t[: n].rsplit(" ", 1)[0] + " ...")
         return dict(chunk_key=self.chunk_key, citation=self.citation, clause=self.clause, title=self.title,
                     excerpt=excerpt, score=round(self.score, 3))
-
-    def as_dict(self) -> dict:
-        return asdict(self)
 
 
 def chunk_from_record(r: dict, score: float = 0.0) -> Chunk:

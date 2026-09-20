@@ -14,7 +14,6 @@ import hashlib
 import io
 import re
 from datetime import date, datetime
-from pathlib import Path
 
 from .config import ROOT
 from .rendering.render import inr

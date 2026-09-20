@@ -146,9 +146,8 @@ def _sum(lines, cat, key):
 
 # ---------------------------------------------------------------- claim assessment
 def render_claim_assessment(res: dict, retriever: Retriever, officer_note: str | None = None, audience: str = "officer") -> Rendered:
-    c, bill, a = res["claim"], res["bill"], res["amounts"]
+    c = res["claim"]
     ev = Evidence(retriever, c.get("policy_uin"))
-    lines = bill["lines"]
     out = ["## AI-Assisted Claim Assessment", ""]
     hdr = [f"**Claim** {res['claim_id']} · **Insured** {c['insured_name']} · **Plan** {c['plan']} (base sum insured {inr(c['base_si_lakh'] * 100000)})",
            f"**Treatment** {c['procedure']} for {c['diagnosis']} · {d_fmt(c['admission'])} to {d_fmt(c['discharge'])}"]
@@ -235,7 +234,7 @@ def _room_section(res, ev):
 
 
 def _nm_section(res, ev):
-    c, bill = res["claim"], res["bill"]
+    bill = res["bill"]
     lines = bill["lines"]
     out = []
     nm = [l for l in lines if l["category"] == "non_medical"]
@@ -332,7 +331,7 @@ def _next_steps(res, audience="officer"):
 
 
 def _rest(res, ev, officer_note, retriever):
-    c, bill, a = res["claim"], res["bill"], res["amounts"]
+    bill, a = res["bill"], res["amounts"]
     out = []
 
     out += _conflict_section(res, ev) + _review_section(res, ev)

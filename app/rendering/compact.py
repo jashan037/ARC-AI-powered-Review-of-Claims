@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 
 from . import render as R
-from .render import DOC_SHORT, STATUS_ICON, VERDICT, d_fmt, inr, pct
+from .render import DOC_SHORT, STATUS_ICON, VERDICT, d_fmt, inr
 
 OFFICER_LINE = "> **The officer decides.** AI-assisted, not a decision."
 

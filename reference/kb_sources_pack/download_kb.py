@@ -1,5 +1,5 @@
 """Download every auto item in kb_manifest.json into kb/<folder>/. Run on your own machine (needs internet)."""
-import json, os, sys, time, argparse
+import json, os, time, argparse
 import requests
 
 ap = argparse.ArgumentParser()

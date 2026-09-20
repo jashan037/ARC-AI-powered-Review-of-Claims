@@ -79,12 +79,10 @@ table_skip = False
 
 RE_SECTION = re.compile(r"^\s*SECTION ([A-E])\.")
 RE_DEF = re.compile(r"^\s*Def\.\s*(\d+)\.\s+(.*)")
-RE_NUM = re.compile(r"^\s*(\d{1,2}(?:\.\d{1,2}){0,2})\.?\s*(?=[A-Z])(.+)")
 RE_LETTER = re.compile(r"^\s*([a-q])\.\s+(.*)")
 RE_CODE = re.compile(r"Code\s*[–-]?\s*(Excl\d{2})")
 RE_ANNEX = re.compile(r"^\s*(Annexure [ABC])\b\s*(.*)")
 
-skip_pages_as_tables = {29, 49, 50, 51, 52}   # handled from curated JSON / low value
 
 for pno, ln in stream:
     s = ln.strip()

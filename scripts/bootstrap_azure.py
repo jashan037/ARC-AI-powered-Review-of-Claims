@@ -240,7 +240,6 @@ def smoke_test() -> bool:
 def cmd_all(args):
     skip = set((args.skip or "").split(","))
     found, role_state = None, "had"
-    steps = []
     if "env" not in skip:
         found = cmd_env(args)
     if "role" not in skip:

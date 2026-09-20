@@ -7,10 +7,8 @@ from dataclasses import dataclass, field
 
 from ..config import settings
 from ..observability import log_turn
-from ..rendering import render as R
 from ..resilience import TurnAbort, call_with_retry, turn_scope
 from ..retrieval.azure_search import get_retriever
-from ..tools import claims_engine as E
 from ..tools.plain_questions import chat_answer, fact_answer, plain_kind
 from ..tools.registry import TurnContext, call_tool, render_final
 

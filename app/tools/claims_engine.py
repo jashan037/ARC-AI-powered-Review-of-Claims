@@ -25,7 +25,6 @@ def _load(name):
 PLANS = _load("plan_config.json")["plans"]
 NON_MEDICAL = {i["sr_no"]: i["item"] for i in _load("non_medical_items.json")["items"]}
 DOC_RULES = _load("claim_documents.json")["documents"]
-DOC_NAMES = {d["id"]: d["name"] for d in DOC_RULES}
 
 SPECIFIED_KEYWORDS = {
     "cholecystectomy": "Cholecystectomy", "cholecystitis": "Diseases of gall bladder including cholecystitis",
