@@ -40,9 +40,10 @@ def _history_block(session: dict, n_turns: int = 4) -> str:
 
 def _claim_block(session: dict) -> str:
     c = session.get("claim")
+    audience = f"Audience: {session.get('audience', 'officer')}.\n"
     if not c:
-        return "No claim is loaded in this session.\n\n"
-    return (f"A claim is loaded in this session: {c['claim_id']}, insured {c.get('insured_name')}, plan {c['plan']}, "
+        return audience + "No claim is loaded in this session.\n\n"
+    return audience + (f"A claim is loaded in this session: {c['claim_id']}, insured {c.get('insured_name')}, plan {c['plan']}, "
             f"{c.get('procedure')} for {c.get('diagnosis')}. Use assess_claim to work on it.\n\n")
 
 
@@ -73,7 +74,7 @@ class FoundryAgent:
         self.project = AIProjectClient(endpoint=settings.project_endpoint, credential=DefaultAzureCredential())
         # max_retries=0: the SDK default (2 silent retries, 10 minute timeout) is replaced by call_with_retry and the turn deadline
         self.openai = self.project.get_openai_client().with_options(max_retries=0)
-        self.ref = {"agent_reference": {"name": settings.agent_name, "type": "agent_reference"}}
+        self.ref = {"agent_reference": {"name": settings.agent_name, "type": "agent_reference", **({"version": settings.agent_version} if settings.agent_version else {})}}
 
     def _model(self, scope, fn):
         """A model-service call: timeout, retry on 429/5xx, never retried after a read timeout (see resilience.py)."""
@@ -89,15 +90,20 @@ class FoundryAgent:
                 # A fresh conversation per turn: the backend owns chat history, so there are never dangling tool calls.
                 conv = self._model(scope, lambda t: self.openai.conversations.create(timeout=t))
                 input_ = _claim_block(session) + _history_block(session) + "Question: " + message
+                force = False   # set after a reply that was plain text: the next call must be final_answer (a second tool call there is what made turns slow or empty)
                 for step in range(settings.max_agent_steps):
-                    resp = self._model(scope, lambda t: self.openai.responses.create(input=input_, conversation=conv.id, extra_body=self.ref, timeout=t))
+                    extra = {"tool_choice": {"type": "function", "name": "final_answer"}} if force else {}
+                    resp = self._model(scope, lambda t: self.openai.responses.create(input=input_, conversation=conv.id, extra_body=self.ref, timeout=t, **extra))
+                    force = False
                     calls = [i for i in resp.output if i.type == "function_call"]
                     if not calls:
                         if ctx.final is not None:
                             break
                         if step == settings.max_agent_steps - 1:
                             break
-                        input_ = "Reminder: finish this turn by calling final_answer with the right answer_type."
+                        input_ = ("Reminder: the tool results are already above; do not call other tools and do not write the answer as text. "
+                                  "Finish this turn now by calling final_answer with the right answer_type.")
+                        force = True
                         continue
                     outputs = []
                     for c in calls:

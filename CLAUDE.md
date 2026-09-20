@@ -13,7 +13,7 @@ Served by FastAPI: **`/` is the customer page** (screen 1 upload and document ch
 - CS student, **new to Azure**. For portal steps give exact click paths and wait for confirmation.
 - Never ask them to paste keys into chat. Secrets go only into `.env`. Never print, log or commit secrets.
 - Small, reviewable diffs; explain in plain language. Commits: one-line message, no co-author line, only when asked.
-- Keep the tests green (529, all offline; the markdown test needs Node, the browser tests need Playwright with the installed Chrome and skip themselves without them).
+- Keep the tests green (588, all offline; the markdown test needs Node, the browser tests need Playwright with the installed Chrome and skip themselves without them).
 - Ask before any destructive or costly Azure action (deleting an index or agent, changing tiers, creating resources). Do not touch the old index `rag-1789575754829` or the portal agent `claims-adjudication-agent` (v1).
 
 ## 3. Azure resources (all exist and are in use)
@@ -23,7 +23,7 @@ Served by FastAPI: **`/` is the customer page** (screen 1 upload and document ch
 | Subscription / RG | Azure for Students, `rg-claims-agent`. Regions allowed by policy: Korea Central, Central India, East Asia, Malaysia West, UAE North. |
 | Azure AI Search | `claims-search-37`, **Free tier**, Central India. Index **`claims-kb-v2`** (186 clause-level chunks, semantic config `default`, 1536-dim vectors), API-key auth. |
 | Models | In the Foundry resource `claims-agent-project-res` (Korea Central): `gpt-5-mini` and **`text-embedding-3-large`** (requested with `dimensions=1536`). Embeddings use the OpenAI endpoint and key from `.env`. |
-| Foundry | Project `jashanpreetsingh3999-6322`; agent **`claims-adjudication-agent-v2`, version 7 live** (prompt = `app/agent/instructions.py`, tools = `app/tools/registry.py:SCHEMAS`). Auth is `DefaultAzureCredential` (`az login`, role **Foundry User**). |
+| Foundry | Project `jashanpreetsingh3999-6322`; agent **`claims-adjudication-agent-v2`, latest version 9 (see docs/evidence for what changed); pin an older one with `AGENT_VERSION=7` in `.env` to roll back, nothing is deleted** (prompt = `app/agent/instructions.py`, tools = `app/tools/registry.py:SCHEMAS`). Auth is `DefaultAzureCredential` (`az login`, role **Foundry User**). |
 | Other | Storage `claimsagentjp2026` and Application Insights/Log Analytics exist but the app does not use them. |
 
 `python scripts/setup/check_env.py` validates `.env` (see `.env.example`). Function tools cannot be added in the portal; `scripts/setup/create_agent.py` adds a new agent version from the local prompt and schemas (run it only when the prompt or schemas changed).
@@ -69,7 +69,7 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 
 ```bash
 pip install -r requirements-dev.txt          # runtime is requirements.txt (pinned); dev adds pytest, httpx, playwright
-python -m pytest tests -q                    # 529 pass
+python -m pytest tests -q                    # 588 pass
 scripts/run_demo.sh                          # http://127.0.0.1:8765/ (refuses unless .env is azure + foundry)
 python scripts/dev/render_samples.py && python scripts/dev/render_examples.py      # -> demo/examples/
 python scripts/eval/eval_retrieval.py --verbose

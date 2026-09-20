@@ -242,7 +242,7 @@ def chat(sid: str, body: ChatIn):
     s = _session(sid)
     result = get_agent().ask(s, body.message)
     if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the officer will simply ask again
-        headline = (result.final or {}).get("headline") or next((l.strip("# ").strip() for l in result.markdown.splitlines() if l.strip()), "")
+        headline = (result.final or {}).get("headline") or (result.final or {}).get("reply") or next((l.strip("# ").strip() for l in result.markdown.splitlines() if l.strip()), "")
         s["history"].append(dict(user=body.message, answer_type=result.answer_type, headline=headline))
     out = dict(session_id=sid, status=result.status, answer_type=result.answer_type, answer_markdown=result.markdown,
                summary_markdown=result.summary_markdown or result.markdown, sections=result.sections, citations=_public_citations(result.citations),

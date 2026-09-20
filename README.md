@@ -30,7 +30,7 @@ docs/       SYSTEM_REPORT.md (audit), CLEANUP_REPORT.md, evidence/ (eval report 
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt                 # requirements.txt is runtime only; the dev file adds pytest, httpx, playwright
 cp .env.example .env                                # fill it in for Azure; the defaults run offline
-python -m pytest tests -q                           # 529 tests, all offline; browser tests use the Chrome you already have
+python -m pytest tests -q                           # 588 tests, all offline; browser tests use the Chrome you already have
 scripts/run_demo.sh                                 # customer page at http://127.0.0.1:8765/  (refuses unless .env is azure + foundry)
 uvicorn app.main:app --reload                       # dev; API docs at /docs; add ?dev=1 to the page for the live badge; the trace panel also needs DEBUG_TRACE=1 on the server
 python scripts/dev/chat_cli.py --claim TC07         # terminal chat (follows RETRIEVER / AGENT_MODE)
@@ -68,7 +68,7 @@ Live settings: `RETRIEVER=azure`, `AGENT_MODE=foundry`. Embeddings use the deplo
 
 ## Status and known limits
 
-- Tested: 529 offline tests and, on the real Azure agent, 38 evaluation cases (`docs/evidence/eval_report.md`) and the 8-step demo (`scripts/eval/demo_check.py`).
+- Tested: 588 offline tests and, on the real Azure agent, 38 evaluation cases (`docs/evidence/eval_report.md`) and the 8-step demo (`scripts/eval/demo_check.py`).
 - Intake reads text PDFs in the layout of `demo/documents/` only; scans and other layouts are refused, not guessed. Azure Content Understanding is not built.
 - Sessions are in memory, there is no authentication or rate limiting, and dependencies are pinned but not locked: see `docs/SYSTEM_REPORT.md` (P0 and P1 lists) before any deployment.
 - Only wording HDFHLIP25041V062425 is indexed. Non-medical items use HDFC's Annexure B (68 items), not IRDAI's longer list.

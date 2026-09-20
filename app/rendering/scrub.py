@@ -24,7 +24,8 @@ OTHER_WORDS = {"result_id": "check result", "result id": "check result", "chunk_
 _IDS = (r"\b(?:claim|waiting)-(?=[0-9a-f]*\d)[0-9a-f]{8}\b"                            # a result id such as claim-1a2b3c4d or waiting-9f8e7d6c
         r"|\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+:[A-Za-z][\w.\-]*")                           # a chunk key such as optima-secure-v062425:C1-b
 _WORDS = "|".join(sorted(map(re.escape, [*TOOL_WORDS, *OTHER_WORDS]), key=len, reverse=True))
-INTERNAL = re.compile(rf"\b(?:{_WORDS})\b|{_IDS}", re.I)
+_AUDIENCE = r"\bAudience:\s*(?:customer|officer)\b\.?"                                   # the line each turn starts with must not be echoed back
+INTERNAL = re.compile(rf"\b(?:{_WORDS})\b|{_IDS}|{_AUDIENCE}", re.I)
 
 
 def find(text: str) -> list[str]:
@@ -57,7 +58,7 @@ def scrub(text: str) -> str:
 
 def officer_texts(final: dict) -> list[tuple[str, str]]:
     """(where, text) for every string of a final_answer that the officer reads. Citations are not among them."""
-    out = [("headline", final.get("headline") or "")]
+    out = [("headline", final.get("headline") or ""), ("reply", final.get("reply") or "")]
     for i, p in enumerate(final.get("points") or [], 1):
         out += [(f"point {i} label", p.get("label") or ""), (f"point {i} detail", p.get("detail") or "")]
     out += [(f"next_steps[{i}]", s) for i, s in enumerate(final.get("next_steps") or [], 1)]
@@ -70,6 +71,8 @@ def scrub_final(final: dict) -> dict:
     f = dict(final)
     if "headline" in f:
         f["headline"] = scrub(f["headline"]) or "See the details below."
+    if "reply" in f:
+        f["reply"] = scrub(f["reply"]) or "I couldn't confirm that from your documents."
     points = []
     for p in f.get("points") or []:
         q = dict(p, label=scrub(p.get("label") or ""), detail=scrub(p.get("detail") or ""))

@@ -37,6 +37,7 @@ class Settings:
     model_deployment: str = os.getenv("MODEL_DEPLOYMENT", "gpt-5-mini")
     agent_name: str = os.getenv("AGENT_NAME", "claims-adjudication-agent-v2")
     max_agent_steps: int = int(os.getenv("MAX_AGENT_STEPS", "8"))
+    agent_version: str = os.getenv("AGENT_VERSION", "")   # empty = the latest version; set e.g. 7 to pin (rollback) without deleting anything
 
     # Timeouts, retries and limits. Every Azure call has a timeout; a whole chat turn has a deadline.
     turn_deadline_s: float = float(os.getenv("TURN_DEADLINE_S", "60"))     # the assistant answers or says "try again" within this

@@ -179,9 +179,38 @@ def claim_summary(res: dict, audience: str = "officer") -> str:
     return _tidy(out)
 
 
+def waiting_section(res: dict, ev) -> dict:
+    return section("waiting", "Waiting period", "problem" if any(k["status"] == "violated" for k in res["waiting"]["checks"]) else "ok", _body(R._waiting_section(res, ev)))
+
+
+def room_section(res: dict, ev) -> dict:
+    bill = res["bill"]
+    limited = bill["room_rule"]["type"] != "at_actuals" and bill["room_ratio"] < 1
+    return section("room", "Room rent working", "warning" if limited else "ok", _body(R._room_section(res, ev)))
+
+
+def nonpayable_section(res: dict, ev) -> dict:
+    bill = res["bill"]
+    nm = [l for l in bill["lines"] if l["category"] == "non_medical"]
+    if nm and bill["protect_benefit_in_force"]:
+        title, status = f"Non-medical items ({len(nm)}), payable under Protect Benefit", "ok"
+    else:
+        title, status = f"Non-payable items ({len(nm)})", "warning" if nm else "ok"
+    return section("nonpayable", title, status, _body(R._nm_section(res, ev)))
+
+
+def documents_section(res: dict, ev) -> dict:
+    checklist = res["documents"]["checklist"]
+    done = sum(1 for d in checklist if d["status"] == "ok")
+    return section("documents", f"Documents ({done} of {len(checklist)} complete)", "ok" if done == len(checklist) else "warning", _body(R._docs_section(res, ev)))
+
+
+def estimate_section(res: dict) -> dict:
+    return section("estimate", "Full estimate", "info", "```text\n" + "\n".join(R._estimate_rows(res)) + "\n```")
+
+
 def claim_sections(res: dict, ev, officer_note: str | None) -> list[dict]:
-    bill, rec = res["bill"], res["recommendation"]
-    lines = bill["lines"]
+    rec = res["recommendation"]
     secs = []
     conflicts = R._conflict_section(res, ev)
     if conflicts:
@@ -191,23 +220,12 @@ def claim_sections(res: dict, ev, officer_note: str | None) -> list[dict]:
         secs.append(section("review", "For the claims officer to review", "warning", _body(review)))
     cov = res["coverage"]["status"]
     secs.append(section("coverage", "Coverage", {"covered": "ok", "not_covered": "problem"}.get(cov, "warning"), _body(R._coverage_section(res, ev))))
-    secs.append(section("waiting", "Waiting period", "problem" if any(k["status"] == "violated" for k in res["waiting"]["checks"]) else "ok",
-                        _body(R._waiting_section(res, ev))))
+    secs.append(waiting_section(res, ev))
     if rec == "likely_not_payable":
         secs.append(section("bill_review", "Bill review", "info", "Not performed. The claim fails an eligibility check, so room-rent, non-medical and document checks do not change the outcome."))
     else:
-        limited = bill["room_rule"]["type"] != "at_actuals" and bill["room_ratio"] < 1
-        secs.append(section("room", "Room rent working", "warning" if limited else "ok", _body(R._room_section(res, ev))))
-        nm = [l for l in lines if l["category"] == "non_medical"]
-        if nm and bill["protect_benefit_in_force"]:
-            title, status = f"Non-medical items ({len(nm)}), payable under Protect Benefit", "ok"
-        else:
-            title, status = f"Non-payable items ({len(nm)})", "warning" if nm else "ok"
-        secs.append(section("nonpayable", title, status, _body(R._nm_section(res, ev))))
-        checklist = res["documents"]["checklist"]
-        done = sum(1 for d in checklist if d["status"] == "ok")
-        secs.append(section("documents", f"Documents ({done} of {len(checklist)} complete)", "ok" if done == len(checklist) else "warning", _body(R._docs_section(res, ev))))
-    secs.append(section("estimate", "Full estimate", "info", "```text\n" + "\n".join(R._estimate_rows(res)) + "\n```"))
+        secs += [room_section(res, ev), nonpayable_section(res, ev), documents_section(res, ev)]
+    secs.append(estimate_section(res))
     notes = useful_caveats([officer_note] if officer_note else [])
     if notes:
         secs.append(section("notes", "Notes", "info", "\n".join(f"- {n}" for n in notes)))

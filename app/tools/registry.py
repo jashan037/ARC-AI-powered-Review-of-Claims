@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from ..config import settings
-from ..rendering import render as R
+from ..rendering import compact, render as R
 from ..rendering.customer_labels import customerize_rendered
 from ..rendering.scrub import find as find_internal, officer_texts, scrub_final
 from ..resilience import TurnAbort
@@ -19,10 +19,16 @@ from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
 from .evidence import resolve
 from .focus import focus_for
+from .number_guard import allowed_from, drop_sentences, offenders, reformat_amounts
 from .plain_questions import NOT_IN_DOCUMENTS, claim_facts, fact_answer, plain_kind
 
 ANSWER_TYPES = ["claim_assessment", "coverage_answer", "waiting_period_answer", "deduction_explanation",
-                "documents_answer", "definition_answer", "insufficient_information", "general_answer"]
+                "documents_answer", "definition_answer", "insufficient_information", "general_answer", "direct_answer"]
+# what a direct_answer may open under "Show more": each id is built by existing code from a tool result (see _render_direct)
+DETAILS = ["room_working", "non_medical_list", "documents_checklist", "estimate_breakdown", "waiting_period", "policy_reference"]
+NEEDS_CLAIM_DETAILS = {"room_working", "non_medical_list", "documents_checklist", "estimate_breakdown"}
+MAX_REPLY_SENTENCES, MAX_REPLY_WORDS = 4, 85            # "at most 4 sentences and about 80 words"
+_LIST_LINE = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
 NEEDS_CLAIM_RESULT = {"claim_assessment", "deduction_explanation"}
 NEEDS_CITATIONS = {"coverage_answer", "definition_answer", "waiting_period_answer", "documents_answer"}
 
@@ -43,6 +49,10 @@ class TurnContext:
     length_caps_rejected: bool = False      # and the "keep it short" guard (headline, points, next steps)
     plain_rejected: bool = False            # and the "a plain question gets a one-line general_answer, not an assessment" guard
     focus_corrected: list = field(default_factory=list)   # (model's focus, focus decided from the question) whenever they differed
+    tool_outputs: list = field(default_factory=list)      # what the tools returned this turn (final_answer excluded): the number guard checks direct answers against it
+    number_rejected: bool = False           # the number guard asks for a rewrite once
+    numbers_dropped: list = field(default_factory=list)   # offending numbers that were still there after the rewrite (their sentence was dropped)
+    number_fallbacks: int = 0               # replies rebuilt in code because nothing was left after dropping
 
     @property
     def plain(self) -> str | None:
@@ -89,7 +99,12 @@ SCHEMAS = [
          "Numbers and dates for claims come from tool results via result_id, so never type them yourself for claim_assessment or deduction_explanation.",
          parameters=_obj({
              "answer_type": {"type": "string", "enum": ANSWER_TYPES},
-             "headline": {**_S, "description": "At most 2 short sentences that directly answer the question. For claim_assessment this is not shown, so keep it short."},
+             "headline": {**_S, "description": "At most 2 short sentences that directly answer the question. For claim_assessment this is not shown, so keep it short. Not used by direct_answer."},
+             "reply": {**_S, "description": "Only for direct_answer: the whole answer in plain text, at most 4 sentences and about 80 words. A list only for 3 or more parallel items. "
+                       "Every amount, percentage, date and count in it must be copied from a tool result of this turn."},
+             "details": {"type": "array", "items": {"type": "string", "enum": DETAILS},
+                         "description": "Only for direct_answer: what may open under Show more, built by the backend from tool results. room_working, non_medical_list, documents_checklist and "
+                                        "estimate_breakdown need assess_claim this turn; waiting_period needs assess_claim or check_waiting_period; policy_reference needs citations."},
              "verdict": {"type": "string", "enum": ["covered", "covered_with_conditions", "not_covered", "depends", "insufficient_information", "not_applicable"],
                          "description": "Only for coverage_answer."},
              "points": {"type": "array", "description": "Key findings, most important first. At most 3 points; each detail at most 150 characters.",
@@ -99,7 +114,7 @@ SCHEMAS = [
              "citations": {"type": "array", "items": _S, "description": "chunk_key values returned by search_policy, get_clause or the deterministic tools."},
              "result_id": {**_S, "description": "result_id from assess_claim (claim_assessment, deduction_explanation, documents_answer) or check_waiting_period (waiting_period_answer)."},
              "focus": {"type": "string", "enum": ["room", "associated", "non_medical", "hold", "deductible", "all"], "description": "For deduction_explanation."}},
-             ["answer_type", "headline"])),
+             ["answer_type"])),
 ]
 
 
@@ -142,6 +157,8 @@ def call_tool(name: str, args: dict, ctx: TurnContext) -> dict:
     if not entry["ok"]:   # keep the reason so evaluations and logs can say why a call failed (no claim data is added)
         entry["problems"] = out.get("problems") or [out["error"]]
     ctx.trace.append(entry)
+    if entry["ok"] and name != "final_answer":
+        ctx.tool_outputs.append(out)
     return out
 
 
@@ -233,17 +250,53 @@ _DECISION = re.compile(
     r"|\bmark (\w+ ){0,3}(as )?(non-?payable|payable|rejected|approved)\b", re.I)
 
 
+def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
+    """The rules of a direct_answer: short, a list only for three or more items, known details that have something to show, and only numbers the tools returned."""
+    errs, reply = [], (a.get("reply") or "").strip()
+    if not reply:
+        return ["reply is required for direct_answer."]
+    lines = [l for l in reply.split("\n") if l.strip()]
+    items = [l for l in lines if _LIST_LINE.match(l)]
+    prose = " ".join(l for l in lines if not _LIST_LINE.match(l))
+    if count_sentences(prose) > MAX_REPLY_SENTENCES or len(reply.split()) > MAX_REPLY_WORDS:
+        errs.append(f"The reply is too long: {count_sentences(prose)} sentences and {len(reply.split())} words. Use at most {MAX_REPLY_SENTENCES} sentences and about 80 words, and put the working in details.")
+    if 0 < len(items) < 3:
+        errs.append("Use a list only for 3 or more parallel items; write 1 or 2 items as plain sentences.")
+    details = a.get("details") or []
+    unknown = [d for d in details if d not in DETAILS]
+    if unknown:
+        errs.append(f"Unknown details {unknown}. The menu is {DETAILS}.")
+    have_claim = any(r["kind"] == "claim" for r in ctx.results.values())
+    have_wait = any(r["kind"] == "waiting" for r in ctx.results.values())
+    for d in details:
+        if d in NEEDS_CLAIM_DETAILS and not have_claim:
+            errs.append(f"details '{d}' needs assess_claim in this turn. Call it first, or leave '{d}' out.")
+        if d == "waiting_period" and not (have_claim or have_wait):
+            errs.append("details 'waiting_period' needs assess_claim or check_waiting_period in this turn. Call one first, or leave it out.")
+        if d == "policy_reference" and not a.get("citations"):
+            errs.append("details 'policy_reference' needs citations from search_policy or get_clause.")
+    if not ctx.number_rejected:
+        bad = offenders(reply, allowed_from(ctx.tool_outputs))
+        if bad:
+            hint = " No tool has been called this turn: call get_claim_summary, assess_claim or check_waiting_period first." if not ctx.tool_outputs else ""
+            errs.append(f"Numbers in the reply that no tool returned this turn: {bad}. Every amount, percentage, date and count must be copied from a tool result of this turn; "
+                        f"do not calculate or round.{hint}")
+    return errs
+
+
 def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     errs, t = [], a.get("answer_type")
     if t not in ANSWER_TYPES:
         return [f"answer_type must be one of {ANSWER_TYPES}."]
-    if not (a.get("headline") or "").strip():
+    if t != "direct_answer" and t not in NEEDS_CLAIM_RESULT and not (a.get("headline") or "").strip():   # a claim assessment's headline is never shown
         errs.append("headline is required.")
+    if t == "direct_answer":
+        errs += _direct_problems(a, ctx)
     if len(a.get("headline", "")) > 500:
         errs.append("headline must be under 500 characters.")
     rid = a.get("result_id")
     claim_rids = [k for k, r in ctx.results.items() if r["kind"] == "claim"]
-    if ctx.plain and t != "general_answer" and not ctx.plain_rejected:
+    if ctx.plain and t not in ("general_answer", "direct_answer") and not ctx.plain_rejected:
         errs.append("This is a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods or documents. "
                     "Do not assess the claim and do not use a longer answer type. Answer with answer_type general_answer: one short sentence, no points, no citations. "
                     f"For a detail of the claim use get_claim_summary; if it does not hold what was asked (address, phone number, email), say \"{NOT_IN_DOCUMENTS}\"")
@@ -292,11 +345,43 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     return errs
 
 
+def _fallback_reply(ctx: TurnContext) -> str:
+    """A sentence built in code from a tool result, for a reply that had nothing verifiable left."""
+    claim = ctx.session.get("claim")
+    if claim and (fact := fact_answer(ctx.question, claim)):
+        return fact
+    claims = [r["data"] for r in ctx.results.values() if r["kind"] == "claim"]
+    if claims:
+        am = claims[-1]["amounts"]
+        return f"Your estimated payment is {R.inr(am['estimated_payable_if_docs_supplied'])}, of which {R.inr(am['payable_confirmed_now'])} is confirmed today."
+    return "I couldn't confirm that from your documents."
+
+
+def _drop_unverified_numbers(a: dict, ctx: TurnContext) -> dict:
+    """The second attempt still holds a number no tool returned: drop its sentence, or rebuild the reply in code when nothing is left."""
+    allowed, reply = allowed_from(ctx.tool_outputs), a.get("reply") or ""
+    bad = offenders(reply, allowed)
+    if not bad:
+        return a
+    ctx.numbers_dropped.append(bad)
+    kept = drop_sentences(reply, allowed)
+    if not kept:
+        ctx.number_fallbacks += 1
+        kept = _fallback_reply(ctx)
+    return dict(a, reply=kept)
+
+
 def _final(a: dict, ctx: TurnContext) -> dict:
-    if ctx.plain == "fact" and ctx.plain_rejected and a.get("answer_type") != "general_answer" and ctx.session.get("claim"):
+    if ctx.plain == "fact" and ctx.plain_rejected and a.get("answer_type") not in ("general_answer", "direct_answer") and ctx.session.get("claim"):
         # told once, and the model still wants a longer answer for a plain question: the claim's own fields answer it, not the model
         a = dict(answer_type="general_answer", headline=fact_answer(ctx.question, ctx.session["claim"]) or NOT_IN_DOCUMENTS)
+    if a.get("answer_type") == "direct_answer":
+        a = dict(a, reply=reformat_amounts(a.get("reply") or ""))   # ₹1,22,125, never 122125.0; the value is the same, so the number guard is unaffected
+        if ctx.number_rejected:
+            a = _drop_unverified_numbers(a, ctx)
     errs = validate_final(a, ctx)
+    if any(e.startswith("Numbers in the reply") for e in errs):
+        ctx.number_rejected = True             # once; a second attempt with numbers no tool returned loses those sentences (see _drop_unverified_numbers)
     if a.get("answer_type") == "general_answer" and any(e.startswith("You called assess_claim") for e in errs):
         ctx.general_answer_rejected = True   # rejected once: if the model insists on general_answer, its second choice stands
     if any(e.startswith("next_steps are things for the claims officer") for e in errs):
@@ -348,10 +433,42 @@ def _focus(final: dict, ctx: TurnContext) -> str:
     return chosen
 
 
+def _render_direct(final: dict, ctx: TurnContext) -> R.Rendered:
+    """The reply is the summary. Each id in details becomes a collapsed section built by the same code that builds a full assessment, from this turn's tool results."""
+    ev = R.Evidence(ctx.retriever, ctx.uin)
+    claims = [r["data"] for r in ctx.results.values() if r["kind"] == "claim"]
+    waits = [r["data"] for r in ctx.results.values() if r["kind"] == "waiting"]
+    res = claims[-1] if claims else None
+    secs = []
+    for d in dict.fromkeys(final.get("details") or []):
+        if d == "room_working" and res:
+            secs.append(compact.room_section(res, ev))
+        elif d == "non_medical_list" and res:
+            secs.append(compact.nonpayable_section(res, ev))
+        elif d == "documents_checklist" and res:
+            secs.append(compact.documents_section(res, ev))
+        elif d == "estimate_breakdown" and res:
+            secs.append(compact.estimate_section(res))
+        elif d == "waiting_period" and res:
+            secs.append(compact.waiting_section(res, ev))
+        elif d == "waiting_period" and waits:
+            for k in waits[-1]["checks"]:
+                ev.add_refs(k["evidence"])
+            status = "problem" if any(k["status"] == "violated" for k in waits[-1]["checks"]) else "ok"
+            secs.append(compact.section("waiting", "Waiting period", status, compact._body(R._waiting_table_lines(waits[-1]["context"], waits[-1]["checks"]))))
+    ev.add_keys(final.get("citations") or [])           # citations are for policy facts only; they become the reference chips
+    reply = final["reply"].strip()
+    secs += compact._evidence_section(ev)
+    full = reply + "".join(f"\n\n### {s['title']}\n{s['markdown']}" for s in secs if s["id"] != "evidence")
+    return R.Rendered(full, ev.as_list(), reply, secs)
+
+
 def _render(final: dict, ctx: TurnContext) -> R.Rendered:
     final = scrub_final(final)   # last line of defence: no internal identifier reaches the officer, whatever the model wrote
     t, rid, ret = final["answer_type"], final.get("result_id"), ctx.retriever
     aud = ctx.session.get("audience", "officer")
+    if t == "direct_answer":
+        return _render_direct(final, ctx)
     if t == "claim_assessment":
         note = " ".join(final.get("caveats") or []) or None
         return R.render_claim_assessment(ctx.results[rid]["data"], ret, note, aud)
