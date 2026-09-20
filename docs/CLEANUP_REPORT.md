@@ -42,7 +42,7 @@
 |---|---|
 | `reference/demo_documents/*` | `demo/documents/*` (runtime path `intake.SAMPLE_DIR`) |
 | `reference/claims_data_pack/demo_claim/expected_extraction.json` | `demo/documents/expected_extraction.json` |
-| `reference/claims_data_pack/test_cases/test_cases.json`, `.../README.md` | `demo/original_pack/` |
+| `reference/claims_data_pack/test_cases/test_cases.json`, `.../README.md` | moved to `demo/original_pack/`, then deleted in the second pass (see below) |
 | `reference/policy/optima-secure-HDFHLIP25041V062425.pdf` | `tools/source/` |
 | `reference/kb_sources_pack/*` | `tools/kb_sources/` |
 | `docs/screenshots/*` (8), `docs/DEMO.md` | `demo/screenshots/`, `demo/DEMO.md` |
@@ -73,14 +73,22 @@ Every moved script's repo-root computation, `bootstrap_azure.py`'s sibling-scrip
 - **Browser (Chrome via Playwright) on the cleaned app started with `scripts/run_demo.sh`:** `/` loads with 10 checklist items, "Use sample documents" recognises 9 of 10, Continue shows the summary and 3 suggestions, the chip answer shows ₹1,22,125 and ₹1,01,625, "Add a document" adds the KYC form and re-checks the claim, no console or page errors. `/officer` returns 404.
 - **Scripts run after the move:** `check_env.py --offline`, `bootstrap_azure.py selftest`, `eval_retrieval.py` (hit@5 16/16), `eval_agent.py --offline` on two cases, `render_samples.py` (12 files), `render_examples.py` (7 files), `chat_cli.py`, `take_screenshots.py --help`, `demo_check.py` (see below).
 
+## Second pass (same day)
+
+- Removed 3 f-strings without placeholders (ruff `F,E9` is now clean).
+- **Deleted `demo/original_pack/`** (the older pack's `test_cases.json` and README). Proof: all 12 `expected` blocks and titles are identical to `data/sample_claims.json`; the claim bodies differ only by the `policy_uin` field that `sample_claims.json` added, and the engine gives the same recommendation and estimate on both versions for all 12. The README described files that no longer exist.
+- **Deleted `docs/CLEANUP_PLAN.md`**: a one-off working document, fully covered by this report and the git history (`pre-cleanup` tag, commit `add cleanup plan`).
+- Checked and **kept** (used): the `dot-*` CSS classes (built in `customer.js`), `dev.css` (loaded by `dev.js`), all five `data/rules/*.json` (engine and chunker), every file in `app/static/`, all test modules, `demo/examples/` (19 files identical to `tests/golden/answers`: the golden copy is what tests lock, the examples are the regenerable, presentable copy that `test_web_ui.py` renders and `DEMO.md` points to), `bootstrap_azure.py` and `tools/kb_sources/` (setup and roadmap tooling, not run here).
+- Tests: 439 passed after each change.
+
 ## Things I could not verify, or left because I was not sure
 
 - **`demo_check.py` ran twice by accident of having no offline mode** (it uses the real agent because `.env` selects it): the first run said **7 of 8** and I did not capture which step failed; the second run was **8 of 8**. I treat it as a model-wording flake (the DEMO says wording varies) but this is not proven. The full 38-case evaluation was **not** re-run after the cleanup (the prompt and agent did not change).
 - `create_index.py`, `upload_chunks.py` and `create_agent.py` were **not executed** (they change Azure resources); they compile and their repo-root path was checked. The `bootstrap_azure.py all` path that starts the moved scripts was not run (only `selftest`). `tools/kb_sources/ingest_kb.py` and `download_kb.py` (need internet and `requests`) were not run; their relative paths are unchanged but untested.
 - No Docker build was run; `.dockerignore` is untested.
-- **`demo/original_pack/test_cases.json`** (same 12 case ids as `data/sample_claims.json`, different structure) was kept because I could not prove it is a pure duplicate.
+- (Resolved in the second pass) `demo/original_pack/test_cases.json`: proven superseded and deleted, see below.
 - `scripts/dev/take_screenshots.py` still imports the test helper `tests/helpers/pdfmaker.py`.
-- `docs/CLEANUP_PLAN.md`, `docs/SYSTEM_REPORT.md` and `docs/evidence/*` keep their original (pre-cleanup) paths in their text on purpose; they are historical records.
+- `docs/SYSTEM_REPORT.md` and `docs/evidence/*` keep their original (pre-cleanup) paths in their text on purpose; they are historical records.
 - I installed `coverage`, `vulture` and `ruff` into the local `.venv` for the analysis; they are not in any requirements file (only mentioned in a comment of `requirements-dev.txt`).
 
 ## Action for you

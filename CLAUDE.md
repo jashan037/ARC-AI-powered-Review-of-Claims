@@ -54,12 +54,12 @@ app/        main.py (API), config.py, intake.py, resilience.py, observability.py
             tools/ (claims_engine.py, evidence.py, registry.py, plain_questions.py)  rendering/ (render.py, compact.py, scrub.py)
             static/ (index.html, customer.css, customer.js, md.js, dev.js, dev.css)
 data/       policy_clauses.jsonl, rules/*.json, sample_claims.json (12), rag_eval_questions.json (19)
-demo/       documents/ (10 synthetic PDFs, manifest, expected_extraction.json), screenshots/, examples/, DEMO.md, original_pack/
+demo/       documents/ (10 synthetic PDFs, manifest, expected_extraction.json), screenshots/, examples/, DEMO.md
 scripts/    run_demo.sh | setup/ (create_index, upload_chunks, create_agent, bootstrap_azure, check_env)
             eval/ (eval_retrieval, eval_agent, demo_check) | dev/ (chat_cli, render_samples, render_examples, take_screenshots)
 tools/      chunk_policy.py, chunk_generic.py, source/ (policy PDF), kb_sources/ (28-document source list)
 tests/      test_*.py, conftest.py, golden/answers/, helpers/pdfmaker.py
-docs/       SYSTEM_REPORT.md, CLEANUP_PLAN.md, CLEANUP_REPORT.md, evidence/ (eval_report.md, eval_failures/)
+docs/       SYSTEM_REPORT.md, CLEANUP_REPORT.md, evidence/ (eval_report.md, eval_failures/)
 ```
 
 Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `deduction_explanation`, `documents_answer`, `definition_answer`, `insufficient_information`, `general_answer`.

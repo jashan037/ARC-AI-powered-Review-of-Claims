@@ -21,7 +21,7 @@ demo/       documents/ (10 synthetic PDFs the page loads), screenshots/, example
 scripts/    run_demo.sh, setup/ (Azure), eval/ (evaluations), dev/ (CLI, renderers, screenshots)
 tools/      policy chunking (offline data prep), source/ (the policy PDF), kb_sources/ (source list for more wordings)
 tests/      all offline; golden answers in tests/golden, test-only helper in tests/helpers
-docs/       SYSTEM_REPORT.md (audit), CLEANUP_PLAN.md, CLEANUP_REPORT.md, evidence/ (eval report and transcripts)
+docs/       SYSTEM_REPORT.md (audit), CLEANUP_REPORT.md, evidence/ (eval report and transcripts)
 ```
 
 ## Run it
