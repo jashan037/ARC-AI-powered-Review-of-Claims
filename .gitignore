@@ -1,11 +1,20 @@
+# secrets and local configuration
 .env
 .env.*
 !.env.example
+
+# python
 .venv/
 venv/
 __pycache__/
-.pytest_cache/
 *.pyc
-*.zip
+.pytest_cache/
+.coverage*
+htmlcov/
+
+# os, editors, logs, downloads
 .DS_Store
+*.log
+*.zip
+node_modules/
 kb/

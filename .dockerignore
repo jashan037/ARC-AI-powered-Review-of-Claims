@@ -1,0 +1,23 @@
+# Keep secrets, tooling and everything the running app does not read out of any container build.
+.env
+.env.*
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.coverage*
+.DS_Store
+tests
+docs
+scripts
+tools
+CLAUDE.md
+README.md
+requirements-dev.txt
+# demo/ is excluded except the sample documents: "Use sample documents" reads them at runtime (app/intake.py SAMPLE_DIR)
+demo/*
+!demo/documents
+demo/documents/expected_extraction.json
