@@ -1,0 +1,81 @@
+{
+  "source": "Policy wording Section C.1 (pp.28-30)",
+  "rules": [
+    {
+      "code": "Excl01",
+      "clause": "C.1.a",
+      "name": "Pre-existing diseases",
+      "months": 36,
+      "applies_to": "PED and direct complications",
+      "accident_exempt": false,
+      "notes": "Measured from first policy inception with insurer; reduced by prior continuous coverage (portability). Applies afresh to enhanced SI. PED window: diagnosed/treated within 36 months before policy start (Def. 35)."
+    },
+    {
+      "code": "Excl02",
+      "clause": "C.1.b",
+      "name": "Specified disease/procedure",
+      "months": 24,
+      "applies_to": "Listed illnesses and surgical procedures",
+      "accident_exempt": true,
+      "notes": "If a listed item is also PED, the longer waiting period applies (C.1.b.iii)."
+    },
+    {
+      "code": "Excl03",
+      "clause": "C.1.c",
+      "name": "30-day waiting period",
+      "days": 30,
+      "applies_to": "Any illness (not accidents)",
+      "accident_exempt": true,
+      "notes": "Does not apply if the insured has continuous coverage for more than 12 months."
+    }
+  ],
+  "specified_illnesses": [
+    "Non infective Arthritis",
+    "Pilonidal sinus",
+    "Diseases of gall bladder including cholecystitis",
+    "Calculus diseases of urogenital system e.g. kidney stone, urinary bladder stone",
+    "Benign tumors, cysts, nodules, polyps including breast lumps",
+    "Pancreatitis",
+    "Ulcer and erosion of stomach and duodenum",
+    "Polycystic ovarian diseases",
+    "All forms of cirrhosis",
+    "Gastro Esophageal Reflux Disorder (GERD)",
+    "Sinusitis, Rhinitis",
+    "Perineal abscesses",
+    "Perianal abscesses",
+    "Skin tumors",
+    "Cataract and other disorders of lens and retina",
+    "Fissure/fistula in anus, haemorrhoids including gout and rheumatism",
+    "Tonsillitis",
+    "Osteoarthritis and osteoporosis",
+    "Fibroids (fibromyoma)",
+    "Benign hyperplasia of prostate"
+  ],
+  "specified_surgical_procedures": [
+    "Adenoidectomy, tonsillectomy",
+    "Tympanoplasty, mastoidectomy",
+    "Hernia",
+    "Dilatation and curettage (D&C)",
+    "Nasal concha resection",
+    "Surgery for prolapsed inter vertebral disc",
+    "Myomectomy for fibroids",
+    "Surgery of genito urinary system unless necessitated by malignancy",
+    "Surgery for varicose veins and varicose ulcers",
+    "Surgery on prostate",
+    "Cholecystectomy",
+    "Surgery for perianal abscesses",
+    "Hydrocele/Rectocele",
+    "Joint replacement surgeries",
+    "Surgery for nasal septum deviation",
+    "Ligament, tendon and meniscal tear",
+    "Hysterectomy",
+    "Fissurectomy, haemorrhoidectomy, fistulectomy, ENT surgeries",
+    "Endometriosis",
+    "Prolapsed uterus",
+    "Rectal prolapse",
+    "Varicocele",
+    "Retinal detachment",
+    "Glaucoma",
+    "Nasal polypectomy"
+  ]
+}

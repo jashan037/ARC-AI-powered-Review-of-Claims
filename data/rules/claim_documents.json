@@ -1,0 +1,132 @@
+{
+  "source": "Policy wording Section E.1 (pp.41-44)",
+  "notification": {
+    "emergency": "within 24 hours of emergency hospitalization or before discharge, whichever is earlier",
+    "planned": "at least 48 hours before admission (also for Home Health Care)"
+  },
+  "cashless_preauth_validity_days": 15,
+  "reimbursement_deadlines": {
+    "hospitalization_daycare_prehosp": "within 30 days of discharge",
+    "post_hospitalization": "within 15 days of completing post-hospitalization treatment"
+  },
+  "insurer_claim_settlement_days": 15,
+  "documents": [
+    {
+      "id": "claim_form",
+      "clause": "E.1.7.a",
+      "name": "Duly completed claim form",
+      "required": "always"
+    },
+    {
+      "id": "photo_id_age_proof",
+      "clause": "E.1.7.b",
+      "name": "Photo ID and age proof",
+      "required": "always"
+    },
+    {
+      "id": "hospital_registration",
+      "clause": "E.1.7.c",
+      "name": "Hospital registration certificate/number (or certificate with bed count)",
+      "required": "if_non_network_hospital"
+    },
+    {
+      "id": "discharge_summary",
+      "clause": "E.1.7.d",
+      "name": "Discharge card / day care summary / transfer summary",
+      "required": "always"
+    },
+    {
+      "id": "final_bill_receipts",
+      "clause": "E.1.7.e",
+      "name": "Final hospital bill with original deposit, final payment and refund receipts",
+      "required": "always"
+    },
+    {
+      "id": "implant_invoice_stickers",
+      "clause": "E.1.7.f",
+      "name": "Invoice, payment receipt and implant stickers for implants used",
+      "required": "if_implants_used"
+    },
+    {
+      "id": "previous_consultation_papers",
+      "clause": "E.1.7.g",
+      "name": "Previous consultation papers (history, treatment, advice for hospitalization)",
+      "required": "always"
+    },
+    {
+      "id": "diagnostic_reports_bills",
+      "clause": "E.1.7.h",
+      "name": "Diagnostic reports (imaging, lab) with prescription and diagnostic centre bills",
+      "required": "always"
+    },
+    {
+      "id": "pharmacy_bills_prescription",
+      "clause": "E.1.7.i",
+      "name": "Medicine/pharmacy bills with Medical Practitioner's prescription",
+      "required": "always"
+    },
+    {
+      "id": "mlc_fir",
+      "clause": "E.1.7.j",
+      "name": "MLC / FIR copy",
+      "required": "if_accident"
+    },
+    {
+      "id": "alcohol_history",
+      "clause": "E.1.7.k",
+      "name": "History of alcohol consumption/intoxication certified by first treating doctor",
+      "required": "if_accident"
+    },
+    {
+      "id": "death_documents",
+      "clause": "E.1.7.l",
+      "name": "Death summary and death certificate",
+      "required": "if_death_claim"
+    },
+    {
+      "id": "indoor_case_papers",
+      "clause": "E.1.7.m",
+      "name": "Indoor case papers with nursing sheet",
+      "required": "if_requested_by_insurer"
+    },
+    {
+      "id": "vaccination_invoice",
+      "clause": "E.1.7.n",
+      "name": "Vaccination invoice and receipt",
+      "required": "if_vaccination"
+    },
+    {
+      "id": "ambulance_invoice",
+      "clause": "E.1.7.o",
+      "name": "Original ambulance invoices in company format",
+      "required": "if_ambulance_claimed"
+    },
+    {
+      "id": "kyc",
+      "clause": "E.1.7.p",
+      "name": "KYC documents of policyholder (AML)",
+      "required": "if_claim_above_inr_100000"
+    },
+    {
+      "id": "neft_form",
+      "clause": "E.1.7.q",
+      "name": "NEFT form with cancelled cheque",
+      "required": "always_for_reimbursement"
+    },
+    {
+      "id": "legal_heir_certificate",
+      "clause": "E.1.7.r",
+      "name": "Legal heir / succession certificate",
+      "required": "if_applicable"
+    },
+    {
+      "id": "overseas_documents",
+      "clause": "E.1.7.s",
+      "name": "Passport with stamps, tickets, accommodation invoices, overseas doctor's advice for accompanying person",
+      "required": "if_claim_outside_india"
+    }
+  ],
+  "checks": [
+    "Bills/invoices must be in the insured person's name (E.1.7 Note i)."
+  ]
+}

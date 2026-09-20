@@ -1,0 +1,236 @@
+{
+  "source": "Policy wording Sections C.2 (p.30-32) and C.3 (p.32-33). Summaries are paraphrased; cite the clause text from policy_clauses.jsonl.",
+  "check_types": {
+    "deterministic": "Python rule can decide",
+    "lookup": "needs a reference list",
+    "llm_judgement": "retrieve clause and flag for human review"
+  },
+  "standard_exclusions": [
+    {
+      "code": "Excl04",
+      "clause": "C.2.a",
+      "title": "Investigation and evaluation",
+      "summary": "Admission primarily for diagnostics/evaluation only; diagnostics not related to the diagnosis and treatment.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": "Excl05",
+      "clause": "C.2.b",
+      "title": "Rest cure, rehabilitation, respite care",
+      "summary": "Admission primarily for enforced bed rest; custodial care; services for terminally ill people.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": "Excl06",
+      "clause": "C.2.c",
+      "title": "Obesity / weight control",
+      "summary": "Obesity surgery excluded unless doctor-advised, protocol-supported, age >= 18, and BMI >= 40 (or >= 35 with listed severe comorbidity after failed less invasive methods).",
+      "check_type": "deterministic"
+    },
+    {
+      "code": "Excl07",
+      "clause": "C.2.d",
+      "title": "Change-of-gender treatments",
+      "summary": "Treatment to change body characteristics to those of the opposite sex.",
+      "check_type": "lookup"
+    },
+    {
+      "code": "Excl08",
+      "clause": "C.2.e",
+      "title": "Cosmetic or plastic surgery",
+      "summary": "Excluded unless reconstruction after accident, burns or cancer, or certified medical necessity to remove direct and immediate health risk.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": "Excl09",
+      "clause": "C.2.f",
+      "title": "Hazardous or adventure sports",
+      "summary": "Treatment due to professional participation in hazardous/adventure sports.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": "Excl10",
+      "clause": "C.2.g",
+      "title": "Breach of law",
+      "summary": "Treatment arising from committing or attempting a breach of law with criminal intent.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": "Excl11",
+      "clause": "C.2.h",
+      "title": "Excluded providers",
+      "summary": "Providers on the insurer's published excluded list; only stabilisation payable in life-threatening cases or accidents.",
+      "check_type": "lookup"
+    },
+    {
+      "code": "Excl12",
+      "clause": "C.2.i",
+      "title": "Alcohol, drug and substance abuse",
+      "summary": "Treatment for alcoholism, drug or substance abuse or addictive conditions and consequences.",
+      "check_type": "lookup"
+    },
+    {
+      "code": "Excl13",
+      "clause": "C.2.j",
+      "title": "Health hydros, nature cure clinics, spas",
+      "summary": "Treatment at such establishments or where admission is arranged wholly or partly for domestic reasons.",
+      "check_type": "lookup"
+    },
+    {
+      "code": "Excl14",
+      "clause": "C.2.k",
+      "title": "Dietary supplements",
+      "summary": "Non-prescription supplements (vitamins, minerals, organic substances) unless prescribed as part of hospitalization or day care.",
+      "check_type": "lookup"
+    },
+    {
+      "code": "Excl15",
+      "clause": "C.2.l",
+      "title": "Refractive error",
+      "summary": "Correction of eyesight for refractive error less than 7.5 dioptres.",
+      "check_type": "deterministic"
+    },
+    {
+      "code": "Excl16",
+      "clause": "C.2.m",
+      "title": "Unproven treatments",
+      "summary": "Treatments lacking significant medical documentation of effectiveness.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": "Excl17",
+      "clause": "C.2.n",
+      "title": "Sterility and infertility",
+      "summary": "Contraception, sterilization, assisted reproduction (IVF, ZIFT, GIFT, ICSI), gestational surrogacy, reversal of sterilization.",
+      "check_type": "lookup"
+    },
+    {
+      "code": "Excl18",
+      "clause": "C.2.o",
+      "title": "Maternity",
+      "summary": "Childbirth-related expenses (including caesarean), miscarriage unless due to accident, lawful termination of pregnancy; ectopic pregnancy is not excluded.",
+      "check_type": "lookup"
+    }
+  ],
+  "specific_exclusions": [
+    {
+      "code": null,
+      "clause": "C.3.a",
+      "title": "War and nuclear/chemical/biological events",
+      "summary": "War, invasion, insurrection, nuclear, chemical or biological attack, radiation.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.b",
+      "title": "Aggregate deductible",
+      "summary": "Claim amount falling within the aggregate deductible if opted.",
+      "check_type": "deterministic"
+    },
+    {
+      "code": null,
+      "clause": "C.3.c",
+      "title": "Intentional self-injury",
+      "summary": "Intentional self-injury, attempted suicide or suicide.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.d",
+      "title": "Military operations",
+      "summary": "Participation in naval, military or air force operations.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.e",
+      "title": "Investigative treatment for sleep apnoea / general debility",
+      "summary": "Investigative treatment for sleep-apnoea, general debility or exhaustion.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.f",
+      "title": "Congenital external anomalies",
+      "summary": "Congenital external diseases, defects or anomalies.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.g",
+      "title": "Stem cell harvesting",
+      "summary": "Stem cell harvesting.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.h",
+      "title": "Spinal manipulation and similar",
+      "summary": "Spinal subluxation adjustment, skeletal manipulation, muscle stimulation, except fractures (not hairline) and dislocations of mandible and extremities.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.i",
+      "title": "Circumcision",
+      "summary": "Unless necessitated by illness or injury and part of treatment.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.j",
+      "title": "Vaccination",
+      "summary": "Vaccination and inoculation except post animal bite treatment.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.k",
+      "title": "Non-medical expenses",
+      "summary": "Items in Annexure B. Does NOT apply when Protect Benefit (B.2.3) is in force.",
+      "check_type": "deterministic"
+    },
+    {
+      "code": null,
+      "clause": "C.3.l",
+      "title": "Outpatient treatment",
+      "summary": "Treatment taken on outpatient basis.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.m",
+      "title": "Hearing aids, spectacles, contact lenses",
+      "summary": "Provision or fitting of these items.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.n",
+      "title": "Alopecia and baldness",
+      "summary": "Treatment and associated expenses, wigs, hair replacement, optometric therapy.",
+      "check_type": "lookup"
+    },
+    {
+      "code": null,
+      "clause": "C.3.o",
+      "title": "Artificial limbs and external devices",
+      "summary": "Prostheses, corrective devices, external durable equipment, wheelchairs, crutches, oxygen concentrator (asthma/COPD), cochlear implants unless due to accident; intra-operative use excepted.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.p",
+      "title": "Unreasonable or unnecessary treatment",
+      "summary": "Not reasonable charge and not medically necessary; drugs/treatments without a prescription.",
+      "check_type": "llm_judgement"
+    },
+    {
+      "code": null,
+      "clause": "C.3.q",
+      "title": "Permanent exclusions in schedule",
+      "summary": "Conditions permanently excluded and accepted by the policyholder in the Policy Schedule.",
+      "check_type": "lookup"
+    }
+  ]
+}

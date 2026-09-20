@@ -1,0 +1,60 @@
+{
+  "description": "Ground truth for scoring Azure Content Understanding / extraction on the demo PDFs.",
+  "policy_schedule": {
+    "policy_number": "SYN-2805-0000-0001",
+    "plan": "Optima Lite",
+    "base_sum_insured": 500000,
+    "cumulative_bonus": 50000,
+    "first_policy_inception": "2024-03-15",
+    "policy_period_start": "2025-03-15",
+    "policy_period_end": "2026-03-14",
+    "insured_name": "Rohan Verma",
+    "room_rent_limit": "1% of base sum insured per day (Rs. 5,000)",
+    "icu_limit": "2% of base sum insured per day (Rs. 10,000)",
+    "pre_hospitalization_days": 30,
+    "post_hospitalization_days": 60,
+    "aggregate_deductible": 0,
+    "protect_benefit": "Not opted"
+  },
+  "claim_form": {
+    "policy_number": "SYN-2805-0000-0001",
+    "patient_name": "Rohan Verma",
+    "hospital": "Riverside Multispeciality Hospital (DEMO)",
+    "admission": "2025-09-10 14:30",
+    "discharge": "2025-09-14 11:00",
+    "diagnosis": "Acute appendicitis",
+    "icd10": "K35.8",
+    "claimed_amount": 184500
+  },
+  "discharge_summary": {
+    "patient_name": "Rohan Verma",
+    "admission_date": "2025-09-10",
+    "discharge_date": "2025-09-14",
+    "diagnosis": "Acute appendicitis",
+    "procedure": "Laparoscopic appendectomy",
+    "procedure_date": "2025-09-11",
+    "length_of_stay_days": 4
+  },
+  "hospital_bill": {
+    "patient_name": "Rohan Verma",
+    "total": 184500,
+    "room_rate_per_day": 8000,
+    "room_days": 4,
+    "line_count": 23,
+    "deposit_paid": 50000,
+    "final_payment": 134500,
+    "department_totals": {
+      "room_and_nursing": 36000,
+      "professional_fees_and_ot": 97000,
+      "pharmacy": 30000,
+      "investigations": 9000,
+      "miscellaneous": 12500
+    }
+  },
+  "lab_report": {
+    "patient_name": "Rohan Verma",
+    "wbc": "15.2 x10^3/uL (high)",
+    "crp": "86 mg/L (high)",
+    "ultrasound_impression": "Findings consistent with acute appendicitis"
+  }
+}

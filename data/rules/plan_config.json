@@ -1,0 +1,335 @@
+{
+  "source": "Policy wording Annexure C (pp.50-51) and B.2.13",
+  "notes": [
+    "Protect Benefit: 'covered' = Annexure B non-medical items are payable; 'optional' = payable only if opted in the Policy Schedule; 'not_covered' = never payable.",
+    "5L/10L aggregate deductible only with SI >= 25L; 20L/25L only with SI >= 50L.",
+    "Room rent as % of base SI per day (Optima Lite): limit = percent/100 * base SI."
+  ],
+  "plans": {
+    "Optima Suraksha": {
+      "base_si_lakh": [
+        5,
+        10,
+        15,
+        20,
+        25,
+        50
+      ],
+      "geography": "India only",
+      "room_rent": {
+        "type": "at_actuals"
+      },
+      "icu": {
+        "type": "at_actuals"
+      },
+      "pre_hosp_days": 60,
+      "post_hosp_days": 180,
+      "cumulative_bonus": "10% of base SI, max 100%",
+      "emergency_air_ambulance": 500000,
+      "daily_cash_shared_room": {
+        "per_day": 800,
+        "max": 4800
+      },
+      "protect_benefit": "not_covered",
+      "plus_benefit": "not_covered",
+      "secure_benefit": "not_covered",
+      "automatic_restore": "100% of base SI (once per year)",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K",
+        "1L",
+        "2L",
+        "3L",
+        "5L",
+        "10L",
+        "20L",
+        "25L"
+      ],
+      "e_opinion": "India",
+      "preventive_checkup": "inbuilt"
+    },
+    "Optima Secure": {
+      "base_si_lakh": [
+        5,
+        10,
+        15,
+        20,
+        25,
+        50,
+        100,
+        200
+      ],
+      "geography": "India only",
+      "room_rent": {
+        "type": "at_actuals"
+      },
+      "icu": {
+        "type": "at_actuals"
+      },
+      "pre_hosp_days": 60,
+      "post_hosp_days": 180,
+      "cumulative_bonus": "not_covered",
+      "emergency_air_ambulance": 500000,
+      "daily_cash_shared_room": {
+        "per_day": 800,
+        "max": 4800
+      },
+      "protect_benefit": "covered",
+      "plus_benefit": "50% of base SI, max 100%",
+      "secure_benefit": "100% of base SI",
+      "automatic_restore": "100% of base SI (once per year)",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K",
+        "1L",
+        "2L",
+        "3L",
+        "5L",
+        "10L",
+        "20L",
+        "25L"
+      ],
+      "e_opinion": "India",
+      "preventive_checkup": "inbuilt"
+    },
+    "Optima Super Secure": {
+      "base_si_lakh": [
+        10,
+        15,
+        20,
+        25,
+        50,
+        100,
+        200
+      ],
+      "geography": "India only",
+      "room_rent": {
+        "type": "at_actuals"
+      },
+      "icu": {
+        "type": "at_actuals"
+      },
+      "pre_hosp_days": 60,
+      "post_hosp_days": 180,
+      "cumulative_bonus": "not_covered",
+      "emergency_air_ambulance": 500000,
+      "daily_cash_shared_room": {
+        "per_day": 1000,
+        "max": 6000
+      },
+      "protect_benefit": "covered",
+      "plus_benefit": "50% of base SI, max 100%",
+      "secure_benefit": "200% of base SI",
+      "automatic_restore": "100% of base SI (once per year)",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K",
+        "1L",
+        "2L",
+        "3L",
+        "5L",
+        "10L",
+        "20L",
+        "25L"
+      ],
+      "e_opinion": "Global",
+      "preventive_checkup": "inbuilt"
+    },
+    "Optima Secure Global": {
+      "base_si_lakh": [
+        100,
+        200
+      ],
+      "geography": "Worldwide including India",
+      "room_rent": {
+        "type": "at_actuals"
+      },
+      "icu": {
+        "type": "at_actuals"
+      },
+      "pre_hosp_days": 60,
+      "post_hosp_days": 180,
+      "cumulative_bonus": "not_covered",
+      "emergency_air_ambulance": 500000,
+      "daily_cash_shared_room": {
+        "per_day": 800,
+        "max": 4800,
+        "india_only": true
+      },
+      "protect_benefit": "covered",
+      "plus_benefit": "50% of base SI, max 100%",
+      "secure_benefit": "100% of base SI (India only)",
+      "automatic_restore": "100% of base SI",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K",
+        "1L",
+        "2L",
+        "3L",
+        "5L",
+        "10L",
+        "20L",
+        "25L"
+      ],
+      "e_opinion": "Global",
+      "global_health_cover_emergency": true,
+      "overseas_travel_secure": "optional",
+      "preventive_checkup": "inbuilt"
+    },
+    "Optima Secure Global Plus": {
+      "base_si_lakh": [
+        25,
+        50,
+        75,
+        100,
+        200
+      ],
+      "geography": "Worldwide including India",
+      "room_rent": {
+        "type": "at_actuals"
+      },
+      "icu": {
+        "type": "at_actuals"
+      },
+      "pre_hosp_days": 60,
+      "post_hosp_days": 180,
+      "cumulative_bonus": "not_covered",
+      "emergency_air_ambulance": 500000,
+      "daily_cash_shared_room": {
+        "per_day": 800,
+        "max": 4800,
+        "india_only": true
+      },
+      "protect_benefit": "covered",
+      "plus_benefit": "50% of base SI, max 100%",
+      "secure_benefit": "100% of base SI (India only)",
+      "automatic_restore": "100% of base SI",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K",
+        "1L",
+        "2L",
+        "3L",
+        "5L",
+        "10L",
+        "20L",
+        "25L"
+      ],
+      "e_opinion": "Global",
+      "global_health_cover_emergency_and_planned": true,
+      "overseas_travel_secure": "optional",
+      "preventive_checkup": "inbuilt"
+    },
+    "Optima Select": {
+      "base_si_lakh": [
+        5,
+        7.5,
+        10,
+        15,
+        20,
+        25
+      ],
+      "geography": "India only",
+      "room_rent": {
+        "type": "single_private_room"
+      },
+      "icu": {
+        "type": "at_actuals"
+      },
+      "pre_hosp_days": 60,
+      "post_hosp_days": 180,
+      "cumulative_bonus": "25% of base SI, max 100%",
+      "emergency_air_ambulance": "not_covered",
+      "daily_cash_shared_room": "not_covered",
+      "protect_benefit": "optional",
+      "plus_benefit": "optional (50% of base SI, max 100%)",
+      "secure_benefit": "not_covered",
+      "automatic_restore": "Unlimited times",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K",
+        "1L",
+        "2L",
+        "3L",
+        "5L",
+        "10L"
+      ],
+      "e_opinion": "not_covered",
+      "room_rent_modification_options": [
+        "at_actuals",
+        "shared_room"
+      ],
+      "preventive_checkup": "optional"
+    },
+    "Optima Lite": {
+      "base_si_lakh": [
+        5,
+        7.5
+      ],
+      "geography": "India only",
+      "room_rent": {
+        "type": "percent_of_base_si_per_day",
+        "percent": 1.0
+      },
+      "icu": {
+        "type": "percent_of_base_si_per_day",
+        "percent": 2.0
+      },
+      "pre_hosp_days": 30,
+      "post_hosp_days": 60,
+      "cumulative_bonus": "10% of base SI, max 100%",
+      "emergency_air_ambulance": 500000,
+      "daily_cash_shared_room": {
+        "per_day": 800,
+        "max": 4800
+      },
+      "protect_benefit": "optional",
+      "plus_benefit": "optional (50% of base SI, max 100%)",
+      "secure_benefit": "not_covered",
+      "automatic_restore": "Unlimited times",
+      "aggregate_deductible_options": [
+        "10K",
+        "25K",
+        "50K"
+      ],
+      "e_opinion": "India",
+      "preventive_checkup": "inbuilt"
+    }
+  },
+  "preventive_checkup_limits_inr": {
+    "5L": {
+      "individual": 1500,
+      "floater": 2500
+    },
+    "7.5L": {
+      "individual": 1500,
+      "floater": 2500
+    },
+    "10L": {
+      "individual": 2000,
+      "floater": 5000
+    },
+    "15L": {
+      "individual": 4000,
+      "floater": 8000
+    },
+    "20L_25L": {
+      "individual": 5000,
+      "floater": 10000
+    },
+    "50L_75L": {
+      "individual": 5000,
+      "floater": 10000
+    },
+    "100L_200L": {
+      "individual": 8000,
+      "floater": 15000
+    }
+  }
+}

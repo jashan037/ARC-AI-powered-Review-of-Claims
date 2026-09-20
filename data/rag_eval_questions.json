@@ -1,0 +1,159 @@
+{
+  "description": "Retrieval and grounding test. expected_chunk_ids are chunk_id values in policy/policy_clauses.jsonl. An empty list means the wording does not contain the answer, so the agent should reply 'insufficient information'.",
+  "questions": [
+    {
+      "id": "Q01",
+      "question": "What is the waiting period for a cholecystectomy?",
+      "expected_chunk_ids": [
+        "C1-b",
+        "C1-b-list"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q02",
+      "question": "Is treatment within 30 days of the first policy start date covered?",
+      "expected_chunk_ids": [
+        "C1-c"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q03",
+      "question": "How is the proportionate deduction on room rent calculated?",
+      "expected_chunk_ids": [
+        "B1.1.1-Note-iii",
+        "A1.2-Def5"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q04",
+      "question": "Which expenses count as associated medical expenses?",
+      "expected_chunk_ids": [
+        "A1.2-Def5"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q05",
+      "question": "Are gloves and masks payable?",
+      "expected_chunk_ids": [
+        "C3-k",
+        "ANX-B",
+        "B2.3"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q06",
+      "question": "What is the room rent limit in the Optima Lite plan?",
+      "expected_chunk_ids": [
+        "ANX-C-Lite",
+        "B2.13"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q07",
+      "question": "Within how many days must a reimbursement claim be submitted after discharge?",
+      "expected_chunk_ids": [
+        "E1.6"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q08",
+      "question": "Which documents are required to support a reimbursement claim?",
+      "expected_chunk_ids": [
+        "E1.7"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q09",
+      "question": "Is maternity covered?",
+      "expected_chunk_ids": [
+        "C2-o"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q10",
+      "question": "Does a stay of less than 24 hours count as hospitalization?",
+      "expected_chunk_ids": [
+        "A1.1-Def19",
+        "B1.1.1"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q11",
+      "question": "What is the pre-existing disease waiting period?",
+      "expected_chunk_ids": [
+        "C1-a",
+        "A1.1-Def35"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q12",
+      "question": "How long is a cashless pre-authorization valid?",
+      "expected_chunk_ids": [
+        "E1.5"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q13",
+      "question": "Is correction of refractive error covered?",
+      "expected_chunk_ids": [
+        "C2-l"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q14",
+      "question": "For how many days before admission are pre-hospitalization expenses covered in Optima Secure?",
+      "expected_chunk_ids": [
+        "B1.5",
+        "ANX-C-Secure"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q15",
+      "question": "How quickly must the insurer settle or reject a claim?",
+      "expected_chunk_ids": [
+        "D1.3"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q16",
+      "question": "Is a claim for treatment at a spa or nature cure clinic payable?",
+      "expected_chunk_ids": [
+        "C2-j"
+      ],
+      "expected_behaviour": "answer_with_citation"
+    },
+    {
+      "id": "Q17",
+      "question": "What is the claim settlement ratio of HDFC ERGO this year?",
+      "expected_chunk_ids": [],
+      "expected_behaviour": "insufficient_information"
+    },
+    {
+      "id": "Q18",
+      "question": "Is Riverside Multispeciality Hospital in the cashless network?",
+      "expected_chunk_ids": [],
+      "expected_behaviour": "insufficient_information"
+    },
+    {
+      "id": "Q19",
+      "question": "What premium does this policyholder pay?",
+      "expected_chunk_ids": [],
+      "expected_behaviour": "insufficient_information"
+    }
+  ]
+}
