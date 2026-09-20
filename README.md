@@ -22,11 +22,11 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
-python -m pytest tests -q                       # 69 tests, all offline
+python -m pytest tests -q                       # 77 tests, all offline
 python scripts/render_samples.py                # 12 claim assessments -> examples/
 python scripts/render_examples.py               # one example per answer type -> examples/
 python scripts/eval_retrieval.py --verbose      # keyword baseline on the 19 questions
-python scripts/chat_cli.py --claim TC07         # try it in the terminal (offline stand-in for the agent)
+python scripts/chat_cli.py --claim TC07         # try it in the terminal (follows RETRIEVER / AGENT_MODE in .env; .env.example = offline stand-in)
 uvicorn app.main:app --reload                   # http://127.0.0.1:8000/docs
 ```
 

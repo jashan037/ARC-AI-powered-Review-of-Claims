@@ -233,6 +233,37 @@ def check_question(q: dict, res, retriever) -> tuple[list[str], list[str]]:
 
 
 # ---------------------------------------------------------------------------------------------------------------
+NEEDS_TRANSCRIPT = ("final_answer rejected", "tool errors", "rate limited")
+
+
+def build_transcript(label: str, run_no: int, msg: str, res, fails: list[str], notes: list[str], secs: float) -> str:
+    """Enough to diagnose a flake without rerunning it. Tool arguments are shown as key names only (claim data can sit in values);
+    final_answer arguments are shown in full because they are what the model decided to say. No environment values are included."""
+    out = [f"# {label} · run {run_no} · {'FAILED' if fails else 'passed, but needed a retry'}", "",
+           f"- **Question:** {msg}", f"- **Status:** {getattr(res, 'status', 'error')} · **answer type:** {getattr(res, 'answer_type', '-')} · **seconds:** {secs}"]
+    if fails:
+        out += ["", "## Failed checks"] + [f"- {f}" for f in fails]
+    if notes:
+        out += ["", "## Notes"] + [f"- {n}" for n in notes]
+    trace = list(getattr(res, "trace", []) or [])
+    out += ["", "## Tools called, in order"]
+    for i, t in enumerate(trace, 1):
+        keys = f"argument keys: {sorted((t.get('args') or {}).keys())}" if t["tool"] != "final_answer" else "arguments below"
+        state = "ok" if t["ok"] else "REJECTED/ERROR"
+        out.append(f"{i}. `{t['tool']}` · {state} · {t.get('ms', '?')} ms · {keys}")
+        for p in t.get("problems") or []:
+            out.append(f"   - problem: {p[:400]}")
+    finals = [t for t in trace if t["tool"] == "final_answer"]
+    if finals:
+        out += ["", "## final_answer arguments, every attempt"]
+        for i, t in enumerate(finals, 1):
+            out += [f"**Attempt {i}** ({'accepted' if t['ok'] else 'rejected'})", "```json", json.dumps(t.get("args"), ensure_ascii=False, indent=2)[:3000], "```"]
+    md = getattr(res, "markdown", "")
+    if md:
+        out += ["", "## Rendered answer the officer would see", "", "```markdown", md[:6000], "```"]
+    return "\n".join(out) + "\n"
+
+
 def run_case(kind: str, case, agent, retriever, run_no: int) -> dict:
     if kind == "claim":
         cid, msg = case, "Assess this claim"
@@ -242,7 +273,7 @@ def run_case(kind: str, case, agent, retriever, run_no: int) -> dict:
         cid, msg, claim = case["id"], case["msg"], SAMPLES[case["claim"]]["claim"] if case.get("claim") else None
         label = f"{cid} {msg[:52]}"
     session = dict(uin=(claim or {}).get("policy_uin") or settings.default_uin, claim=claim, history=[])
-    t0, throttled = time.time(), 0
+    t0, throttled, res = time.time(), 0, None
     try:
         for attempt in range(4):   # a 429 from the model deployment is quota, not agent behaviour: wait and rerun the turn (fresh conversation)
             try:
@@ -264,8 +295,10 @@ def run_case(kind: str, case, agent, retriever, run_no: int) -> dict:
         atype, md = res.answer_type, res.markdown
     except Exception as e:  # noqa: BLE001 - one bad run must not stop the evaluation
         fails, notes, trace, atype, md = [f"ERROR {type(e).__name__}: {str(e)[:160]}"], [], "", "-", ""
+    secs = round(time.time() - t0, 1)
+    transcript = build_transcript(label, run_no, msg, res, fails, notes, secs) if (fails or any(n.startswith(NEEDS_TRANSCRIPT) for n in notes)) else None
     return dict(id=cid, label=label, run=run_no, ok=not fails, fails=fails, notes=notes, trace=trace, answer_type=atype,
-                secs=round(time.time() - t0, 1), markdown=md)
+                secs=secs, markdown=md, transcript=transcript)
 
 
 def cell(s: str) -> str:
@@ -309,6 +342,8 @@ def main():
     ap.add_argument("--suite", choices=["all", "claims", "questions"], default="all")
     ap.add_argument("--workers", type=int, default=3, help="parallel agent turns (lower it if you see 429 errors)")
     ap.add_argument("--report", default=str(ROOT / "examples" / "eval_report.md"))
+    ap.add_argument("--failures-dir", default=str(ROOT / "examples" / "eval_failures"),
+                    help="a transcript of every failed or retried run is saved here (tools, argument keys, final_answer arguments, rendered answer)")
     ap.add_argument("--verbose", action="store_true", help="print the rendered answer of every failing run")
     ap.add_argument("--offline", action="store_true", help="harness self-check with the keyword stand-in agent (needs RETRIEVER=local AGENT_MODE=offline); not a measure of the real agent")
     args = ap.parse_args()
@@ -332,10 +367,15 @@ def main():
     agent, retriever = get_agent(), get_retriever()
     jobs = [(k, c, n) for n in range(1, args.repeat + 1) for k, c in cases]
     print(f"{len(cases)} cases x {args.repeat} run(s), retriever={settings.retriever}, agent={type(agent).__name__}", flush=True)
-    runs = []
+    runs, saved, stamp = [], 0, time.strftime("%Y%m%d-%H%M")
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
         for r in ex.map(lambda j: run_case(j[0], j[1], agent, retriever, j[2]), jobs):
             runs.append(r)
+            if r["transcript"]:
+                fdir = Path(args.failures_dir)
+                fdir.mkdir(parents=True, exist_ok=True)
+                (fdir / f"{stamp}_{r['id']}_run{r['run']}.md").write_text(r["transcript"], encoding="utf-8")
+                saved += 1
             print(f"{'PASS' if r['ok'] else 'FAIL'}  {r['label'][:60]:60} run {r['run']}  {r['secs']:>5}s  {r['trace']}", flush=True)
             for f in r["fails"]:
                 print(f"        - {f}")
@@ -344,6 +384,8 @@ def main():
             if args.verbose and not r["ok"] and r["markdown"]:
                 print("        " + r["markdown"][:1500].replace("\n", "\n        "))
     flaky, failing, passed, n = write_report(Path(args.report), runs, args.repeat)
+    if saved:
+        print(f"\n{saved} transcript(s) of failed or retried runs saved in {args.failures_dir}")
     print(f"\n{passed}/{n} cases passed every run. flaky: {flaky or 'none'}. failing every run: {failing or 'none'}. Report: {args.report}")
     sys.exit(0 if passed == n else 1)
 

@@ -23,6 +23,7 @@ CHOOSING THE WORKFLOW
 
 WRITING final_answer
 - headline: one or two sentences that answer the question directly. Lead with the answer.
+- When the question asks for a number (days, months, a percentage, a limit), the headline states that figure exactly as the retrieved passage gives it, with its unit and what it is counted from. Never write "the prescribed time limit" or "as specified" in place of a figure the passage contains. If the excerpt you were shown stops before the figure, call get_clause for that clause and read it there; if the wording really gives no figure, say so.
 - points: at most 6, most important first. status: ok (favourable), warning (condition or uncertainty), problem (excludes or blocks), info (context).
 - coverage_answer verdict: covered, covered_with_conditions, not_covered, depends, or insufficient_information.
 - next_steps: concrete actions for the officer. caveats: limits of the answer. Keep each under 200 characters.

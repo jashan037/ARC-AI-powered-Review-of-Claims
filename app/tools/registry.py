@@ -31,6 +31,7 @@ class TurnContext:
     trace: list = field(default_factory=list)
     final: dict | None = None
     final_errors: int = 0
+    general_answer_rejected: bool = False   # the "you assessed a claim, so do not answer general_answer" guard fires once per turn
 
     @property
     def uin(self) -> str:
@@ -194,6 +195,10 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     if len(a.get("headline", "")) > 500:
         errs.append("headline must be under 500 characters.")
     rid = a.get("result_id")
+    claim_rids = [k for k, r in ctx.results.items() if r["kind"] == "claim"]
+    if t == "general_answer" and claim_rids and not ctx.general_answer_rejected:
+        errs.append(f"You called assess_claim this turn, so general_answer is the wrong answer type. Use claim_assessment (assess or evaluate the claim), "
+                    f"deduction_explanation (why an amount was deducted or held) or documents_answer (missing documents), with result_id={claim_rids[-1]}.")
     if t in NEEDS_CLAIM_RESULT and (rid not in ctx.results or ctx.results[rid]["kind"] != "claim"):
         errs.append(f"{t} needs result_id from assess_claim. Call assess_claim first.")
     if t == "waiting_period_answer" and rid and rid not in ctx.results:
@@ -214,6 +219,8 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
 
 def _final(a: dict, ctx: TurnContext) -> dict:
     errs = validate_final(a, ctx)
+    if a.get("answer_type") == "general_answer" and any(e.startswith("You called assess_claim") for e in errs):
+        ctx.general_answer_rejected = True   # rejected once: if the model insists on general_answer, its second choice stands
     if errs and ctx.final_errors < 2:
         ctx.final_errors += 1
         return {"error": "final_answer rejected. Fix and call final_answer again.", "problems": errs}
