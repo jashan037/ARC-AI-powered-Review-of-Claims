@@ -1,0 +1,87 @@
+{
+ "generated": "2026-09-21 23:39",
+ "wall_clock_s": 57.0,
+ "turns": 12,
+ "p50_s": 10.3,
+ "p95_s": 12.5,
+ "max_s": 16.7,
+ "failures": [],
+ "detail": {
+  "B": [
+   {
+    "q": "how much will be paid?",
+    "s": 12.54,
+    "status": "ok",
+    "model_calls": 3
+   },
+   {
+    "q": "why was my room rent reduced?",
+    "s": 12.18,
+    "status": "ok",
+    "model_calls": 3
+   },
+   {
+    "q": "which items are not payable?",
+    "s": 5.6,
+    "status": "ok",
+    "model_calls": 2
+   },
+   {
+    "q": "what documents are missing?",
+    "s": 4.62,
+    "status": "ok",
+    "model_calls": 2
+   },
+   {
+    "q": "when does my policy expire?",
+    "s": 4.1,
+    "status": "ok",
+    "model_calls": 2
+   },
+   {
+    "q": "how much cover will I have left after this claim?",
+    "s": 12.32,
+    "status": "ok",
+    "model_calls": 4
+   }
+  ],
+  "A": [
+   {
+    "q": "how much will be paid?",
+    "s": 16.74,
+    "status": "ok",
+    "model_calls": 3
+   },
+   {
+    "q": "why was my room rent reduced?",
+    "s": 10.93,
+    "status": "ok",
+    "model_calls": 3
+   },
+   {
+    "q": "which items are not payable?",
+    "s": 9.63,
+    "status": "ok",
+    "model_calls": 3
+   },
+   {
+    "q": "what documents are missing?",
+    "s": 4.6,
+    "status": "ok",
+    "model_calls": 2
+   },
+   {
+    "q": "when does my policy expire?",
+    "s": 3.95,
+    "status": "ok",
+    "model_calls": 2
+   },
+   {
+    "q": "how much cover will I have left after this claim?",
+    "s": 11.01,
+    "status": "ok",
+    "model_calls": 4
+   }
+  ]
+ }
+}

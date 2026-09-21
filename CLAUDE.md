@@ -13,7 +13,7 @@ Served by FastAPI. **Three views at three real paths, one HTML file**: `/` (land
 - CS student, **new to Azure**. For portal steps give exact click paths and wait for confirmation.
 - Never ask them to paste keys into chat. Secrets go only into `.env`. Never print, log or commit secrets.
 - Small, reviewable diffs; explain in plain language. Commits: one-line message, no co-author line, only when asked.
-- Keep the tests green (**TESTCOUNT**, all offline; the markdown tests need Node, the browser tests need Playwright with the installed Chrome, and both skip themselves without them).
+- Keep the tests green (**551**, all offline; the markdown tests need Node, the browser tests need Playwright with the installed Chrome, and both skip themselves without them).
 - Ask before any destructive or costly Azure action (deleting an index or agent, changing tiers, creating resources). Do not touch the old index `rag-1789575754829` or the portal agent `claims-adjudication-agent` (v1).
 
 ## 3. Azure resources (all exist and are in use)
@@ -62,7 +62,7 @@ claim + engine result -> app/report.py (reportlab, vendored DejaVu Sans, NO mode
 
 ```bash
 pip install -r requirements-dev.txt          # runtime is requirements.txt (pinned); dev adds pytest, httpx, playwright, detect-secrets
-python -m pytest tests -q                    # TESTCOUNT pass
+python -m pytest tests -q                    # 551 pass
 scripts/run_demo.sh                          # http://127.0.0.1:8765/ (refuses unless .env is azure + foundry)
 python demo/make_sample_sets.py              # regenerate the three document sets; --check compares them with the originals
 python scripts/dev/ui_screenshots.py         # all three views at two sizes + each report's first page -> docs/screenshots/final/
@@ -100,7 +100,7 @@ Claim JSON: required `claim_id, plan, base_si_lakh, first_policy_inception, admi
 
 ## 9. Status (21 Sep 2026, after the final pass) - details in `docs/FINAL_REPORT.md`
 
-Agent **v29** live (prompt 8,993 chars; rollback `AGENT_VERSION=28`, or `23` for pre-accuracy-pass), **TESTCOUNT tests pass**, tags `pre-final` (before the pass) and `final-submission` (after). Built in this pass: the three document sets from parameters, the claims team's report PDF, the three-view UI at real paths, the focus/timing/payment/officer guards, `/ready`, token counts in the turn log, the Dockerfile and the deploy notes, the adversarial and security test sets.
+Agent **v29** live (prompt 8,993 chars; rollback `AGENT_VERSION=28`, or `23` for pre-accuracy-pass), **551 tests pass**, tags `pre-final` (before the pass) and `final-submission` (after). Built in this pass: the three document sets from parameters, the claims team's report PDF, the three-view UI at real paths, the focus/timing/payment/officer guards, `/ready`, token counts in the turn log, the Dockerfile and the deploy notes, the adversarial and security test sets.
 
 Verified on real Azure in this pass: the accuracy suite over all three sets, three runs (`docs/evidence/final_report.md`, `final_transcripts.md`), and two customers at the same time. **Not verified:** the Docker build (the daemon was not running on this machine), `AUTH_MODE=entra` against Azure (no roles assigned - the owner must assign them, see `docs/SECURITY.md`), any deployment, real phones or non-Chrome browsers, real documents (scans, other layouts), and load beyond two concurrent users.
 
