@@ -11,13 +11,13 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import intake
+from . import intake, report
 from .agent.runner import get_agent
 from .config import settings
 from .observability import configure_logging
@@ -229,6 +229,19 @@ class _NoCacheStatic(StaticFiles):
 
 
 app.mount("/static", _NoCacheStatic(directory=STATIC_DIR), name="static")
+
+
+@app.get("/sessions/{sid}/report.pdf")
+async def claim_report(sid: str):
+    """The claims team's report for this session's claim: built in code from the documents, no model call, nothing stored, nothing from the chat."""
+    s = _session(sid)
+    if not s.get("claim"):
+        raise HTTPException(404, "There is no claim to report on yet. Upload your documents first.")
+    pdf = await run_in_threadpool(report.report_pdf, s)
+    log.info("report", extra={"fields": dict(session=s["id"], bytes=len(pdf))})   # a count only: never the content
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{report.filename(s["claim"])}"',
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Length": str(len(pdf))})
 
 
 @app.delete("/sessions/{sid}")

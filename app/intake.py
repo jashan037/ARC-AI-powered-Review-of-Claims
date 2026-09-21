@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import time
 from datetime import date
 
 from .config import ROOT
@@ -29,6 +30,7 @@ SAMPLE_ALIASES = {"1": "on_time", "on": "on_time", "on_time": "on_time", "ontime
 MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_PAGES = 20
 MAX_FILES_PER_UPLOAD = 15
+MAX_PARSE_SECONDS = 10.0        # one file may not keep a worker busy longer than this (a crafted PDF can be slow to extract)
 
 # What the customer is asked for, in the order shown. `id` matches the E.1.7 document ids the engine already uses (plus the policy schedule).
 EXPECTED = [
@@ -58,6 +60,7 @@ FILE_PROBLEMS = {
     "encrypted": "This file is password-protected. Please upload an unlocked copy.",
     "unreadable": "We couldn't open this file. Please check that it opens on your device and try again.",
     "too_many_pages": "This file has too many pages for now (20 at most).",
+    "too_slow": "This file took too long to read. Please upload a simpler copy.",
     "unrecognised": "We couldn't tell what this document is. Is it one of the documents in the checklist?",
 }
 
@@ -75,12 +78,13 @@ class IntakeError(Exception):
 
 
 # ---------------------------------------------------------------- reading a PDF
-def read_pdf(data: bytes) -> str:
-    """The text of a PDF, or an IntakeError with a code from FILE_PROBLEMS. Size, page and type limits are enforced here."""
+def read_pdf_pages(data: bytes) -> list[str]:
+    """The text of each page of a PDF, or an IntakeError with a code from FILE_PROBLEMS. Size, page count, type and TIME limits are enforced here."""
     if len(data) > MAX_FILE_BYTES:
         raise IntakeError("too_large")
     if not data.lstrip()[:5].startswith(b"%PDF"):
         raise IntakeError("not_pdf")
+    t0 = time.monotonic()
     try:
         from pypdf import PdfReader
         reader = PdfReader(io.BytesIO(data), strict=False)
@@ -88,14 +92,22 @@ def read_pdf(data: bytes) -> str:
             raise IntakeError("encrypted")
         if len(reader.pages) > MAX_PAGES:
             raise IntakeError("too_many_pages")
-        text = "\n".join((p.extract_text() or "") for p in reader.pages)
+        pages = []
+        for page in reader.pages:
+            pages.append(page.extract_text() or "")
+            if time.monotonic() - t0 > MAX_PARSE_SECONDS:      # a slow or hostile file gives the worker back
+                raise IntakeError("too_slow")
     except IntakeError:
         raise
     except Exception as e:  # noqa: BLE001 - any parser failure means "we couldn't open it"; details are not shown to the customer
         raise IntakeError("unreadable") from e
-    if len(re.sub(r"\s+", "", text)) < 40:
+    if len(re.sub(r"\s+", "", "\n".join(pages))) < 40:
         raise IntakeError("no_text")
-    return text
+    return pages
+
+
+def read_pdf(data: bytes) -> str:
+    return "\n".join(read_pdf_pages(data))
 
 
 def clean(text: str) -> str:
@@ -269,16 +281,43 @@ def extract(kind: str, raw: str) -> dict:
 
 
 # ---------------------------------------------------------------- one file
+def _shown(value) -> list[str]:
+    """How a read value can appear on the page: as it is, as a date the document prints, and as a grouped amount."""
+    out = [str(value)]
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?", str(value))
+    if m:
+        out.append(f"{m.group(3)}/{m.group(2)}/{m.group(1)}")
+    if isinstance(value, int) and not isinstance(value, bool) and abs(value) >= 1000:
+        from .tools.fmt import inr
+        out.append(inr(value)[1:])
+    return out
+
+
+def field_pages(fields: dict, pages: list[str]) -> dict:
+    """{field: page number} for every field whose value can be found on a page; the rest are put on page 1, where the document starts.
+    The claims team's report says where each fact came from, so this is recorded at intake and never guessed later."""
+    out = {}
+    for key, value in fields.items():
+        if value is None or isinstance(value, (list, dict, bool)) or str(value) == "":
+            continue
+        found = next((i + 1 for i, text in enumerate(pages) for form in _shown(value) if len(form) > 2 and form in text), 1)
+        out[key] = found
+    return out
+
+
 def process_file(name: str, data: bytes) -> dict:
     """Read and recognise one file. Returns {status, type?, fields?, message?}. Never raises. Nothing about the content is logged."""
     try:
-        text = read_pdf(data)
+        pages = read_pdf_pages(data)
     except IntakeError as e:
         return dict(status=e.code, message=FILE_PROBLEMS[e.code])
+    text = "\n".join(pages)
     kind = classify(text)
     if not kind:
         return dict(status="unrecognised", message=FILE_PROBLEMS["unrecognised"])
-    return dict(status="recognised", type=kind, label=LABEL[kind], fields=extract(kind, text), digest=hashlib.sha256(data).hexdigest()[:12])
+    fields = extract(kind, text)
+    return dict(status="recognised", type=kind, label=LABEL[kind], fields=fields, pages=len(pages),
+                field_pages=field_pages(fields, pages), digest=hashlib.sha256(data).hexdigest()[:12])
 
 
 def store(session: dict, name: str, result: dict) -> dict:
@@ -288,7 +327,8 @@ def store(session: dict, name: str, result: dict) -> dict:
         return shown | dict(message=result["message"])
     docs = session.setdefault("documents", {})
     old = docs.get(result["type"])
-    docs[result["type"]] = dict(filename=name, fields=result["fields"], digest=result["digest"])
+    docs[result["type"]] = dict(filename=name, fields=result["fields"], digest=result["digest"],
+                                pages=result.get("pages", 1), field_pages=result.get("field_pages", {}))
     return shown | dict(type=result["type"], label=result["label"], replaced=bool(old and old["digest"] != result["digest"]),
                         message=f"Recognised as: {result['label']}." + (" This replaced the earlier file." if old and old["digest"] != result["digest"] else ""))
 
@@ -316,6 +356,15 @@ def checklist(docs: dict) -> list[dict]:
             state, note = "partial", "Bills received. The doctor's prescription is still missing."
         out.append(dict(id=d["id"], label=d["label"], state=state, note=note, filename=got["filename"] if got else None))
     return out
+
+
+def document_counts(docs: dict) -> dict:
+    """The ONE count of documents everything shows: the customer's first message, the claims team's report and the checklist all read this.
+    `expected` is the checklist above (10 items), `received` the ones fully in, `partial` the ones whose parts are not all there."""
+    cl = checklist(docs)
+    return dict(expected=len(cl), received=sum(c["state"] == "received" for c in cl), partial=sum(c["state"] == "partial" for c in cl),
+                missing=sum(c["state"] == "missing" for c in cl),
+                outstanding=[(c["label"] if c["state"] == "missing" else f"{c['label']} (incomplete)") for c in cl if c["state"] != "received"])
 
 
 def _claim_id(policy_number: str, admission: str) -> str:
