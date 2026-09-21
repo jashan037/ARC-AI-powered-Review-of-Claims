@@ -160,3 +160,33 @@ def test_a_note_already_shown_is_not_shown_again():
     assert out == "It rose to ₹1,60,000."
     assert verify.suppress_repeats("You can drop the prescription anywhere on this page.", hist) == "You can drop the prescription anywhere on this page."   # nothing else left: kept
     assert verify.suppress_repeats("Your claim looks likely to be paid ₹1,22,125.", hist) == "Your claim looks likely to be paid ₹1,22,125."           # figures are never treated as a repeated note
+
+
+# ---------------------------------------------------------------- dates the customer mentions are checked in code; ordinary explanation is not policy
+def notes(question):
+    return ctx_for(question).tool_outputs[0].get("dates_you_mentioned", [])
+
+
+def test_a_date_the_customer_mentions_is_checked_against_the_policy_period_in_code():
+    assert notes("was my policy active on 20 April 2026?") == ["Your policy was not in force on that date (20 Apr 2026): it is after the end of the policy period 15 Mar 2025 to 14 Mar 2026."]
+    assert notes("was my policy active on 10 Sep 2025?")[0].startswith("Your policy was in force on that date (10 Sep 2025)")
+    both = notes("what about 10/09/2025 and 2026-04-20?")
+    assert len(both) == 2 and any(n.startswith("Your policy was in force") for n in both) and any("not in force" in n and "20 Apr 2026" in n for n in both)
+
+
+def test_a_month_the_customer_mentions_is_placed_against_the_policy_period():
+    assert notes("my policy expired in march 2026") == ["March 2026 is only partly inside your policy period (15 Mar 2025 to 14 Mar 2026): 1 Mar 2026 to 14 Mar 2026 is inside it, the rest is not."]
+    assert notes("surgery in December 2025")[0].startswith("All of December 2025 is inside your policy period")
+    assert notes("surgery in May 2026")[0].startswith("May 2026 is after the end of your policy period")
+    assert notes("how much will be paid") == []
+
+
+def test_the_dates_are_tool_results_so_the_reply_may_state_them():
+    ctx = ctx_for("was my policy active on 20 April 2026?")
+    assert "numbers" not in [k for k, _ in check_reply("Your policy was not in force on 20 Apr 2026: it ended on 14 Mar 2026.", ctx)]
+
+
+def test_ordinary_explanation_is_not_dropped_as_a_policy_statement():
+    ctx = ctx_for("why is my payment lower")
+    text = "Your payment is lower because part of the room charge was withheld in proportion to the plan's limit, and the extras disappear from the total."
+    assert "policy" not in [k for k, _ in check_reply(text, ctx)] and fix_reply(text, ctx).startswith("Your payment is lower")

@@ -152,24 +152,20 @@ def hedge_fix(text: str) -> str:
 _POLICY_MARKER = re.compile(r"\b(?:covers?|covered|cover for|excludes?|excluded|exclusion|waiting period|limit(?:ed|s)?|maximum|at most|up to|only after|not payable|payable|eligible|entitled|"
                             r"must|required|requires?|benefit|applies|apply|conditions?|except(?:ion)?|permitted|allowed|not allowed|reimburse\w*|admissible|includes?|days? of|months? of|per (?:day|year))\b", re.I)
 _DURATION = re.compile(r"(\d+)\s*[- ]?\s*(month|year)s?\b", re.I)
-_WORD = re.compile(r"[a-z]{6,}")
-# ordinary long words that need no support: everything else of six letters or more must appear in this turn's text
-_COMMON = set("""because should would could their there these those where which while about above after again against another around before being below between both cannot during either
-else every further having itself might other others should since still such than that then thing things through under until upon using very whether without within your yours yourself
-claim claims policy policies amount amounts payment payments covered coverage insurer insured insurance hospital hospitals customer likely appears looks
-please anything something everything nothing understand explain explains explained example mention mentioned states stated depends depend details detail
-different generally usually typically normally answer answers question questions counted counts waiting period periods planned second special certain simple
-usually applies apply applied condition conditions treatment treatments surgery procedure procedures charges charged bills billed limits limit
-maximum minimum before started starts start ended ends began begins later earlier month months years number numbers total totals reason reasons
-whether becomes become became should ensure ensures based basis rules rule general further needed needs need available specific specified
-listed lists including included includes include mostly exactly roughly approximately currently already always however therefore although
-otherwise instead together whole whether whatever whenever wherever another really actually definitely unfortunately probably possibly
-person people someone served expire expires expired renew renewal renews renewed leaves remain remains remaining stated states yours whose everyone anyone nobody thanks thank sorry welcome healthy health medical doctor doctors nurse nursing
-""".split())
+_WORD = re.compile(r"[a-z]{5,}")
+# What a statement about the policy can get WRONG is a subject: a condition, a treatment, a benefit or an exclusion. Those distinctive terms must be found in this turn's text.
+# (Ordinary vocabulary such as "proportion" or "withheld" is not checked: the figures are checked by the number guard and the verdicts by the rules above.)
+_DOMAIN = set("""maternity pregnancy childbirth delivery dental cosmetic obesity bariatric ayush ayurveda ayurvedic homeopathy homeopathic unani siddha naturopathy organ transplant donor ambulance psychiatric mental infertility
+fertility hiv aids terrorism war nuclear alcohol intoxication drug drugs substance sports adventure experimental unproven prosthesis prosthetic hearing spectacles lenses lasik refractive vaccination vaccine dialysis
+chemotherapy radiotherapy robotic stem cell sleep apnoea apnea cataract hernia hysterectomy fibroid calculi stone stones tonsillectomy sinusitis rhinitis glaucoma pancreatitis cirrhosis varicose septum meniscal ligament
+tendon knee hip joint replacement piles fissure fistula hydrocele thyroid prostate endometriosis gout osteoporosis arthritis spondylosis cancer tumour tumor diabetes hypertension asthma epilepsy stroke
+angioplasty bypass stent pacemaker cesarean caesarean abortion contraception circumcision gender sex reassignment weight loss vitamins supplements tonic cosmetics wig pigmentation acne hair
+domiciliary daycare day-care icu ventilator opd outpatient consultation restore bonus deductible copay co-payment sublimit sub-limit cashless network portability grace moratorium""".split())
+_MEDICAL = re.compile(r"\b[a-z]{4,}(?:ectomy|plasty|otomy|ostomy|oscopy|itis|osis|emia|aemia|pathy|therapy|graphy|lithiasis|megaly|oma)\b")
 
 
 def _stems(text: str) -> set[str]:
-    return {w[:6] for w in _WORD.findall(text.lower())}
+    return {w[:6] for w in re.findall(r"[a-z]{4,}", text.lower())}
 
 
 def corpus_chunks(ctx, rules: bool = True, question: bool = True) -> list[str]:
@@ -213,16 +209,17 @@ def _pairs(text: str) -> set[tuple[int, str]]:
 
 
 def unsupported(sentence: str, chunks: list[str], stems: set[str]) -> list[str]:
-    """What in a policy sentence this turn's text does not support: distinctive words that appear nowhere, and durations in months or years that no SOURCE ABOUT THE SAME THING states
-    (the source must also hold one of the sentence's distinctive words, so a "12 months" about something else cannot vouch for a waiting period)."""
-    rare = [w for w in _WORD.findall(sentence.lower()) if w not in _COMMON]
-    words = sorted({w for w in rare if w[:6] not in stems})[:4]
+    """What in a policy statement this turn's text does not support: a condition, treatment or benefit that appears nowhere, and a duration in months or years that no source ABOUT THE SAME THING
+    states (the source must hold one of the sentence's subject terms, so a "12 months" about something else cannot vouch for a waiting period)."""
+    low = sentence.lower()
+    terms = sorted({w for w in _WORD.findall(low) if w in _DOMAIN} | set(_MEDICAL.findall(low)))
+    words = [w for w in terms if w[:6] not in stems]
     bad = []
     for n, u in _pairs(sentence):
-        about = [c for c in chunks if not rare or any(w[:6] in c.lower() for w in rare)]
+        about = [c for c in chunks if not terms or any(w[:5] in c.lower() for w in terms)]
         if not any((n, u) in _pairs(c) for c in about):
             bad.append(f"{n} {u}s")
-    return bad + words
+    return bad + words[:4]
 
 
 def policy_problems(text: str, ctx) -> list[tuple[str, list[str]]]:

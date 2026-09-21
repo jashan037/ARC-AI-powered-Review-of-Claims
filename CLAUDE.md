@@ -23,7 +23,7 @@ Served by FastAPI: **`/` is the customer page**: a quiet, minimal UI. View 1 is 
 | Subscription / RG | Azure for Students, `rg-claims-agent`. Regions allowed by policy: Korea Central, Central India, East Asia, Malaysia West, UAE North. |
 | Azure AI Search | `claims-search-37`, **Free tier**, Central India. Index **`claims-kb-v2`** (186 clause-level chunks, semantic config `default`, 1536-dim vectors), API-key auth. |
 | Models | In the Foundry resource `claims-agent-project-res` (Korea Central): `gpt-5-mini` and **`text-embedding-3-large`** (requested with `dimensions=1536`). Embeddings use the OpenAI endpoint and key from `.env`. |
-| Foundry | Project `jashanpreetsingh3999-6322`; agent **`claims-adjudication-agent-v2`, latest version 23 (prompt about 7,600 characters, formatting style guide, reasoning effort low); pin an older one with `AGENT_VERSION=19` (the version before the format pass) in `.env` to roll back, nothing is deleted** (prompt = `app/agent/instructions.py`, tools = `app/tools/registry.py:SCHEMAS`). Auth is `DefaultAzureCredential` (`az login`, role **Foundry User**). |
+| Foundry | Project `jashanpreetsingh3999-6322`; agent **`claims-adjudication-agent-v2`, latest version 24 (prompt about 8,400 characters, reasoning effort low); pin an older one with `AGENT_VERSION=23` (before the accuracy pass; tag `pre-accuracy-pass`) in `.env` to roll back, nothing is deleted** (prompt = `app/agent/instructions.py`, tools = `app/tools/registry.py:SCHEMAS`). Auth is `DefaultAzureCredential` (`az login`, role **Foundry User**). |
 | Other | Storage `claimsagentjp2026` and Application Insights/Log Analytics exist but the app does not use them. |
 
 `python scripts/setup/check_env.py` validates `.env` (see `.env.example`). Function tools cannot be added in the portal; `scripts/setup/create_agent.py` adds a new agent version from the local prompt and schemas (run it only when the prompt or schemas changed).
@@ -31,40 +31,27 @@ Served by FastAPI: **`/` is the customer page**: a quiet, minimal UI. View 1 is 
 ## 4. Architecture and decisions (do not undo without a strong reason)
 
 ```
-documents -> app/intake.py (pypdf + rules, no model, no Azure) -> claim in the session
-question -> Foundry agent (fresh conversation per turn) -> tools run in the backend:
-   search_policy / get_clause -> Retriever (Azure AI Search hybrid + semantic, filtered by the claim's UIN)
-   check_waiting_period, assess_claim (+what_if), lookup_non_medical_item, get_claim_summary -> claims_engine (pure Python)
--> final_answer -> validate_final -> render_final -> summary_markdown + sections
+documents -> app/intake.py (pypdf + rules, no model) -> claim in the session
+question -> code runs assess_claim first -> Foundry agent (fresh conversation per turn), input = claim facts + assessment + short history
+   tools run in the backend: search_policy / get_clause (Azure AI Search), check_waiting_period, assess_claim (+what_if), lookup_non_medical_item,
+   get_claim_summary, cover_left  -> claims_engine (pure Python, dates and money)
+-> plain Markdown reply -> guards (rewrite once, then repair in code) -> suppress repeated notes -> sources added by code
 ```
 
-1. **The model never computes dates or money.** Python does. Claim numbers reach the answer only through tool results (`result_id`).
-2. **Every turn ends with `final_answer`.** The backend validates it (citations must be `chunk_key`s returned in the same turn; claim types need a `result_id`; guards for decision wording, internal terms, length caps, general_answer after assess, plain questions). Two rejections, then citations are stripped and a caveat added. **Do not loosen `validate_final`.**
-3. **Plain questions** (name, hospital, dates, plan, hello, thanks, weather) get a one-line `general_answer`; `assess_claim` is refused for them (`app/tools/plain_questions.py`).
-4. Function tools run in the backend loop (`responses.create` -> execute calls -> `function_call_output`). Chat history is kept by the backend and passed as a short text block.
-5. `LocalRetriever` (BM25) and `OfflineAgent` (keyword router) are **test and development only** (`RETRIEVER=local`, `AGENT_MODE=offline`; `tests/conftest.py` forces them). The live app needs `RETRIEVER=azure`, `AGENT_MODE=foundry`.
-6. Retrieval is version-aware (`uin`, `doc_id` on every chunk). Only wording HDFHLIP25041V062425 is indexed. A newer wording (HDFHLIP26058V082526) exists; `tools/chunk_policy.py` refuses it, use `tools/chunk_generic.py`.
-7. **Customer answers (final pass):** a customer's simple facts, single-topic payment questions, follow-ups and small talk get a `direct_answer` (`reply` of at most 4 sentences and about 80 words, `details` ids that open code-built "Show more" sections). A **number guard** rejects any amount, percentage, date or count in a reply that no tool returned this turn (or the customer gave), then drops the sentence, then rebuilds the reply in code. A **voice guard** and a **figures guard** rewrite officer voice and figure-less payment answers once. Hostile requests and an unready claim are answered in code before the model (`app/tools/canned.py`); text from documents is cleaned and quoted (`app/tools/sanitize.py`); the deduction focus follows the question (`app/tools/focus.py`). Evidence: `docs/evidence/quality_report.md` (34/40 questions clean in all 3 runs; open issues listed there: latency, model quota, policy-question routing).
-8. **Developer detail stays server-side:** `/chat` and `/assess` return no `tool_trace`, `trace_summary`, tool arguments or `chunk_key` unless the server sets `DEBUG_TRACE=1` (default off; no client parameter can enable it). Customer answers use plain names for policy clauses (`app/rendering/customer_labels.py`); the officer wording is locked by the golden files.
+1. **The model never computes dates or money.** Python does (`claims_engine.py`, `tools/totals.py`, `tools/facts.py`). What a reply may state:
+   - **G1** claim facts only from `claim_facts` (`get_claim_summary` and the block sent every turn), verbatim;
+   - **G2** every number, date, percentage and count must be in the allowed set (`number_guard.py`; formats normalised; Markdown-aware; repair works on blocks);
+   - **G3** rule verdicts (policy in force, waiting period, filing time, non-medical, documents, outlook) must agree with the tools (`tools/verify.py`);
+   - **G4** policy statements need support in a passage retrieved this turn, the facts, a tool result or a rule table (string support check, no second model call);
+   - **G5** unknown: say so and ask one question; customer-stated facts and hypotheticals are labelled assumptions.
+2. Guards live in `tools/guards.py` (numbers, internal terms, decision/hedging, voice, both figures, verdicts, names, policy support, format via `tools/format_guard.py`). Each rejects once, then the text is repaired in code. **Do not loosen them.**
+3. Plain questions and hostile requests are answered in code (`tools/canned.py`); the fixed "upload first" reply needs no model.
+4. Function tools run in the backend loop. Chat history is kept by the backend and passed as a short text block.
+5. `LocalRetriever` (BM25) and `OfflineAgent` are **test and development only** (`RETRIEVER=local`, `AGENT_MODE=offline`; `tests/conftest.py` forces them, sets `ARC_TODAY=2025-01-01` and `DEBUG=1`). The live app needs `RETRIEVER=azure`, `AGENT_MODE=foundry`.
+6. Retrieval is version-aware (`uin`, `doc_id` on every chunk). Only wording HDFHLIP25041V062425 is indexed.
+7. **The engine also checks:** policy in force on the admission date; filing time (30 days from discharge, E.1.6; late = REVIEW FLAG, never a rejection, E.1.7 Note iv; today is `ARC_TODAY` or the real date); patient is the insured person; a what-if `room_rate_per_day` changes the room charge, the bill and the claimed amount (rate x days), `plan_room_limit_per_day` changes only the limit.
+8. **Security** (`docs/SECURITY.md`): developer routes off unless `DEBUG=1`, `/health` only `{"status":"ok"}`, security headers everywhere, session expiry (30 min) and caps, per-IP rate limit, `DELETE /sessions/{id}`, log redaction, `AUTH_MODE=key|entra`, pre-commit secret scan.
 9. Hardening (`app/resilience.py`, `app/observability.py`): timeouts everywhere, 60 s turn deadline, retry of 429/5xx, JSON log per turn without content, clean error bodies, body-size limits.
-
-## 5. Repo map
-
-```
-app/        main.py (API), config.py, intake.py, resilience.py, observability.py
-            agent/ (instructions.py, runner.py)  retrieval/ (base.py, azure_search.py)
-            tools/ (claims_engine.py, evidence.py, registry.py, plain_questions.py)  rendering/ (render.py, compact.py, scrub.py)
-            static/ (index.html, customer.css, customer.js, md.js, dev.js, dev.css)
-data/       policy_clauses.jsonl, rules/*.json, sample_claims.json (12), rag_eval_questions.json (19)
-demo/       documents/ (10 synthetic PDFs, manifest, expected_extraction.json), screenshots/, examples/, DEMO.md
-scripts/    run_demo.sh | setup/ (create_index, upload_chunks, create_agent, bootstrap_azure, check_env)
-            eval/ (eval_retrieval, eval_agent, demo_check) | dev/ (chat_cli, render_samples, render_examples, take_screenshots)
-tools/      chunk_policy.py, chunk_generic.py, source/ (policy PDF), kb_sources/ (28-document source list)
-tests/      test_*.py, conftest.py, golden/answers/, helpers/pdfmaker.py
-docs/       SYSTEM_REPORT.md, CLEANUP_REPORT.md, evidence/ (eval_report.md, eval_failures/)
-```
-
-Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `deduction_explanation`, `documents_answer`, `definition_answer`, `insufficient_information`, `general_answer`.
 
 ## 6. Commands
 

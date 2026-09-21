@@ -5,6 +5,7 @@ a figure it states must be one of these values (the number guard in guards.py ch
 """
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -224,12 +225,52 @@ def cover_left(ctx: TurnContext, extra: list[float]) -> dict:
     return out
 
 
+_MONTH_YEAR = re.compile(r"\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?,?\s+(\d{4})\b", re.I)
+_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+
+
+def date_notes(ctx: TurnContext) -> list[str]:
+    """What the policy period says about each date, or month, the customer mentioned: worked out in code so a question like "was I covered on 20 April 2026?" is answered from the engine."""
+    claim = ctx.claim
+    period = (claim or {}).get("policy_period")
+    if not period or not all(period):
+        return []
+    import calendar
+    import datetime as dt
+    from .number_guard import scan
+    fmt = lambda d: d.strftime("%d %b %Y").lstrip("0")   # noqa: E731
+    start, end = dt.date.fromisoformat(period[0]), dt.date.fromisoformat(period[1])
+    notes = []
+    for (y, m, d), _raw in scan(ctx.question)["dates"]:
+        if y and 1990 < y < 2100:
+            try:
+                r = E.policy_in_force(dict(policy_period=period, admission_datetime=f"{y:04d}-{m:02d}-{d:02d}T00:00"))
+            except ValueError:
+                continue
+            notes.append(E.policy_in_force_text(r).replace("on the admission date", "on that date").replace("the admission date", "that date"))
+    stripped = re.sub(r"\b\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}\.?,?\s+\d{4}\b|\b[A-Za-z]{3,9}\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b", " ", ctx.question)
+    for mon, yr in _MONTH_YEAR.findall(stripped):
+        mi, y = _MONTHS.index(mon[:3].lower()) + 1, int(yr)
+        first, last = dt.date(y, mi, 1), dt.date(y, mi, calendar.monthrange(y, mi)[1])
+        name = f"{calendar.month_name[mi]} {y}"
+        if start <= first and last <= end:
+            notes.append(f"All of {name} is inside your policy period ({fmt(start)} to {fmt(end)}).")
+        elif last < start or first > end:
+            notes.append(f"{name} is {'before the start' if last < start else 'after the end'} of your policy period ({fmt(start)} to {fmt(end)}): your policy was not in force then.")
+        else:
+            inside = (max(first, start), min(last, end))
+            notes.append(f"{name} is only partly inside your policy period ({fmt(start)} to {fmt(end)}): {fmt(inside[0])} to {fmt(inside[1])} is inside it, the rest is not.")
+    return list(dict.fromkeys(notes))
+
+
 def precompute(ctx: TurnContext) -> dict | None:
     """Run assess_claim in code before the model's first call, so that most questions need one model call. The result counts as a tool result of this turn."""
     if not ctx.claim:
         return None
     out = call_tool("assess_claim", {}, ctx)
     ctx.prerun = "error" not in out
+    if ctx.prerun and (notes := date_notes(ctx)):
+        out["dates_you_mentioned"] = notes            # the same dict is in ctx.tool_outputs, so these dates count as tool results for the number guard
     return out if ctx.prerun else None
 
 
