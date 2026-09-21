@@ -236,7 +236,7 @@ def enc_pdf():
 
 
 @pytest.mark.parametrize("name,data,status", [
-    ("notes.txt", b"just some notes " * 20, "not_pdf"), ("photo.jpg", b"\xff\xd8\xff\xe0" + b"0" * 200, "not_pdf"), ("empty.pdf", b"", "not_pdf"),
+    ("notes.txt", b"just some notes " * 20, "not_pdf"), ("photo.jpg", b"\xff\xd8\xff\xe0" + b"0" * 200, "not_pdf"), ("empty.pdf", b"", "empty"),
     ("broken.pdf", b"%PDF-1.4\n" + b"not really a pdf " * 30, "unreadable"), ("scan.pdf", make_pdf([]), "no_text"),
     ("huge.pdf", b"%PDF-1.4\n" + b"0" * (I.MAX_FILE_BYTES + 1), "too_large"), ("long.pdf", make_pdf(["Some text on every page of this long file"], pages=I.MAX_PAGES + 1), "too_many_pages"),
     ("lorem.pdf", make_pdf(["Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore"]), "unrecognised")])

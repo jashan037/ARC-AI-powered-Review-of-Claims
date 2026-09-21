@@ -144,6 +144,16 @@ def test_reading_a_pdf_has_a_time_limit(monkeypatch):
     assert out["status"] == "too_slow" and out["message"] == "This file took too long to read. Please upload a simpler copy."
 
 
+def test_head_works_on_the_health_route_for_probes():
+    r = client.head("/health")
+    assert r.status_code == 200
+
+
+def test_an_empty_file_says_so_instead_of_blaming_the_format():
+    assert intake.process_file("e.pdf", b"")["message"] == "This file is empty. Please upload the document again."
+    assert intake.process_file("e.pdf", b"   \n")["status"] == "empty"
+
+
 def test_a_document_over_the_size_limit_is_refused_without_being_parsed():
     out = intake.process_file("big.pdf", b"%PDF-1.4\n" + b"0" * (intake.MAX_FILE_BYTES + 1))
     assert out["status"] == "too_large"

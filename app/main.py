@@ -155,6 +155,7 @@ async def guard_every_request(request: Request, call_next):
 
 
 @app.get("/health")
+@app.head("/health")          # some health probes use HEAD
 def health():
     return {"status": "ok"}
 

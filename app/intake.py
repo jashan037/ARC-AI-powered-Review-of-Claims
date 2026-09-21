@@ -54,6 +54,7 @@ ESSENTIAL = {"policy_schedule": "your policy schedule (it shows your plan and co
 
 # what each file said about itself, in plain words for the customer
 FILE_PROBLEMS = {
+    "empty": "This file is empty. Please upload the document again.",
     "not_pdf": "This isn't a PDF. Please upload PDF files for now.",
     "too_large": "This file is larger than 5 MB. Please upload a smaller copy.",
     "no_text": "We couldn't read any text in this file. It may be a scan or a photo. Please upload a text PDF for now.",
@@ -80,6 +81,8 @@ class IntakeError(Exception):
 # ---------------------------------------------------------------- reading a PDF
 def read_pdf_pages(data: bytes) -> list[str]:
     """The text of each page of a PDF, or an IntakeError with a code from FILE_PROBLEMS. Size, page count, type and TIME limits are enforced here."""
+    if not data.strip():
+        raise IntakeError("empty")
     if len(data) > MAX_FILE_BYTES:
         raise IntakeError("too_large")
     if not data.lstrip()[:5].startswith(b"%PDF"):

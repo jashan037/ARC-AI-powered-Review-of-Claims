@@ -1,42 +1,65 @@
 # ARC: AI-powered Review of Claims
 
-A customer uploads health-insurance claim documents, ARC reads them and builds the claim, and the customer chats about it. The policy is the public HDFC ERGO my:Optima Secure wording. **A claims officer always decides**; ARC says "likely", never "approved".
+A customer uploads their health-insurance claim documents. ARC reads them, builds the claim, explains in plain words what is
+likely to be paid and why, and prepares a report the insurer's claims team can act on.
 
-How it works: a Foundry agent (gpt-5-mini) chooses tools. Azure AI Search finds policy clauses, deterministic Python does every date and rupee amount, a validator checks that citations came from tool results in the same turn, and a renderer prints the answer, so numbers and citations never pass through the model's typing.
+**ARC never approves or rejects a claim.** It says "likely", "appears", "flagged for review"; the insurer's team decides.
+Every number, date and rule result is computed by Python. The language model only explains, and every reply it writes is
+checked against the tool results of that turn before the customer sees it.
 
-```
-documents (PDF) -> intake (pypdf + rules, no model) -> claim
-question + claim -> Foundry agent -> tools (search_policy, get_clause, check_waiting_period, assess_claim, lookup_non_medical_item, get_claim_summary)
-                 -> final_answer -> validator -> renderer -> short summary + "Show more"
-```
-
-Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `deduction_explanation`, `documents_answer`, `definition_answer`, `insufficient_information`, `general_answer`.
-
-## Layout
+The policy is the public **HDFC ERGO my:Optima Secure** wording (UIN HDFHLIP25041V062425). All documents and claims in this
+repository are synthetic.
 
 ```
-app/        runtime code: API (main.py), intake, agent/, tools/, rendering/, retrieval/, static/ (the customer page)
-data/       policy chunks (186), rules, 12 sample claims, retrieval eval questions
-demo/       documents/ (10 synthetic PDFs the page loads), screenshots/, examples/ (generated answers), DEMO.md
-scripts/    run_demo.sh, setup/ (Azure), eval/ (evaluations), dev/ (CLI, renderers, screenshots)
-tools/      policy chunking (offline data prep), source/ (the policy PDF), kb_sources/ (source list for more wordings)
-tests/      all offline; golden answers in tests/golden, test-only helper in tests/helpers
-docs/       SYSTEM_REPORT.md (audit), CLEANUP_REPORT.md, evidence/ (eval report and transcripts)
+documents (PDF) -> app/intake.py (pypdf + rules, no model) -> the claim
+question         -> code runs assess_claim first
+                 -> Foundry agent (gpt-5-mini) with function tools: search_policy / get_clause (Azure AI Search),
+                    check_waiting_period, assess_claim (+ what-if), lookup_non_medical_item, get_claim_summary, cover_left
+                 -> claims_engine.py (pure Python: dates, rupees, rules)
+                 -> plain Markdown reply -> guards (numbers, verdicts, policy support, focus, timing, decision words,
+                    voice, format) -> the customer
+claim + engine   -> app/report.py (no model at all) -> the claims team's PDF
 ```
 
 ## Run it
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt                 # requirements.txt is runtime only; the dev file adds pytest, httpx, playwright
-cp .env.example .env                                # fill it in for Azure; the defaults run offline
-python -m pytest tests -q                           # 708 tests, all offline; browser tests use the Chrome you already have
-scripts/run_demo.sh                                 # customer page at http://127.0.0.1:8765/  (refuses unless .env is azure + foundry)
-uvicorn app.main:app --reload                       # dev; API docs at /docs; add ?dev=1 to the page for the live badge; the trace panel also needs DEBUG_TRACE=1 on the server
-python scripts/dev/chat_cli.py --claim TC07         # terminal chat (follows RETRIEVER / AGENT_MODE)
-python scripts/dev/render_samples.py                # 12 assessments -> demo/examples/
-python scripts/dev/render_examples.py               # one example per answer type -> demo/examples/
-python scripts/eval/eval_retrieval.py --verbose     # retrieval baseline on the 19 questions
+pip install -r requirements-dev.txt          # requirements.txt is the pinned runtime; the dev file adds pytest, httpx, playwright, detect-secrets
+python -m pytest tests -q                    # the whole suite, offline: no Azure, no model
+cp .env.example .env                         # then fill it in (see "Connect it to Azure")
+scripts/run_demo.sh                          # http://127.0.0.1:8765/  (refuses to start unless .env selects the real agent)
+```
+
+The demo is three views at three real paths: `/` (landing), `/upload` (drop your documents), `/chat` (ask about the claim).
+On `/chat` the top right has **Download report** (the claims team's PDF) and **Start over** (deletes everything held for the session).
+
+## The three sample document sets
+
+`demo/samples/` holds the same ten synthetic PDFs three times over; only the dates and the age differ, so the same claim tells
+three different stories. `python demo/make_sample_sets.py` regenerates all three from their parameters, and
+`--check` proves the regenerated text still matches the original documents line for line.
+
+| Set | Policy period | Admitted | What it shows | Load it with |
+|---|---|---|---|---|
+| `on_time` | 15/03/2026 - 14/03/2027 | 10/09/2026 | in force, filed 7 days after discharge, one document missing | "Try with sample documents" |
+| `late_filing` | 15/03/2025 - 14/03/2026 | 10/09/2025 | in force, filed 372 days after discharge: a review flag, never a rejection | `/?sample=late` |
+| `expired` | 15/03/2025 - 14/03/2026 | 20/04/2026 | the policy had ended before the admission: likely not covered | `/?sample=expired` |
+
+Every set leaves the doctor's prescription out on purpose, so the demo shows a real gap. The outcome each set must produce was
+derived by hand from the documents and the wording and lives in `demo/samples/expected_outcomes.json`; the tests and the
+accuracy suite check against that file, never against the engine's own output.
+
+## Layout
+
+```
+app/        the runtime: API (main.py), intake.py, report.py, agent/, tools/ (engine + guards), retrieval/, static/ (the page), assets/fonts/
+data/       186 policy clause chunks, the rule tables, 12 hand-derived sample claims, retrieval eval questions
+demo/       make_sample_sets.py and samples/ (three sets of ten PDFs + the hand-derived expected outcomes)
+scripts/    run_demo.sh, setup/ (Azure), eval/ (the accuracy suite and others), dev/ (chat CLI, screenshots), security/ (secret scan, hooks)
+tests/      all offline (Node for the markdown tests, Playwright + Chrome for the browser tests; both skip themselves)
+docs/       SUBMISSION.md, DEMO.md, FINAL_REPORT.md, SECURITY.md, DEPLOY.md, SYSTEM_REPORT.md (the audit), evidence/, screenshots/
+tools/      policy chunking (offline data prep) and the policy PDF
 ```
 
 ## Connect it to Azure
@@ -44,33 +67,46 @@ python scripts/eval/eval_retrieval.py --verbose     # retrieval baseline on the 
 ```bash
 az login                                            # the account needs the Foundry User role on the project
 python scripts/setup/check_env.py                   # validates .env
-python scripts/setup/create_index.py                # claims-kb-v2 (clause-level index)
-python scripts/setup/upload_chunks.py               # embed + upload data/policy_clauses.jsonl
+python scripts/setup/create_index.py                # builds claims-kb-v2 (clause-level index)
+python scripts/setup/upload_chunks.py               # embeds and uploads data/policy_clauses.jsonl
 RETRIEVER=azure python scripts/eval/eval_retrieval.py --verbose
-python scripts/setup/create_agent.py                # a new agent version with the function tools (SDK only)
-RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/eval_agent.py --workers 2   # 38 cases against the real agent
+python scripts/setup/create_agent.py                # adds an agent version from app/agent/instructions.py + the tool schemas (SDK only)
+RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/accuracy_suite.py --run --repeats 3
+python scripts/eval/accuracy_suite.py --report      # -> docs/evidence/final_report.md, final_transcripts.md
 ```
 
-Live settings: `RETRIEVER=azure`, `AGENT_MODE=foundry`. Embeddings use the deployment `text-embedding-3-large` with `EMBEDDING_DIMENSIONS=1536`. Rebuild the chunks from the policy PDF: `python tools/chunk_policy.py tools/source/optima-secure-HDFHLIP25041V062425.pdf --uin HDFHLIP25041V062425 --doc-id optima-secure-v062425 --out data/policy_clauses.jsonl`.
+Live settings are `RETRIEVER=azure` and `AGENT_MODE=foundry`. Embeddings use `text-embedding-3-large` with
+`EMBEDDING_DIMENSIONS=1536`. `AGENT_VERSION=` pins an older agent version without deleting anything.
 
 ## API
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/` | the customer page |
-| POST | `/sessions` | new session, body optional `{"audience": "customer"}` |
-| POST | `/sessions/{id}/documents` , `/documents/sample` | upload PDFs / load the sample documents |
-| POST | `/sessions/{id}/intake` | build the claim: `ready` or `needs_attention` with plain reasons |
-| POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `{status, reply, sources}` (Markdown reply; plus `tool_trace`, `guards` only when the server runs with `DEBUG_TRACE=1`) |
+| GET | `/`, `/upload`, `/chat` | the customer page (one file, three paths) |
+| POST | `/sessions` | a new session |
+| POST | `/sessions/{id}/documents` , `/documents/sample?set=` | upload PDFs / load one of the three sample sets |
+| POST | `/sessions/{id}/intake` | build the claim: `ready`, or `needs_attention` with plain reasons |
+| POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `{status, reply, sources}` |
+| GET | `/sessions/{id}/messages` | the conversation so far, so a refresh keeps it |
+| GET | `/sessions/{id}/report.pdf` | the claims team's report, built in code (no model, nothing from the chat, nothing stored) |
 | DELETE | `/sessions/{id}` | delete everything held for the session |
-| GET | `/health` | `{"status":"ok"}` |
+| GET | `/health` , `/ready` | `{"status":"ok"}` / whether Search and the agent can be reached |
 
-Developer routes, only with `DEBUG=1`: `/docs`, `/openapi.json`, `/samples`, `POST /assess`, `POST /sessions/{id}/claim`. Sessions expire after 30 idle minutes; limits and the rate limit are in `docs/SECURITY.md`.
+Developer routes exist only with `DEBUG=1`: `/docs`, `/openapi.json`, `/samples`, `POST /assess`, `POST /sessions/{id}/claim`.
+Sessions expire after 30 idle minutes; the caps, the per-IP rate limit and the rest are in `docs/SECURITY.md`.
 
-## Status and known limits
+## Where to look next
 
-- Tested: 366 offline tests and, on the real Azure agent, the accuracy suite (68 questions x 3 runs, `docs/evidence/accuracy_report.md`) and the format suite (`docs/evidence/format_before_after.md`). Older eval scripts (`eval_agent.py`, `quality_suite.py`, `demo_check.py`) target a removed answer format and no longer run.
-- Intake reads text PDFs in the layout of `demo/samples/` only; scans and other layouts are refused, not guessed. Azure Content Understanding is not built.
-- Sessions are in memory (expiry, caps and a per-IP rate limit exist, see `docs/SECURITY.md`), there is no authentication, and dependencies are pinned but not locked: see `docs/SYSTEM_REPORT.md` (P0 and P1 lists) before any deployment.
-- Only wording HDFHLIP25041V062425 is indexed. Non-medical items use HDFC's Annexure B (68 items), not IRDAI's longer list.
-- All data is synthetic. Never load a real person's documents.
+- `docs/SUBMISSION.md` - the problem, the design, the evidence index and the honest limitations.
+- `docs/DEMO.md` - a three-minute demo script with the exact questions and the expected answers for each set.
+- `docs/FINAL_REPORT.md` - what was built in the final pass, what was verified, and what was not.
+- `docs/evidence/` - the accuracy report and the transcripts of exactly what the customer sees, plus the three sample reports.
+- `docs/SECURITY.md`, `docs/DEPLOY.md` - what the code enforces, and a single-instance deployment path (not executed).
+
+## Known limits
+
+- One policy version is indexed (HDFHLIP25041V062425). Non-medical items use HDFC's 68-item Annexure B, not IRDAI's longer list.
+- Intake reads text PDFs in the layout of `demo/samples/`. A scan, a photo or an unfamiliar layout is reported back to the customer, never guessed at.
+- Sessions live in memory in one process: a restart ends every visit, and a second worker would lose half of them.
+- There is no authentication. Do not put this on a public URL as it is (`docs/DEPLOY.md` section 5).
+- An estimate is not a decision. ARC is a reading and explaining tool; the insurer's team decides every claim.

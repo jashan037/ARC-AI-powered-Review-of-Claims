@@ -1,6 +1,8 @@
 # ARC (AI-powered Review of Claims): system audit report
 
-> Note: this audit describes the repository **before** the cleanup (tag `pre-cleanup`). File paths, the officer console and some stale documentation statements have changed since; see `docs/CLEANUP_REPORT.md`. The P0 and P1 lists in section 13 are still open.
+> Note: this audit describes the repository **before** the cleanup (tag `pre-cleanup`) and before the final pass (tag `pre-final`). File paths, the officer console, the UI
+> and much of the wording have changed since; see `docs/CLEANUP_REPORT.md` and, for the current state, `docs/FINAL_REPORT.md` (which lists every P0/P1 item of section 13
+> and what happened to it). Read this file as the history of how the problems were found, not as the state of the code.
 
 Audit date: 20 Sep 2026. Auditor: Claude Code, read-only (no code changed, nothing committed, agent not redeployed, no key printed).
 Scope: the application as it exists in the working tree today. Data: only the synthetic documents in `reference/demo_documents/` and synthetic claims in `data/`.
