@@ -87,16 +87,9 @@ Claim JSON: required `claim_id, plan, base_si_lakh, first_policy_inception, admi
 - `data/rag_eval_questions.json`: 19 questions with expected `chunk_id`s (3 unanswerable). Local BM25 baseline hit@5 16/16, full recall 13/16 (optimistic).
 - `chunk_key` = `doc_id:chunk_id`; the index `id` is a sanitised `chunk_key` (Azure keys cannot contain `:` or `.`).
 
-## 9. Status (20 Sep 2026)
+## 9. Status (21 Sep 2026) - details in `docs/HANDOFF.md`
 
-Done and verified on real Azure: index and 186 chunks, agent v7, agent evaluation (38 cases, `docs/evidence/eval_report.md`), the 8-step demo, hardening, compact answers, customer page, document intake from the sample PDFs, plain-question handling. Roadmap items still open:
-
-- **IRDAI non-payable list** (needs the IRDAI annexure PDF from the user): extend `lookup_non_medical_item` and the bill analysis.
-- **2026 wording support:** adapt the chunker, index UIN HDFHLIP26058V082526, make the engine honour the differences (utilization order, Protect Benefit only if in schedule, Infinite Benefit).
-- **Intake for real documents:** Azure AI Content Understanding or Document Intelligence behind `process_file`/`build` (today: text PDFs in the sample layout only).
-- **Deployment:** blocked by the P0 items in `docs/SYSTEM_REPORT.md` (no authentication or rate limit, in-memory sessions, secrets in `.env`). Running locally is acceptable for the demo.
-
-Out of scope: real patient data, payments, a full production frontend.
+Agent v28 live (rollback `AGENT_VERSION=23`), 372 tests pass, tag `pre-final`. Verified on real Azure: 204-reply accuracy run, 202 fully correct, all hard gates 0 (`docs/evidence/accuracy_report.md`). Open: officer/advice wording can still slip past the regex guards, the sample claim now shows a filing-time review flag (real date), what-if and cover-left verified on the sample claim only, p50 ~7 s with occasional 429/timeouts, no authentication, in-memory sessions, Entra mode untested (no roles assigned), intake reads sample-layout text PDFs only.
 
 ## 10. Rules for you
 

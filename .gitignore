@@ -18,3 +18,9 @@ htmlcov/
 *.zip
 node_modules/
 kb/
+
+# caches and backups
+.ruff_cache/
+*.bak
+*.tmp
+*.egg-info/
