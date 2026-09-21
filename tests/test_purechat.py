@@ -57,7 +57,7 @@ def test_numbers_from_the_tools_or_the_claim_pass_in_any_format(text):
     assert "numbers" not in kinds(text, "What if the room rent was 5000?")
 
 
-@pytest.mark.parametrize("text", ["Your payment is ₹9,999.", "About 13 items are not payable.", "You get 63% of it.", "Admitted on 11 Sep 2025.", "It takes 45 days."])
+@pytest.mark.parametrize("text", ["Your payment is ₹9,999.", "About 13 items are not payable.", "You get 63% of it.", "Admitted on 13 Sep 2025.", "It takes 45 days."])
 def test_numbers_no_tool_returned_are_a_problem(text):
     assert "numbers" in kinds(text)
 
@@ -200,7 +200,7 @@ def test_the_other_tools_speak_plain_language_too():
     n = call_tool("lookup_non_medical_item", {"item": "surgical gloves"}, ctx)
     assert n["on_the_policys_non_medical_list"] is True and "Annexure" not in json.dumps(n)
     f = call_tool("get_claim_summary", {}, ctx)
-    assert f["insured"] == "Rohan Verma" and f["days_in_hospital"] == 4
+    assert "- Insured person: Rohan Verma" in f["claim_facts"] and "- Days stayed: 4" in f["claim_facts"]
 
 
 # ---------------------------------------------------------------- the API shape

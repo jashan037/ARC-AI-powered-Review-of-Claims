@@ -128,6 +128,37 @@ def check_waiting_period(c):
     return out
 
 
+# ------------------------------------------------------------------ policy in force on the admission date
+def policy_in_force(c):
+    """Was the policy active on the admission date? None when the policy period is not known (nothing is assumed). Pure dates, no model."""
+    period = c.get("policy_period")
+    if not period or len(period) != 2 or not all(period):
+        return None
+    start, end, adm = _d(period[0]), _d(period[1]), _d(c["admission_datetime"])
+    ok = start <= adm <= end
+    return dict(in_force=ok, admission_date=adm.isoformat(), period_start=start.isoformat(), period_end=end.isoformat(),
+                relation="within" if ok else ("before" if adm < start else "after"))
+
+
+def check_policy_in_force(c):
+    r = policy_in_force(c)
+    if r is None:
+        return [dict(code="POLICY_PERIOD", name="Policy in force on the admission date", clause="", evidence=[], status="not_applicable", required="admission inside the policy period",
+                     detail="The policy period is not in the documents, so this could not be checked")]
+    return [dict(code="POLICY_PERIOD", name="Policy in force on the admission date", clause="", evidence=[], status="satisfied" if r["in_force"] else "violated",
+                 required="admission inside the policy period", detail=policy_in_force_text(r))]
+
+
+def policy_in_force_text(r: dict) -> str:
+    """The plain-language result, dates as the customer reads them."""
+    f = lambda iso: dt.date.fromisoformat(iso).strftime("%d %b %Y").lstrip("0")   # noqa: E731
+    period = f"the policy period {f(r['period_start'])} to {f(r['period_end'])}"
+    if r["in_force"]:
+        return f"Your policy was in force on the admission date ({f(r['admission_date'])}): it falls within {period}."
+    side = "before the start of" if r["relation"] == "before" else "after the end of"
+    return f"Your policy was not in force on the admission date ({f(r['admission_date'])}): it is {side} {period}."
+
+
 # ------------------------------------------------------------------ admissibility and exclusions
 def check_hospitalization(c):
     a, b = dt.datetime.fromisoformat(c["admission_datetime"]), dt.datetime.fromisoformat(c["discharge_datetime"])
@@ -268,7 +299,7 @@ def calculate_claim_amount(c, payable_total):
 
 # ------------------------------------------------------------------ orchestrator
 def assess(c: dict) -> dict:
-    checks = check_waiting_period(c) + check_hospitalization(c) + check_exclusions(c)
+    checks = check_policy_in_force(c) + check_waiting_period(c) + check_hospitalization(c) + check_exclusions(c)
     bill, docs, conflicts = analyze_bill(c), check_required_documents(c), check_consistency(c)
     lines = bill["lines"]
     gross = sum(l["billed"] for l in lines)
@@ -315,7 +346,7 @@ def assess(c: dict) -> dict:
                    diagnosis=c.get("diagnosis"), procedure=c.get("procedure"), hospital=c.get("hospital"),
                    admission=c["admission_datetime"], discharge=c["discharge_datetime"], claimed_amount=c.get("claimed_amount")),
         coverage=cov, waiting=dict(context=waiting_context(c), checks=[k for k in checks if k["code"].startswith("Excl0") and k["code"] in ("Excl01", "Excl02", "Excl03")]),
-        checks=checks, bill=bill, documents=docs, inconsistencies=conflicts,
+        policy_in_force=policy_in_force(c), checks=checks, bill=bill, documents=docs, inconsistencies=conflicts,
         amounts=dict(gross_billed=round(gross, 2), deductions={k: round(v, 2) for k, v in ded.items()}, held_pending=round(held, 2),
                      admissible_total=round(payable_all, 2), calc=amt_est,
                      estimated_payable_if_docs_supplied=est, payable_confirmed_now=now),

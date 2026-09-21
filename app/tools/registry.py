@@ -15,7 +15,7 @@ from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
 from .evidence import resolve
 from .fmt import DOC_SHORT, inr, rule_text, sum_lines
-from .plain_questions import NOT_IN_DOCUMENTS, claim_facts
+from . import facts
 
 _S, _N, _B = {"type": "string"}, {"type": "number"}, {"type": "boolean"}
 
@@ -39,7 +39,7 @@ SCHEMAS = [
                          ["first_policy_inception", "admission_date"])),
     dict(name="lookup_non_medical_item", description="Check whether a billed item is on the policy's list of non-medical items (not paid unless the Protect Benefit applies).",
          parameters=_obj({"item": _S}, ["item"])),
-    dict(name="get_claim_summary", description="The details of the customer's claim: name, plan, policy number, hospital, diagnosis, procedure, dates, days in hospital and the amount claimed. A null value is not in the customer's documents.",
+    dict(name="get_claim_summary", description="Everything read from the customer's documents, as labelled lines: the whole policy schedule (policy number, plan, start and expiry dates, sum insured, limits, deductible, co-pay, benefits), the hospital stay, amounts, documents received and missing, and a list of what was not found.",
          parameters=_obj({})),
     dict(name="assess_claim", description="The assessment of the customer's claim: what is likely to be paid, what was taken off and why, the room-rent limit, the non-medical items, missing documents and waiting periods. "
          "It has already been run for this turn; call it again only to test a change (a what-if), for example {'room_rate_per_day': 5000}.",
@@ -79,7 +79,8 @@ def assessment_view(res: dict) -> dict:
     """The engine's result in plain-language fields: the amounts, why each amount was taken off, and what is missing. Only values the engine produced."""
     bill, claim, a = res["bill"], res["claim"], res["amounts"]
     lines = bill["lines"]
-    out = {"likely_outcome": _REC.get(res["recommendation"], res["recommendation"]), "hospital_bill_total": a["gross_billed"],
+    out = {"policy_in_force_on_the_admission_date": E.policy_in_force_text(res["policy_in_force"]) if res.get("policy_in_force") else "The policy period is not in the documents, so this could not be checked.",
+           "likely_outcome": _REC.get(res["recommendation"], res["recommendation"]), "hospital_bill_total": a["gross_billed"],
            "estimated_payment_once_documents_arrive": a["estimated_payable_if_docs_supplied"], "payment_confirmed_today": a["payable_confirmed_now"],
            "held_until_documents_arrive": a["held_pending"],
            "taken_off": {"room_rent": a["deductions"]["room"], "doctor_and_other_associated_fees": a["deductions"]["associated"], "non_medical_items": a["deductions"]["non_medical"]},
@@ -163,7 +164,7 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
     if name == "get_claim_summary":
         if not ctx.claim:
             return {"loaded": False, "message": "No claim is loaded."}
-        return dict(loaded=True, **claim_facts(ctx.claim), not_in_the_documents=NOT_IN_DOCUMENTS)
+        return facts.summary(ctx.session)
 
     if name == "assess_claim":
         if not ctx.claim:

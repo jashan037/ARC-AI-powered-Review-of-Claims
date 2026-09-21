@@ -17,7 +17,7 @@ import re
 from ..rendering.customer_labels import customerize
 from ..rendering.scrub import find as find_internal, scrub
 from .number_guard import allowed_from, drop_sentences, offenders, split_sentences
-from .plain_questions import claim_facts
+from .facts import facts_text
 from .registry import TurnContext, fallback_reply
 
 MAX_WORDS = 120
@@ -29,6 +29,9 @@ _DECISION = re.compile(
     r"|\b(?:approve|reject|deny|decline|settle) (?:this|the|your) claim\b|\bmark (?:it|the claim|this) as (?:approved|payable|rejected|non-?payable)\b", re.I)
 _VOICE = re.compile(r"\bthe insured\b|\bthe claimant\b|\bthe policy ?holder\b|\binsured person\b|\bthe customer\b", re.I)
 _LEAK = re.compile(r"\bAudience:", re.I)
+# "will I get this claim", "is my claim going to be paid": answered with "likely" or "appears", never with a bare Yes or No
+_OUTCOME_Q = re.compile(r"\b(?:will|would|can|could|do|am|is|shall)\b[^?.!]{0,30}\b(?:get|receive|be paid|be approved|be accepted|be covered|be rejected|be denied|pay|approve|approved|paid|accepted|rejected|denied)\b|\bwill (?:this|my|the) claim\b|\bwill I get\b", re.I)
+_YES_NO = re.compile(r"^\W*(?:yes|no|nope|yep|yeah|sure|absolutely|definitely|certainly)\b[\s,.!:;-]*", re.I)
 
 
 def words(text: str) -> int:
@@ -39,7 +42,7 @@ def allowed_numbers(ctx: TurnContext) -> dict:
     """The tool results of this turn, the claim's own data (its dates, amounts, bill lines) and the figures the customer typed."""
     args = [t.get("args") for t in ctx.trace if t["tool"] in ("assess_claim", "check_waiting_period") and t.get("args")]
     claim = ctx.claim
-    return allowed_from(ctx.tool_outputs + [ctx.question] + args + ([claim, claim_facts(claim)] if claim else []))
+    return allowed_from(ctx.tool_outputs + [ctx.question] + args + ([claim, facts_text(ctx.session)] if claim else []))
 
 
 def _bad_sentences(text: str, pattern: re.Pattern) -> list[str]:
@@ -61,6 +64,8 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
         problems.append(("internal", f"Remove internal terms ({found}): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id."))
     if _DECISION.search(text):
         problems.append(("decision", "You never approve, reject, deny or settle a claim and never tell anyone to. Say what appears likely and that a claims officer decides."))
+    if _OUTCOME_Q.search(ctx.question) and _YES_NO.match(text):
+        problems.append(("decision", "Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say a claims officer decides."))
     if _VOICE.search(text):
         problems.append(("voice", "Speak to the customer: 'you' and 'your claim', never 'the insured', 'the claimant' or 'the customer'."))
     if words(text) > MAX_WORDS and not _DETAIL.search(ctx.question):
@@ -75,6 +80,10 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
         text = drop_sentences(text, allowed) or fallback_reply(ctx)
     text = customerize(scrub(text))
     text = re.sub(_LEAK, "", text)
+    if _OUTCOME_Q.search(ctx.question):
+        stripped = _YES_NO.sub("", text, count=1)
+        if stripped != text:
+            text = stripped[:1].upper() + stripped[1:]
     for pattern in (_DECISION, _VOICE):
         for s in _bad_sentences(text, pattern):
             text = text.replace(s, "")

@@ -196,6 +196,17 @@ def extract(kind: str, raw: str) -> dict:
         cop = _label(t, "Co-payment")
         f["copay_percent"] = 0 if cop and re.match(r"nil|none|not", cop, re.I) else (float(re.search(r"([\d.]+)\s*%", cop).group(1)) if cop and "%" in cop else None)
         pb = _m(t, r"Protect Benefit[\s\S]{0,40}?expenses\)\s*\n([^\n]+)")
+        age = re.search(r"Insured person\s*\n[^\n]*?\bAge\s+(\d{1,3})", t)
+        per_day = lambda label: money(_m(t, rf"^{label}\s*\n[^\n]*?=\s*Rs\.\s*([\d,]+)"))   # noqa: E731 - "Up to 1% of base sum insured per day = Rs. 5,000 per day"
+        pct_of = lambda label: (lambda v: float(v) if v else None)(_m(t, rf"^{label}\s*\n\s*Up to\s*([\d.]+)\s*%"))   # noqa: E731
+        plus = _m(t, r"^Plus Benefit\s*\n([^\n]+)")
+        f.update(age=int(age.group(1)) if age else None, premium_tier=_label(t, "Premium tier"), nominee=_label(t, "Nominee"),
+                 room_rent_limit_text=_label(t, "Room rent limit"), room_rent_limit_per_day=per_day("Room rent limit"), room_rent_limit_percent=pct_of("Room rent limit"),
+                 icu_limit_text=_label(t, "ICU limit"), icu_limit_per_day=per_day("ICU limit"), icu_limit_percent=pct_of("ICU limit"),
+                 pre_hospitalization_days=money(_label(t, "Pre-hospitalization")), post_hospitalization_days=money(_label(t, "Post-hospitalization")),
+                 aggregate_deductible_text=ded, copay_text=cop, protect_benefit_text=pb, plus_benefit_text=plus, plus_benefit_opted=bool(plus) and bool(re.match(r"opted|included|covered|yes", plus, re.I)),
+                 restore_benefit_text=_label(t, "Automatic restore benefit"), air_ambulance_text=_label(t, "Emergency air ambulance"), daily_cash_text=_label(t, "Daily cash for shared room"),
+                 permanent_exclusions_text=_label(t, "Permanent exclusions"), pre_existing_declared_text=_label(t, "Pre-existing diseases declared"), ped_waiting_text=_label(t, "PED waiting period"))
         f["protect_benefit_opted"] = bool(pb) and bool(re.search(r"opted|included|covered|yes", pb, re.I)) and not re.search(r"not\s+opted|not\s+included|no\b", pb, re.I)
     elif kind == "claim_form":
         hosp = _label(t, "Hospital") or ""
@@ -209,32 +220,45 @@ def extract(kind: str, raw: str) -> dict:
                  is_accident=bool(re.search(r"accident", why, re.I)) and not re.search(r"not an accident|non-accident", why, re.I),
                  diagnosis=dx.group(1).strip() if dx else None, icd10=dx.group(2) if dx else None, procedure=proc.group(1).strip() if proc else None,
                  pre_existing=(_label(t, "Pre-existing condition") or "").lower().startswith("y"),
-                 claimed_amount=money(_m(t, r"Total claimed\s*\n\s*Rs\.\s*([\d,]+)")), not_enclosed=_label(t, "Not enclosed"))
+                 claimed_amount=money(_m(t, r"Total claimed\s*\n\s*Rs\.\s*([\d,]+)")), not_enclosed=_label(t, "Not enclosed"),
+                 procedure_date=iso_date(proc.group(2)) if proc and proc.group(2) else None, admission_type="emergency" if adm and re.search(r"emergency", t[adm.start():adm.end() + 20], re.I) else None,
+                 other_insurance=_label(t, "Other health insurance"), previous_claims=_m(t, r"Previous claims in this policy\s*\n(?:year\s*\n)?([^\n]+)"),
+                 hospitalization_claimed=money(_m(t, r"Hospitalization expenses\s*\n\s*claimed\s*\n\s*Rs\.\s*([\d,]+)")),
+                 pre_hospitalization_claimed=money(_m(t, r"Pre-hospitalization expenses\s*\n\s*Rs\.\s*([\d,]+)")), post_hospitalization_claimed=money(_m(t, r"Post-hospitalization expenses\s*\n\s*Rs\.\s*([\d,]+)")),
+                 enclosed=_m(t, r"^Enclosed\s*\n([\s\S]+?)\n\s*Not enclosed"))
     elif kind == "discharge_summary":
         adm, dis = re.search(r"Date of admission\s*\n(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})", t), re.search(r"Date of discharge\s*\n(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})", t)
         dx = re.search(r"^Diagnosis\s*\n([^\n(]+?)\s*(?:\(ICD-10\s*([A-Z]\d{2}(?:\.\d+)?)\))?\.?\s*$", t, re.M)
         f = dict(patient_name=_m(t, r"^Patient\s*\n([A-Za-z][A-Za-z .'-]+?)\s*(?:,|\n)"), admission=iso_dt(adm.group(1), adm.group(2)) if adm else None,
                  discharge=iso_dt(dis.group(1), dis.group(2)) if dis else None, diagnosis=dx.group(1).strip() if dx else None,
                  procedure=_m(t, r"^Procedure\s*\n([A-Za-z][^\n]*?)\s+(?:under|on|by)\b"), room_rate_per_day=money(_m(t, r"Room category\s*\n[^\n]*?Rs\.\s*([\d,]+)\s*per day")),
-                 length_of_stay=money(_m(t, r"Length of stay\s*\n(\d+)")))
+                 length_of_stay=money(_m(t, r"Length of stay\s*\n(\d+)")), room_category=_m(t, r"Room category\s*\n([^\n(]+?)\s*(?:\(|$)"),
+                 procedure_date=iso_date(_m(t, r"^Procedure\s*\n[\s\S]{0,120}?\bon\s+(\d{2}/\d{2}/\d{4})")))
     elif kind == "final_bill_receipts":
         lines, span = _bill_lines(t), re.search(r"Admission / discharge\s*\n(\d{2}/\d{2}/\d{4}) to (\d{2}/\d{2}/\d{4})", t)
         f = dict(patient_name=_label(t, "Patient"), policy_number=_label(t, "Policy number"), hospital=_label(t, "Hospital"), lines=lines,
                  total=money(_m(t, r"TOTAL BILL\s*\n([\d,]+)")), admission_date=iso_date(span.group(1)) if span else None, discharge_date=iso_date(span.group(2)) if span else None,
-                 room_rate_per_day=money(_m(t, r"Room category\s*\n[^\n]*?Rs\.\s*([\d,]+)\s*per day")))
+                 room_rate_per_day=money(_m(t, r"Room category\s*\n[^\n]*?Rs\.\s*([\d,]+)\s*per day")), bill_number=_label(t, "Bill number"),
+                 room_category=_m(t, r"Room category\s*\n([^\n,]+)"), advance_paid=money(_m(t, r"Advance deposit[\s\S]{0,40}?\)\s*\nRs\.\s*([\d,]+)")),
+                 final_payment=money(_m(t, r"Final payment[\s\S]{0,40}?\)\s*\nRs\.\s*([\d,]+)")), total_paid=money(_m(t, r"Total paid\s*\nRs\.\s*([\d,]+)")), balance_text=_label(t, "Balance"))
         room = next((l for l in lines if l["section"].startswith("ROOM") and re.search(r"room charges", l["description"], re.I)), None)
         f["room_days"] = room["qty"] if room else None
     elif kind == "pharmacy_bills_prescription":
         f = dict(patient_name=_label(t, "Patient"), policy_number=_label(t, "Policy number"), total=money(_m(t, r"^TOTAL\s*\n([\d,]+)")),
                  prescription_attached=bool(re.search(r"prescription[^\n]*(attached|enclosed|included)", t, re.I)) and not re.search(r"prescription[^\n]*not\s+(attached|enclosed|included)", t, re.I))
     elif kind == "photo_id_age_proof":
-        f = dict(patient_name=_label(t, "Name"), dob=iso_date(_label(t, "Date of birth")))
+        age = _label(t, "Age")
+        f = dict(patient_name=_label(t, "Name"), dob=iso_date(_label(t, "Date of birth")), age=money(age) if age else None, sex=_label(t, "Sex"))
     elif kind == "kyc":
-        f = dict(patient_name=_label(t, "Policyholder"), policy_number=_label(t, "Policy number"))
+        f = dict(patient_name=_label(t, "Policyholder"), policy_number=_label(t, "Policy number"), dob=iso_date(_label(t, "Date of birth")), reason=_label(t, "Reason for KYC"))
     elif kind == "neft_form":
-        f = dict(patient_name=_label(t, "Account holder"), policy_number=_label(t, "Policy number"))
+        f = dict(patient_name=_label(t, "Account holder"), policy_number=_label(t, "Policy number"), cancelled_cheque=_label(t, "Cancelled cheque"))
     elif kind in ("diagnostic_reports_bills", "previous_consultation_papers", "prescription"):
         f = dict(patient_name=_m(t, r"^Patient\s*\n([A-Za-z][A-Za-z .'-]+?)\s*(?:,|\n)"))
+        if kind == "previous_consultation_papers":
+            f["consulted_on"] = iso_date(_m(t, r"^Date and time\s*\n(\d{2}/\d{2}/\d{4})"))
+        if kind == "diagnostic_reports_bills":
+            f["collected_on"] = iso_date(_m(t, r"^Collected\s*\n(\d{2}/\d{2}/\d{4})"))
     return {k: v for k, v in f.items() if v is not None}
 
 
@@ -389,11 +413,14 @@ def _categorise(lines: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------- what the customer is told
-def first_message(claim: dict, missing: list[str]) -> str:
+ESTIMATE_NOTE = "Amounts I give are estimates; your insurer's team makes the final decision."
+
+
+def first_message(claim: dict, missing: list[str], first: bool = True) -> str:
     """The first chat message after the documents are read: short plain text built in code, no table. Which claim it is, what is still missing, an invitation to ask."""
     stay = f"{nice_date(claim['admission_datetime'])} to {nice_date(claim['discharge_datetime'])}"
     what = (claim["procedure"] or "a hospital stay") + (f" for {claim['diagnosis']}" if claim.get("diagnosis") else "")
     where = f" at {claim['hospital']}" if claim.get("hospital") else ""
     todo = f"Still needed: {'; '.join(missing)}." if missing else "All the documents we asked for are here."
     return (f"Thanks, I've read your documents. This is the claim for **{claim['insured_name']}** ({claim['plan']}): {what}{where}, {stay}, with a hospital bill of {inr(claim['claimed_amount'])}. "
-            f"{todo} Ask me anything about your claim.")
+            f"{todo} Ask me anything about your claim." + (f" {ESTIMATE_NOTE}" if first else ""))

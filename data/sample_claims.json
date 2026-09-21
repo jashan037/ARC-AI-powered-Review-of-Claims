@@ -1956,5 +1956,218 @@
         "ANX-C-Lite"
       ]
     }
+  },
+  "TC13": {
+    "title": "Admitted after the policy period ended",
+    "purpose": "TC07 with the admission on 10 Apr 2026, after the policy period ended on 14 Mar 2026: the policy was not in force, so nothing is payable.",
+    "claim": {
+      "claim_id": "SYN-CLM-013",
+      "insured_name": "Rohan Verma",
+      "plan": "Optima Lite",
+      "base_si_lakh": 5,
+      "sum_insured_available": 550000,
+      "first_policy_inception": "2024-03-15",
+      "policy_period": [
+        "2025-03-15",
+        "2026-03-14"
+      ],
+      "admission_datetime": "2026-04-10T14:30",
+      "discharge_datetime": "2026-04-14T11:00",
+      "is_accident": false,
+      "is_day_care_procedure": false,
+      "pre_existing": false,
+      "diagnosis": "Acute appendicitis",
+      "icd10": "K35.8",
+      "procedure": "Laparoscopic appendectomy",
+      "hospital": "Riverside Multispeciality Hospital (DEMO)",
+      "hospital_network": true,
+      "differential_billing": true,
+      "room_rate_per_day": 8000,
+      "room_days": 4,
+      "bill_lines": [
+        {
+          "description": "Room charges - deluxe room",
+          "category": "room",
+          "amount": 32000
+        },
+        {
+          "description": "Nursing charges",
+          "category": "associated",
+          "amount": 4000
+        },
+        {
+          "description": "Surgeon fee - laparoscopic appendectomy",
+          "category": "associated",
+          "amount": 55000
+        },
+        {
+          "description": "Anaesthetist fee",
+          "category": "associated",
+          "amount": 12000
+        },
+        {
+          "description": "Operation theatre charges",
+          "category": "associated",
+          "amount": 24000
+        },
+        {
+          "description": "Consultant visit charges",
+          "category": "associated",
+          "amount": 6000
+        },
+        {
+          "description": "Medicines and drugs",
+          "category": "pharmacy_medicine",
+          "amount": 20500
+        },
+        {
+          "description": "IV fluids and surgical consumables (sutures, trocar)",
+          "category": "consumables",
+          "amount": 9500
+        },
+        {
+          "description": "Laboratory tests (CBC, CRP, LFT)",
+          "category": "diagnostics",
+          "amount": 4200
+        },
+        {
+          "description": "Ultrasound abdomen",
+          "category": "diagnostics",
+          "amount": 1800
+        },
+        {
+          "description": "CT abdomen",
+          "category": "diagnostics",
+          "amount": 3000
+        },
+        {
+          "description": "Surgical gloves",
+          "category": "non_medical",
+          "amount": 2400,
+          "annexure_b_no": 56
+        },
+        {
+          "description": "Face masks",
+          "category": "non_medical",
+          "amount": 800,
+          "annexure_b_no": 60
+        },
+        {
+          "description": "ECG electrodes",
+          "category": "non_medical",
+          "amount": 600,
+          "annexure_b_no": 55
+        },
+        {
+          "description": "Abdominal binder",
+          "category": "non_medical",
+          "amount": 1200,
+          "annexure_b_no": 51
+        },
+        {
+          "description": "Kidney tray",
+          "category": "non_medical",
+          "amount": 300,
+          "annexure_b_no": 59
+        },
+        {
+          "description": "Urine jug",
+          "category": "non_medical",
+          "amount": 250,
+          "annexure_b_no": 66
+        },
+        {
+          "description": "Nebulisation kit",
+          "category": "non_medical",
+          "amount": 900,
+          "annexure_b_no": 57
+        },
+        {
+          "description": "Thermometer",
+          "category": "non_medical",
+          "amount": 150,
+          "annexure_b_no": 41
+        },
+        {
+          "description": "Attendant food charges",
+          "category": "non_medical",
+          "amount": 2800,
+          "annexure_b_no": 9
+        },
+        {
+          "description": "Service charges",
+          "category": "non_medical",
+          "amount": 2000,
+          "annexure_b_no": 21
+        },
+        {
+          "description": "Television charges",
+          "category": "non_medical",
+          "amount": 700,
+          "annexure_b_no": 22
+        },
+        {
+          "description": "Telephone charges",
+          "category": "non_medical",
+          "amount": 400,
+          "annexure_b_no": 14
+        }
+      ],
+      "claimed_amount": 184500,
+      "aggregate_deductible_remaining": 0,
+      "copay_percent": 0,
+      "documents": {
+        "claim_form": {
+          "present": true,
+          "complete": true
+        },
+        "photo_id_age_proof": {
+          "present": true,
+          "complete": true
+        },
+        "discharge_summary": {
+          "present": true,
+          "complete": true
+        },
+        "final_bill_receipts": {
+          "present": true,
+          "complete": true
+        },
+        "previous_consultation_papers": {
+          "present": true,
+          "complete": true
+        },
+        "diagnostic_reports_bills": {
+          "present": true,
+          "complete": true
+        },
+        "pharmacy_bills_prescription": {
+          "present": true,
+          "complete": false,
+          "missing_parts": [
+            "prescription"
+          ]
+        },
+        "kyc": {
+          "present": true,
+          "complete": true
+        },
+        "neft_form": {
+          "present": true,
+          "complete": true
+        }
+      },
+      "prescription_missing": true,
+      "policy_uin": "HDFHLIP25041V062425"
+    },
+    "expected": {
+      "recommendation": "likely_not_payable",
+      "estimated_payable_if_docs_supplied": 0,
+      "payable_confirmed_now": 0,
+      "must_flag": [
+        "POLICY_PERIOD"
+      ],
+      "must_cite": []
+    }
   }
 }

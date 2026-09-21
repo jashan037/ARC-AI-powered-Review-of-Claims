@@ -94,7 +94,8 @@ def allowed_from(outputs: list) -> dict:
 def offenders(text: str, allowed: dict) -> list[str]:
     """The raw numbers, dates and times of text that no tool returned this turn, in order and without repeats."""
     found = scan(text)
-    bad = [raw for (key, raw) in found["dates"] if key not in allowed["dates"] and (None, key[1], key[2]) not in allowed["dates"]]
+    # a date with a year must match exactly (a right day and month in the wrong year is wrong); a date without a year matches on day and month
+    bad = [raw for (key, raw) in found["dates"] if key not in allowed["dates"] and (key[0] is not None or (None, key[1], key[2]) not in allowed["dates"])]
     bad += [raw for (v, raw) in found["times"] if v not in allowed["times"]]
     bad += [raw for (v, raw) in found["nums"] if v not in allowed["nums"]]
     return list(dict.fromkeys(bad))
