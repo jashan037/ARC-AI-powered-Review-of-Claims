@@ -15,6 +15,7 @@ def derived_totals(res: dict) -> dict:
     est = a["estimated_payable_if_docs_supplied"]
     out = dict(bill_total=a["gross_billed"],
                room_related_reduction=round(ded["room"] + ded["associated"], 2),          # the room and the doctor, theatre and nursing charges, reduced by the room-rent proportion
+               room_charge_total=round(sum(l["billed"] for l in lines if l["category"] == "room"), 2),
                non_medical_total=round(sum(l["billed"] for l in nm), 2), non_medical_count=len(nm),
                largest_non_medical_items=[dict(item=l["description"], amount=l["billed"]) for l in nm[:TOP_N]],
                other_non_medical_count=len(rest), other_non_medical_total=round(sum(l["billed"] for l in rest), 2),

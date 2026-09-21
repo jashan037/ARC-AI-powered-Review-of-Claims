@@ -176,8 +176,8 @@ def test_at_most_three_distinct_sources():
 
 
 # ---------------------------------------------------------------- tools: clear JSON, plain field names, no final_answer
-def test_the_tools_are_the_six_and_there_is_no_final_answer():
-    assert TOOL_NAMES == {"search_policy", "get_clause", "check_waiting_period", "lookup_non_medical_item", "get_claim_summary", "assess_claim"} == {s["name"] for s in SCHEMAS}
+def test_the_tools_are_the_seven_and_there_is_no_final_answer():
+    assert TOOL_NAMES == {"search_policy", "get_clause", "check_waiting_period", "lookup_non_medical_item", "get_claim_summary", "assess_claim", "cover_left"} == {s["name"] for s in SCHEMAS}
 
 
 def test_the_assessment_is_plain_json_with_the_reasons_behind_the_amounts():
@@ -191,7 +191,14 @@ def test_the_assessment_is_plain_json_with_the_reasons_behind_the_amounts():
 
 def test_a_what_if_shows_the_change_and_what_it_was_before():
     out = call_tool("assess_claim", {"what_if": {"room_rate_per_day": 5000}}, ctx_for())
-    assert out["estimated_payment_once_documents_arrive"] == 172000 and out["before_the_change"]["estimated_payment"] == 122125 and out["what_if_changes"] == {"room_rate_per_day": 5000}
+    # a cheaper room also costs less: 4 days x 5,000 replaces 4 x 8,000, so the bill falls to 1,72,500 (the old 1,72,000 kept the bill at 1,84,500)
+    assert out["estimated_payment_once_documents_arrive"] == 160000 and out["payment_counted_so_far"] == 139500 and out["hospital_bill_total"] == 172500
+    assert out["before_the_change"]["estimated_payment"] == 122125 and out["what_if_changes"] == {"room_rate_per_day": 5000}
+    assert out["what_if_assumptions"] == ["Only the room charge changes (the daily rate times the days stayed); doctor, theatre, nursing and every other charge stay as billed."]
+    both = call_tool("assess_claim", {"what_if": {"room_rate_per_day": 5000, "protect_benefit_opted": True}}, ctx_for())
+    assert (both["hospital_bill_total"], both["estimated_payment_once_documents_arrive"], both["payment_counted_so_far"]) == (172500, 172500, 152000)
+    limit = call_tool("assess_claim", {"what_if": {"plan_room_limit_per_day": 8000}}, ctx_for())      # the bill stays: only the plan's limit changes
+    assert (limit["hospital_bill_total"], limit["estimated_payment_once_documents_arrive"]) == (184500, 172000) and "daily room limit" in limit["what_if_assumptions"][0]
 
 
 def test_the_other_tools_speak_plain_language_too():
@@ -209,3 +216,13 @@ def test_assess_is_json_only():
     body = client.post("/assess", json={"sample_id": "TC07"}).json()
     assert set(body) == {"recommendation", "amounts", "assessment"} and body["amounts"]["estimated_payable_if_docs_supplied"] == 122125
     assert not any(k in json.dumps(body) for k in ("markdown", "sections", "citations", "Show more"))
+
+
+def test_cover_left_is_worked_out_in_code_with_the_stated_claims_marked_unverified():
+    only = call_tool("cover_left", {}, ctx_for())
+    assert (only["cover_amount"], only["this_claim_estimate"], only["cover_left"]) == (550000, 122125, 427875) and only["assumptions"] == []
+    assert only["restore_benefit_on_your_schedule"] == "Unlimited times"
+    two = call_tool("cover_left", {"extra_claims": [300000]}, ctx_for())
+    assert two["cover_left"] == 127875 and two["other_claims_you_mentioned"] == [{"amount": 300000.0, "status": "stated by you, unverified"}] and "assumed to be paid in full" in two["assumptions"][0]
+    over = call_tool("cover_left", {"extra_claims": [600000]}, ctx_for())
+    assert over["cover_left"] == 0 and "nothing would be left" in over["assumptions"][-1]

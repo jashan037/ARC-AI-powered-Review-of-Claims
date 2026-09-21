@@ -35,7 +35,7 @@ Q = [
     ("payment", "why is my payment lower?", 180, True, r"reduc|room|proportion|lower|because|1,22,125"),
     ("payment", "which items are not payable?", 180, True, r"12,500|12 items|non-medical|extras"),
     ("payment", "list all non-medical items", 200, True, r"Attendant food|12 items|12,500|extras"),
-    ("what-if", "what if the room rent was 5000?", 90, False, r"1,72,000"),
+    ("what-if", "what if the room rent was 5000?", 90, False, r"1,60,000"),
     ("what-if", "what if I had taken the Protect Benefit?", 90, False, None),
     ("what-if", "what if I was admitted on 10 April 2026?", 90, False, r"not (?:be )?in force|expired|after|outside|not covered|ended"),
     ("what-if", "what if my policy had started on 1 September 2025?", 90, False, None),

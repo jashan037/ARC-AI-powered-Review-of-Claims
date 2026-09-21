@@ -45,7 +45,7 @@ SPECIFIED_KEYWORDS = {
 
 WHAT_IF_KEYS = {"first_policy_inception", "admission_datetime", "discharge_datetime", "plan", "base_si_lakh", "room_rate_per_day",
                 "protect_benefit_opted", "aggregate_deductible_remaining", "is_accident", "pre_existing", "copay_percent",
-                "prior_continuous_coverage_months", "diagnosis", "procedure", "hospital_network", "differential_billing"}
+                "prior_continuous_coverage_months", "diagnosis", "procedure", "hospital_network", "differential_billing", "plan_room_limit_per_day"}
 
 
 def _d(s):
@@ -76,12 +76,36 @@ def match_specified(text):
 
 
 def apply_what_if(claim: dict, overrides: dict | None) -> dict:
+    """The claim with the changes applied. room_rate_per_day is "the hospital had charged this rate": the room charge is rate x days, so the room lines, the bill total and the amount
+    claimed change with it (nothing else does). plan_room_limit_per_day is "if my plan allowed this much a day": only the limit changes, the bill stays. The assumptions are listed in
+    c["what_if_assumptions"] for the answer to state."""
     c = copy.deepcopy(claim)
+    notes = []
     for k, v in (overrides or {}).items():
-        if k in WHAT_IF_KEYS:
+        if k == "room_rate_per_day":
+            old, days = claim.get("room_rate_per_day"), claim.get("room_days")
+            if old and days is not None and v:
+                delta = 0.0
+                for ln in c["bill_lines"]:
+                    if ln["category"] == "room":
+                        before = ln["amount"]
+                        ln["amount"] = round(before * v / old, 2)
+                        delta += ln["amount"] - before
+                c["room_rate_per_day"] = v
+                if c.get("claimed_amount"):
+                    c["claimed_amount"] = round(c["claimed_amount"] + delta, 2)
+                notes.append("Only the room charge changes (the daily rate times the days stayed); doctor, theatre, nursing and every other charge stay as billed.")
+            else:
+                c[k] = v
+        elif k == "plan_room_limit_per_day":
+            c["room_limit_override_per_day"] = v
+            notes.append("Only your plan's daily room limit changes; the hospital bill stays as billed.")
+        elif k in WHAT_IF_KEYS:
             c[k] = v
         elif k == "documents" and isinstance(v, dict):
             c.setdefault("documents", {}).update(v)
+    if notes:
+        c["what_if_assumptions"] = list(dict.fromkeys(notes))
     return c
 
 
@@ -183,6 +207,8 @@ def check_exclusions(c):
 
 # ------------------------------------------------------------------ room rent and bill
 def _limit_per_day(c, kind):
+    if kind == "room_rent" and c.get("room_limit_override_per_day"):
+        return c["room_limit_override_per_day"]
     cfg = PLANS[c["plan"]][kind]
     if cfg["type"] == "at_actuals":
         return None

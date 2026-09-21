@@ -16,6 +16,7 @@ from . import claims_engine as E
 from .evidence import resolve
 from .fmt import DOC_SHORT, inr, rule_text, sum_lines
 from . import facts
+from .sanitize import clean
 from .totals import derived_totals
 
 _S, _N, _B = {"type": "string"}, {"type": "number"}, {"type": "boolean"}
@@ -42,10 +43,14 @@ SCHEMAS = [
          parameters=_obj({"item": _S}, ["item"])),
     dict(name="get_claim_summary", description="Everything read from the customer's documents, as labelled lines: the whole policy schedule (policy number, plan, start and expiry dates, sum insured, limits, deductible, co-pay, benefits), the hospital stay, amounts, documents received and missing, and a list of what was not found.",
          parameters=_obj({})),
+    dict(name="cover_left", description="How much of the customer's cover amount would be left after this claim and after any other claims the customer says they made or will make this policy year. "
+         "Use it for questions like 'how much cover do I have left' or 'if I already claimed 3 lakh'. Amounts the customer states are assumed paid in full and unverified.",
+         parameters=_obj({"extra_claims": {"type": "array", "items": _N, "description": "Amounts (rupees) of other claims the customer stated, each as a plain number, e.g. [300000]."}})),
     dict(name="assess_claim", description="The assessment of the customer's claim: what is likely to be paid, what was taken off and why, the room-rent limit, the non-medical items, missing documents and waiting periods. "
          "It has already been run for this turn; call it again only to test a change (a what-if), for example {'room_rate_per_day': 5000}.",
          parameters=_obj({"what_if": {"type": "object", "description": "Changes to test. Allowed keys: first_policy_inception, admission_datetime, plan, base_si_lakh, room_rate_per_day, protect_benefit_opted, "
-                          "aggregate_deductible_remaining, is_accident, pre_existing, copay_percent, diagnosis, procedure, documents.", "additionalProperties": True}})),
+                          "aggregate_deductible_remaining, is_accident, pre_existing, copay_percent, diagnosis, procedure, documents, plan_room_limit_per_day. room_rate_per_day means \"the hospital had charged this rate\" (the room charge, the bill and the claimed amount change); "
+                          "plan_room_limit_per_day means \"if my plan allowed this much a day\" (the bill stays).", "additionalProperties": True}})),
 ]
 TOOL_NAMES = frozenset(s["name"] for s in SCHEMAS)
 
@@ -98,6 +103,7 @@ def assessment_view(res: dict) -> dict:
     out["waiting_periods"] = [dict(rule=k["name"], result=_STATUS.get(k["status"], k["status"])) for k in res["waiting"]["checks"]]
     if res.get("what_if"):
         out["what_if_changes"] = res["what_if"]
+        out["what_if_assumptions"] = res.get("what_if_assumptions", [])
         out["before_the_change"] = dict(estimated_payment=res["baseline"]["estimated"], counted_so_far=res["baseline"]["confirmed"])
     return out
 
@@ -168,10 +174,17 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
             return {"loaded": False, "message": "No claim is loaded."}
         return facts.summary(ctx.session)
 
+    if name == "cover_left":
+        if not ctx.claim:
+            return {"error": "No claim is loaded."}
+        return cover_left(ctx, [float(x) for x in (a.get("extra_claims") or [])])
+
     if name == "assess_claim":
         if not ctx.claim:
             return {"error": "No claim is loaded."}
-        res = E.assess(E.apply_what_if(ctx.claim, a.get("what_if")))
+        changed = E.apply_what_if(ctx.claim, a.get("what_if"))
+        res = E.assess(changed)
+        res["what_if_assumptions"] = changed.get("what_if_assumptions", [])
         res["what_if"] = {k: v for k, v in (a.get("what_if") or {}).items() if k in E.WHAT_IF_KEYS or k == "documents"} or None
         if res["what_if"]:
             base = E.assess(ctx.claim)
@@ -179,6 +192,33 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
         ctx.results["assessment"] = res
         return assessment_view(res)
     return {"error": f"Unknown tool '{name}'."}
+
+
+def cover_left(ctx: TurnContext, extra: list[float]) -> dict:
+    """Cover amount (base sum insured + cumulative bonus + Plus Benefit if opted) minus this claim's estimate minus the amounts the customer stated. Arithmetic in code."""
+    claim = ctx.claim
+    sched = (ctx.session.get("documents") or {}).get("policy_schedule", {}).get("fields", {})
+    base = claim["base_si_lakh"] * 100000
+    bonus = sched.get("bonus")
+    if bonus is None:
+        bonus = max(0.0, (claim.get("sum_insured_available") or base) - base)
+    assumptions = ["The other claims you mention are assumed to be paid in full; I can't verify them."] if extra else []
+    plus_note = None
+    if sched.get("plus_benefit_opted"):
+        plus_note = "Your schedule shows the Plus Benefit as opted, but I can't read its amount, so it is not included in the cover amount."
+        assumptions.append(plus_note)
+    cover = base + bonus
+    est = ctx.results.get("assessment") or E.assess(claim)
+    this_claim = est["amounts"]["estimated_payable_if_docs_supplied"]
+    left = cover - this_claim - sum(extra)
+    if left < 0:
+        assumptions.append("The claims add up to more than your cover amount, so nothing would be left.")
+    restore = sched.get("restore_benefit_text")
+    out = dict(cover_amount=cover, base_sum_insured=base, cumulative_bonus=bonus, this_claim_estimate=this_claim, other_claims_you_mentioned=[dict(amount=x, status="stated by you, unverified") for x in extra],
+               cover_left=max(0.0, round(left, 2)), assumptions=assumptions)
+    if restore:
+        out["restore_benefit_on_your_schedule"] = clean(restore)
+    return out
 
 
 def precompute(ctx: TurnContext) -> dict | None:
