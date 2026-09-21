@@ -238,3 +238,14 @@ def test_a_follow_up_about_one_topic_is_not_answered_with_the_full_assessment():
 def test_a_status_code_copied_from_a_tool_is_written_as_words():
     res, _ = run([[("assess_claim", {})], [("final_answer", direct("Your waiting periods are not_applicable and 12 items are not payable."))]], "Has the waiting period been served?")
     assert res.summary_markdown == "Your waiting periods are not applicable and 12 items are not payable."
+
+
+def test_the_exception_is_found_in_the_passage_of_the_rule_the_answer_cites_a_list_under():
+    """The answer cites C.1.b.vi (the list of procedures); the accident exception is stated in C.1.b, the rule above it, which the turn also retrieved."""
+    listing = "optima-secure-v062425:C1-b-list"
+    steps = [[("get_clause", {"clause_ref": "C.1.b"}), ("get_clause", {"clause_ref": "C.1.b.vi"})], [("final_answer", coverage("A 24-month waiting period applies to joint replacement.", listing))],
+             [("final_answer", coverage("A 24-month waiting period applies to joint replacement, but not after an accident.", listing))]]
+    model = Script(steps)
+    res = agent(model).ask(customer_session(), "Is knee replacement covered?")
+    assert [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [False, True]
+    assert model.outputs[2]["problems"][0].startswith("Exception:") and "accident" in model.outputs[2]["problems"][0].lower()

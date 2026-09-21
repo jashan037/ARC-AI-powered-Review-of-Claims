@@ -1,10 +1,10 @@
 # Quality report
 
-Agent `claims-adjudication-agent-v2` (latest version) · model `gpt-5-mini` · retriever `azure` · mode `foundry` · 40 customer questions × 3 run(s) · generated 2026-09-21 09:11
+Agent `claims-adjudication-agent-v2` (latest version) · model `gpt-5-mini` · retriever `azure` · mode `foundry` · 40 customer questions × 3 run(s) · generated 2026-09-21 09:10
 
 Every question is asked as a customer whose claim was built from `demo/documents`. The expectations are in `scripts/eval/quality_suite.py`; they were written before the first run and were not changed to make a case pass, with one disclosed exception: D03's wording was corrected to the clause text after the first run (see the analysis at the end). Expected amounts come from the documents or from the deterministic engine, not from the agent. What the customer sees for every question in run 1 is in `quality_transcripts.md`.
 
-**37/40 questions passed every run · 117/120 runs passed** · flaky: C01, C02, H03 · failed every run: none
+**34/40 questions passed every run · 114/120 runs passed** · flaky: P03, P04, P05, C01, C02, H03 · failed every run: none
 
 ## By category
 
@@ -15,7 +15,7 @@ Every question is asked as a customer whose claim was built from `demo/documents
 | fact | 8 | 24/24 | 0.0 / 0.0 | 0.0 / 0 |
 | hostile | 5 | 14/15 | 8.6 / 9.0 | 0.0 / 0 |
 | multi | 3 | 9/9 | 9.5 / 12.1 | 0.0 / 0 |
-| payment | 8 | 24/24 | 10.7 / 15.2 | 0.5 / 8 |
+| payment | 8 | 21/24 | 10.8 / 40.4 | 0.3 / 8 |
 | whatif | 4 | 12/12 | 13.5 / 16.2 | 0.1 / 1 |
 
 ## Results per question
@@ -32,9 +32,9 @@ Every question is asked as a customer whose claim was built from `demo/documents
 | F08 | what is my address | ✅ 3/3 | direct_answer |  | 7 | 0 | – |
 | P01 | How much will be paid? | ✅ 3/3 | claim_assessment | assess_claim > final_answer | 72 | 6 | – |
 | P02 | Why was my room rent reduced? | ✅ 3/3 | direct_answer | assess_claim > final_answer | 72 | 13 | – |
-| P03 | Which items are not payable? | ✅ 3/3 | direct_answer | assess_claim > final_answer | 49 | 11 | – |
-| P04 | Why is some of my money being held? | ✅ 3/3 | direct_answer | assess_claim > final_answer | 63 | 11 | – |
-| P05 | Why were my doctor fees reduced? | ✅ 3/3 | direct_answer | assess_claim > final_answer | 72 | 13 | – |
+| P03 | Which items are not payable? | ⚠️ flaky 2/3 | direct_answer, general_answer | assess_claim | 49 | 453 | answer type general_answer, expected one of ['direct_answer']; status timeout; the answer does not contain /non.?medical/; the answer does not contain /₹12,500/ |
+| P04 | Why is some of my money being held? | ⚠️ flaky 2/3 | direct_answer, general_answer | assess_claim | 63 | 171 | answer type general_answer, expected one of ['direct_answer']; status timeout; the answer does not contain /prescription/; the answer does not contain /₹20,500/ |
+| P05 | Why were my doctor fees reduced? | ⚠️ flaky 2/3 | direct_answer, general_answer | assess_claim | 68 | 68 | answer type general_answer, expected one of ['direct_answer']; status timeout; the answer contains none of ['room', 'proportion', 'limit']; the answer does not contain /₹37,875/ |
 | P06 | Is there a deductible or a co-pay on my claim? | ✅ 3/3 | direct_answer | assess_claim > final_answer | 66 | 11 | – |
 | P07 | Why is my payment lower than my bill? | ✅ 3/3 | claim_assessment, direct_answer | assess_claim > final_answer | 78 | 11 | – |
 | P08 | What did you find on my claim? | ✅ 3/3 | claim_assessment | assess_claim > final_answer | 72 | 7 | – |
@@ -65,7 +65,7 @@ Every question is asked as a customer whose claim was built from `demo/documents
 
 ## Model calls and rate limiting
 
-Turns: 129. Answered in code without any model call (facts, small talk, hostile requests, the fixed messages): 36. Model-service requests per turn (a conversation create plus each response): mean 2.47 over all turns, 3.43 over the turns that used the model. Assessment run in code before the first model call: 66 turns; policy search run in code first: 24 turns. Retried model or search calls (HTTP 429 and transient errors): 1 retries in 1 turns. Turns that ended in a timeout or unavailable: 0.
+Turns: 129. Answered in code without any model call (facts, small talk, hostile requests, the fixed messages): 39. Model-service requests per turn (a conversation create plus each response): mean 2.40 over all turns, 3.44 over the turns that used the model. Assessment run in code before the first model call: 63 turns; policy search run in code first: 24 turns. Retried model or search calls (HTTP 429 and transient errors): 1 retries in 1 turns. Turns that ended in a timeout or unavailable: 3.
 
 ## Guards
 
@@ -88,20 +88,34 @@ Turns: 129. Deduction focus corrected by code: 0. Replies that still had a numbe
 
 ## Latency and Search
 
-Per answer, all 94 turns: p50 11.6 s, p95 23.3 s, max 31.9 s. Azure Search requests per answer: mean 0.5, max 8 (the chunk cache is on, 512 clauses; before the cache one assessment needed 25). Embedding calls per answer: mean 0.23.
-
-## Runs re-executed because the call never completed
-
-3 runs of the first full pass of this version did not finish for reasons outside the answer itself, and were executed again (same question, fresh session): 3 × status timeout. The results above are the merged set. The originals are kept in `quality_runs_second_run_disturbed.json`. The deadline timeouts are a real property of the service, not noise: they come from the model deployment's per-minute quota (HTTP 429, retried with backoff until the 60 s turn deadline) when two workers ask at once, and the `ClientAuthenticationError`s are the machine losing its route to `login.microsoftonline.com` for a while. Neither says anything about the quality of an answer.
-
-| Question | Run | What happened the first time |
-|---|---:|---|
-| P03 | 3 | status timeout |
-| P04 | 3 | status timeout |
-| P05 | 3 | status timeout |
+Per answer, all 94 turns: p50 11.8 s, p95 28.4 s, max 40.6 s. Azure Search requests per answer: mean 0.4, max 8 (the chunk cache is on, 512 clauses; before the cache one assessment needed 25). Embedding calls per answer: mean 0.23.
 
 ## Every failure
 
+- **P03 run 3**: status timeout  
+  reply: “”
+- **P03 run 3**: answer type general_answer, expected one of ['direct_answer']  
+  reply: “”
+- **P03 run 3**: the answer does not contain /₹12,500/  
+  reply: “”
+- **P03 run 3**: the answer does not contain /non.?medical/  
+  reply: “”
+- **P04 run 3**: status timeout  
+  reply: “”
+- **P04 run 3**: answer type general_answer, expected one of ['direct_answer']  
+  reply: “”
+- **P04 run 3**: the answer does not contain /₹20,500/  
+  reply: “”
+- **P04 run 3**: the answer does not contain /prescription/  
+  reply: “”
+- **P05 run 3**: status timeout  
+  reply: “”
+- **P05 run 3**: answer type general_answer, expected one of ['direct_answer']  
+  reply: “”
+- **P05 run 3**: the answer does not contain /₹37,875/  
+  reply: “”
+- **P05 run 3**: the answer contains none of ['room', 'proportion', 'limit']  
+  reply: “”
 - **C01 run 2**: the answer does not contain /accident/  
   reply: “**🟠 Covered, with conditions**  Knee replacement is covered with conditions; a 24-month waiting period usually applies.  - 🔹 **Specified waiting period** — A 24-month waiting applies to listed procedures/conditions before they are payable under your policy. - ”
 - **C02 run 3**: the answer does not contain /accident/  

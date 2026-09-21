@@ -360,12 +360,22 @@ def missing_exception(a: dict, ctx: TurnContext) -> str | None:
     keys = list(a.get("citations") or []) + [c for p in a.get("points") or [] for c in p.get("citations") or []]
     for key in dict.fromkeys(keys):
         chunk = ctx.seen.get(key)
-        if not chunk or not (m := _EXC.search(chunk.text)):
+        if not chunk:
             continue
-        words = [w for w in re.findall(r"[a-z]{5,}", m.group(1).lower()) if w not in _EXC_STOP]
-        if words and not any(w in said for w in words):
-            return re.sub(r"\s+", " ", m.group(0)).strip()[:110]
+        for part in _same_rule(chunk, ctx):
+            if not (m := _EXC.search(part.text)):
+                continue
+            words = [w for w in re.findall(r"[a-z]{5,}", m.group(1).lower()) if w not in _EXC_STOP]
+            if words and not any(w in said for w in words):
+                return re.sub(r"\s+", " ", m.group(0)).strip()[:110]
     return None
+
+
+def _same_rule(chunk: Chunk, ctx: TurnContext) -> list[Chunk]:
+    """The cited passage and the other passages of this turn that belong to the same rule (C.1.b.vi is the list under C.1.b, where the exception is stated)."""
+    def rule(c: Chunk) -> str:
+        return ".".join(c.clause.split(" ")[0].split(".")[:3])
+    return [chunk] + [c for c in ctx.seen.values() if c is not chunk and rule(c) == rule(chunk)]
 
 
 def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
