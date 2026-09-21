@@ -210,13 +210,19 @@ def _check_claim(claim: dict) -> None:
 # ---------------------------------------------------------------- the demo web UI: static files, same origin as the API (no CORS needed)
 STATIC_DIR = Path(__file__).parent / "static"
 PAGE_HEADERS = {   # the page loads only its own scripts and styles and talks only to this server
-    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "Content-Security-Policy": ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+                                "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"),
     "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-cache"}
 
 
+PAGE_PATHS = ("/", "/upload", "/chat")     # three real paths, one page: a refresh or a shared link on any of them works
+
+
 @app.get("/", include_in_schema=False)
+@app.get("/upload", include_in_schema=False)
+@app.get("/chat", include_in_schema=False)
 def index():
-    """The customer page: upload documents, then chat about the claim."""
+    """The customer page: the landing view, the upload view and the chat view, chosen by the path (app/static/app.js)."""
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html", headers=PAGE_HEADERS)
 
 
@@ -229,6 +235,18 @@ class _NoCacheStatic(StaticFiles):
 
 
 app.mount("/static", _NoCacheStatic(directory=STATIC_DIR), name="static")
+
+
+@app.get("/sessions/{sid}/messages")
+def messages(sid: str):
+    """The conversation so far, so a page refresh on /chat shows it again. Nothing new is computed and no model is called."""
+    s = _session(sid)
+    out = []
+    if s.get("intro"):
+        out.append(dict(who="arc", text=s["intro"]))
+    for t in s.get("history", []):
+        out += [dict(who="you", text=t["user"]), dict(who="arc", text=t["reply"])]
+    return dict(ready=bool(s.get("claim")), messages=out)
 
 
 @app.get("/sessions/{sid}/report.pdf")
@@ -309,8 +327,10 @@ def run_intake(sid: str):
     if out["status"] == "ready":
         claim = out.pop("claim")
         out["claim"] = _summary(claim)
-        out["first_message"] = intake.first_message(claim, out["missing"], first=not s.get("intro_sent"))
+        out["first_message"] = intake.first_message(claim, out["missing"], counts=intake.document_counts(s.get("documents", {})), first=not s.get("intro_sent"))
         s["intro_sent"] = True
+        s["intro"] = out["first_message"]      # kept so a page refresh can show the conversation again (GET /sessions/{id}/messages)
+        out["counts"] = intake.document_counts(s.get("documents", {}))
     return out
 
 

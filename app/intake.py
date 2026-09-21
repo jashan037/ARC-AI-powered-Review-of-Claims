@@ -483,8 +483,11 @@ def _plain(label: str) -> str:
     return label if label[:2].isupper() else label[:1].lower() + label[1:]
 
 
-def first_message(claim: dict, missing: list[str], first: bool = True) -> str:
-    """The first chat message after the documents are read: plain sentences built in code from the claim's facts, no table."""
+def first_message(claim: dict, missing: list[str], counts: dict | None = None, first: bool = True) -> str:
+    """The first chat message after the documents are read: plain sentences built in code from the claim's facts, no table, no model call.
+
+    In order: what was read, whether the policy was in force, the filing time, what is still missing (with the ONE document count from
+    document_counts), and where the claims-team report can be downloaded."""
     what = claim.get("procedure") or "a hospital stay"
     what = what[:1].lower() + what[1:] if what[:2] != what[:2].upper() else what
     if claim.get("diagnosis"):
@@ -495,14 +498,22 @@ def first_message(claim: dict, missing: list[str], first: bool = True) -> str:
     period = claim.get("policy_period")
     if period and all(period):
         text += f" Your policy runs from {nice_date(period[0])} to {nice_date(period[1])}."
+    in_force = E.policy_in_force(claim)
+    if in_force:
+        text += "\n\n" + E.policy_in_force_text(in_force)
+        if not in_force["in_force"]:
+            text += " That matters more than anything else here: unless a renewal was in force on that date, this claim would likely not be covered."
+    filing = E.filing_status(claim)
+    if filing:
+        text += "\n\n" + E.filing_text(filing)
     names = [_plain(m) for m in missing]
+    seen = f" ({counts['received']} of {counts['expected']} received)" if counts else ""
     if len(names) == 1:
-        text += f"\n\n**One document is still missing:** {names[0]}. You can drop it anywhere on this page."
+        text += f"\n\n**One document is still missing**{seen}: {names[0]}. You can drop it anywhere on this page."
     elif names:
-        text += f"\n\n**{len(names)} documents are still missing:** {', '.join(names[:-1])} and {names[-1]}. You can drop them anywhere on this page."
+        text += f"\n\n**{len(names)} documents are still missing**{seen}: {', '.join(names[:-1])} and {names[-1]}. You can drop them anywhere on this page."
     else:
-        text += "\n\nYour documents look complete."
-    late = E.filing_status(claim)
-    if late and late["late"]:
-        text += f"\n\n**About timing:** {E.filing_text(late)}"
-    return text + "\n\nAsk me anything about your claim." + (f" {ESTIMATE_NOTE}" if first else "")
+        text += f"\n\nYour documents look complete{seen}."
+    if first:
+        text += "\n\nI've also prepared a report you can download for your insurer (top right). " + ESTIMATE_NOTE
+    return text

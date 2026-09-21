@@ -138,7 +138,7 @@ def test_late_filing_is_a_review_flag_and_cataract_in_december_2025_is_before_th
     c = claim("late_filing")
     f = E.filing_status(c)
     assert f["late"] is True and f["days_since_discharge"] == 372
-    assert "flagged for a claims officer to review, not rejected" in E.filing_text(f)
+    assert "flagged for your insurer's team to review, not rejected" in E.filing_text(f)
     assert E.assess(c)["recommendation"] == "needs_human_review"
     k = [x for x in E.check_waiting_period(dict(c, diagnosis="Cataract", procedure="Cataract surgery", admission_datetime="2025-12-10T10:00")) if x["code"] == "Excl02"][0]
     assert k["status"] == "violated" and k["eligible_from"] == "2026-03-15"

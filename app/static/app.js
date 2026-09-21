@@ -1,24 +1,77 @@
-/* ARC customer page: upload documents, then chat. No framework, no build step, no network beyond this server.
- * Server text is inserted as text; only assistant replies go through ARCMarkdown, which escapes HTML first. */
+/* ARC: three views at three real paths ("/", "/upload", "/chat"), one page, no framework, no build step, no request off this server.
+ * Server text is inserted as text; only assistant replies go through ARCMarkdown, which escapes HTML first and builds nodes (no innerHTML).
+ */
 (function () {
   "use strict";
 
-  var DROP_LINE = "Drop your documents here, or click to upload";
+  // ---------------------------------------------------------------- every string the customer reads
+  var TEXT = {
+    brand: "ARC",
+    titles: { landing: "ARC", upload: "ARC - your documents", chat: "ARC - your claim" },
+    landing: {
+      h1: "Know where your claim stands before it's decided.",
+      lead: "Upload your claim documents. ARC reads them, flags what's missing, and explains every deduction in plain words.",
+      start: "Upload your documents",
+      sample: "Try with sample documents",
+      note: "Demo. Please upload only sample documents. Amounts are estimates; your insurer's team makes the final decision."
+    },
+    upload: {
+      drop: "Drop your documents here, or click to upload",
+      reading: "reading…",
+      ready: "ready",
+      failed: "couldn't be sent, please try again",
+      wrong: "Something went wrong. Please try again.",
+      sampleReading: "Sample documents, reading…",
+      sampleReady: "Sample documents, ready"
+    },
+    chat: {
+      placeholder: "Ask about your claim",
+      send: "Send",
+      working: "Working on it",
+      assistant: "ARC",
+      slow: "That took too long. Please try again.",
+      dropHere: "Drop to add documents",
+      report: "Download report",
+      reportWorking: "Preparing…",
+      reportFailed: "The report couldn't be prepared. Please try again.",
+      restart: "Start over",
+      restartConfirm: "Delete everything?",
+      restartWorking: "Deleting…"
+    }
+  };
+
   var BATCH = 5;                 // files per request, so the per-request file limit never shows
-  var FADE_MS = 150;
   var CHAT_TIMEOUT_MS = 90000;
-  var SLOW = "That took too long. Please try again.";
-  var UPLOAD_FAILED = "couldn't be sent, please try again";
+  var FADE_MS = 150;
 
   var $ = function (id) { return document.getElementById(id); };
   var el = {
-    upload: $("view-upload"), chat: $("view-chat"), drop: $("drop"), line: $("drop-line"), files: $("files"), reasons: $("reasons"),
-    sample: $("sample"), sampleLink: $("sample-link"), picker: $("picker"), thread: $("thread"), form: $("bar"), ask: $("ask"), send: $("send"), overlay: $("overlay")
+    logoWord: $("logo-word"), main: $("main"),
+    landing: $("view-landing"), h1: $("landing-title"), lead: $("landing-lead"), start: $("landing-start"), sample: $("landing-sample"), note: $("landing-note"),
+    upload: $("view-upload"), drop: $("drop"), line: $("drop-line"), files: $("files"), reasons: $("reasons"), picker: $("picker"),
+    chat: $("view-chat"), thread: $("thread"), form: $("bar"), ask: $("ask"), send: $("send"),
+    tools: $("tools"), report: $("report"), reportLabel: $("report-label"), restart: $("restart"), restartLabel: $("restart-label"), toolNote: $("tool-note"),
+    overlay: $("overlay"), overlayLine: $("overlay-line")
   };
-  var state = { sid: null, view: "upload", pending: false, uploading: false };
+  var state = { sid: null, view: null, ready: false, pending: false, uploading: false, restarting: false };
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  el.line.textContent = DROP_LINE;
+  function fill() {
+    el.logoWord.textContent = TEXT.brand;
+    document.querySelector(".logo").setAttribute("aria-label", TEXT.brand + " home");
+    el.h1.textContent = TEXT.landing.h1;
+    el.lead.textContent = TEXT.landing.lead;
+    el.start.textContent = TEXT.landing.start;
+    el.sample.textContent = TEXT.landing.sample;
+    el.note.textContent = TEXT.landing.note;
+    el.line.textContent = TEXT.upload.drop;
+    el.ask.placeholder = TEXT.chat.placeholder;
+    el.ask.setAttribute("aria-label", TEXT.chat.placeholder);
+    el.send.setAttribute("aria-label", TEXT.chat.send);
+    el.reportLabel.textContent = TEXT.chat.report;
+    el.restartLabel.textContent = TEXT.chat.restart;
+    el.overlayLine.textContent = TEXT.chat.dropHere;
+  }
 
   function h(tag, cls, text) {
     var n = document.createElement(tag);
@@ -42,12 +95,54 @@
     }).finally(function () { if (timer) clearTimeout(timer); });
   }
 
-  function session() {
-    if (state.sid) return Promise.resolve(state.sid);
-    return api("POST", "/sessions").then(function (j) { state.sid = j.session_id; return state.sid; });
+  function remember(sid) {
+    state.sid = sid;
+    try { sessionStorage.setItem("arc.sid", sid); } catch (e) { /* private mode: the visit simply does not survive a refresh */ }
   }
 
-  // ---------------------------------------------------------------- upload (shared by both views)
+  function recall() {
+    try { return sessionStorage.getItem("arc.sid"); } catch (e) { return null; }
+  }
+
+  function forget() {
+    state.sid = null; state.ready = false;
+    try { sessionStorage.removeItem("arc.sid"); } catch (e) { /* nothing to clear */ }
+  }
+
+  function session() {
+    if (state.sid) return Promise.resolve(state.sid);
+    return api("POST", "/sessions").then(function (j) { remember(j.session_id); return state.sid; });
+  }
+
+  // ---------------------------------------------------------------- the router: real paths, one page
+  function go(path, replace) {
+    if (location.pathname !== path) history[replace ? "replaceState" : "pushState"]({}, "", path);
+    show(path);
+  }
+
+  function show(path) {
+    var view = path === "/chat" ? "chat" : path === "/upload" ? "upload" : "landing";
+    if (view === "chat" && !state.ready) { go("/upload", true); return; }
+    state.view = view;
+    el.landing.hidden = view !== "landing";
+    el.upload.hidden = view !== "upload";
+    el.chat.hidden = view !== "chat";
+    el.tools.hidden = !(view === "chat" && state.ready);
+    document.title = TEXT.titles[view];
+    if (view === "chat") { el.ask.focus(); }
+  }
+
+  window.addEventListener("popstate", function () { show(location.pathname); });
+
+  function link(node, path) {
+    node.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;   // let the customer open it in a new tab if they want to
+      e.preventDefault();
+      go(path);
+    });
+  }
+
+  // ---------------------------------------------------------------- upload (shared by the upload and chat views)
   function isFiles(e) {
     var t = e.dataTransfer && e.dataTransfer.types;
     return !!t && Array.prototype.indexOf.call(t, "Files") >= 0;
@@ -64,11 +159,11 @@
           return session().then(function (sid) { return api("POST", "/sessions/" + sid + "/documents", fd); }).then(function (res) {
             brows.forEach(function (row, k) {
               var r = (res.files || [])[k] || {};
-              row.result = r.status === "recognised" ? "ready" : (r.message || UPLOAD_FAILED);
+              row.result = r.status === "recognised" ? TEXT.upload.ready : (r.message || TEXT.upload.failed);
               row.done();
             });
           }).catch(function (e) {
-            brows.forEach(function (row) { row.result = (e && e.message && e.message !== "request failed" ? e.message : UPLOAD_FAILED); row.done(); });
+            brows.forEach(function (row) { row.result = (e && e.message && e.message !== "request failed" ? e.message : TEXT.upload.failed); row.done(); });
           });
         });
       })(i);
@@ -85,7 +180,7 @@
     if (inChat) { wait = waitingCard(); scrollToCard(wait); }
     el.reasons.textContent = "";
     var rows = list.map(function (f) {
-      var li = h("li", null, f.name + ", reading…");
+      var li = h("li", null, f.name + ", " + TEXT.upload.reading);
       if (!inChat) el.files.appendChild(li);
       return { name: f.name, li: li, result: "", done: function () { li.textContent = f.name + ", " + this.result; } };
     });
@@ -93,17 +188,19 @@
       return api("POST", "/sessions/" + state.sid + "/intake");
     }).then(function (out) {
       if (out.status === "ready") {
+        state.ready = true;
         if (inChat) {
-          var bad = rows.filter(function (r) { return r.result !== "ready"; }).map(function (r) { return r.name + ", " + r.result; });
+          var bad = rows.filter(function (r) { return r.result !== TEXT.upload.ready; }).map(function (r) { return r.name + ", " + r.result; });
           fillCard(wait, out.first_message + (bad.length ? "\n\n" + bad.join("\n") : ""));
+          el.tools.hidden = false;
           scrollToCard(wait, true);
-        } else showChat(out.first_message);
+        } else enterChat(out.first_message);
       } else {
         var text = (out.reasons || []).map(function (r) { return r.message; }).join("\n");
         if (inChat) { fillCard(wait, text); scrollToCard(wait, true); } else el.reasons.textContent = text;
       }
     }).catch(function () {
-      if (inChat) { fillCard(wait, SLOW); scrollToCard(wait, true); } else el.reasons.textContent = "Something went wrong. Please try again.";
+      if (inChat) { fillCard(wait, TEXT.chat.slow); scrollToCard(wait, true); } else el.reasons.textContent = TEXT.upload.wrong;
     }).finally(function () { state.uploading = false; el.picker.value = ""; });
   }
 
@@ -113,11 +210,10 @@
   });
   el.picker.addEventListener("change", function () { addFiles(el.picker.files); });
 
-  // dragging anywhere on the page: the drop section (upload view) or the whole-page overlay (chat view)
   var depth = 0;
   function dragOn(on) {
     if (state.view === "chat") el.overlay.hidden = !on;
-    else el.drop.classList.toggle("over", on);
+    else if (state.view === "upload") el.drop.classList.toggle("over", on);
   }
   window.addEventListener("dragenter", function (e) { if (!isFiles(e)) return; e.preventDefault(); depth++; dragOn(true); });
   window.addEventListener("dragover", function (e) { if (isFiles(e)) e.preventDefault(); });
@@ -125,48 +221,32 @@
   window.addEventListener("drop", function (e) {
     if (!isFiles(e)) return;
     e.preventDefault(); depth = 0; dragOn(false);
+    if (state.view === "landing") { go("/upload"); }
     addFiles(e.dataTransfer.files);
   });
 
-  var sampleSet = (location.search.match(/[?&]sample=([a-z_0-9]+)/i) || [])[1];
-  if (sampleSet) {
-    el.sample.hidden = false;
-    el.sampleLink.addEventListener("click", function (e) {
-      e.preventDefault();
-      if (state.uploading) return;
-      state.uploading = true;
-      var li = h("li", null, "Sample documents, reading…");
-      el.files.appendChild(li);
-      session().then(function (sid) { return api("POST", "/sessions/" + sid + "/documents/sample?set=" + encodeURIComponent(sampleSet)); }).then(function () {
-        li.textContent = "Sample documents, ready";
-        return api("POST", "/sessions/" + state.sid + "/intake");
-      }).then(function (out) {
-        if (out.status === "ready") showChat(out.first_message);
-        else el.reasons.textContent = (out.reasons || []).map(function (r) { return r.message; }).join("\n");
-      }).catch(function () { li.textContent = "Sample documents, " + UPLOAD_FAILED; }).finally(function () { state.uploading = false; });
-    });
-  }
-
-  // ---------------------------------------------------------------- views
-  function showChat(firstMessage) {
-    el.upload.classList.add("fade");
-    setTimeout(function () {
-      el.upload.hidden = true;
-      el.upload.classList.remove("fade");
-      el.chat.hidden = false;
-      state.view = "chat";
-      el.chat.classList.add("fade");
-      el.thread.appendChild(assistantCard(firstMessage));
-      void el.chat.offsetWidth;
-      el.chat.classList.remove("fade");
-      el.ask.focus();
-      window.scrollTo(0, 0);
-    }, reduced ? 0 : FADE_MS);
-  }
+  // the sample link on the landing view: the same intake pipeline, with the set the query asks for (on_time by default)
+  var sampleSet = (location.search.match(/[?&]sample=([a-z_0-9]+)/i) || [])[1] || "on_time";
+  el.sample.addEventListener("click", function (e) {
+    e.preventDefault();
+    if (state.uploading) return;
+    state.uploading = true;
+    go("/upload");
+    var li = h("li", null, TEXT.upload.sampleReading);
+    el.files.appendChild(li);
+    session().then(function (sid) { return api("POST", "/sessions/" + sid + "/documents/sample?set=" + encodeURIComponent(sampleSet)); }).then(function () {
+      li.textContent = TEXT.upload.sampleReady;
+      return api("POST", "/sessions/" + state.sid + "/intake");
+    }).then(function (out) {
+      if (out.status === "ready") { state.ready = true; enterChat(out.first_message); }
+      else el.reasons.textContent = (out.reasons || []).map(function (r) { return r.message; }).join("\n");
+    }).catch(function () { li.textContent = "Sample documents, " + TEXT.upload.failed; }).finally(function () { state.uploading = false; });
+  });
 
   // ---------------------------------------------------------------- cards
   function assistantCard(markdown) {
     var c = h("article", "card");
+    c.setAttribute("aria-label", TEXT.chat.assistant);
     fillCard(c, markdown);
     return c;
   }
@@ -174,7 +254,7 @@
   function fillCard(card, markdown) {
     card.textContent = "";
     var text = String(markdown == null ? "" : markdown);
-    try {   // the renderer escapes first; the result is parsed into nodes (no innerHTML), and a failure falls back to the plain text
+    try {   // the renderer escapes first; the result is parsed into nodes, and a failure falls back to the plain text
       var doc = new DOMParser().parseFromString(ARCMarkdown.render(text), "text/html");
       while (doc.body.firstChild) card.appendChild(document.adoptNode(doc.body.firstChild));
     } catch (e) { card.textContent = text; }
@@ -183,8 +263,9 @@
 
   function waitingCard() {
     var c = h("article", "card");
+    c.setAttribute("aria-label", TEXT.chat.assistant);
     var d = h("span", "dots");
-    d.setAttribute("aria-label", "Working on it");
+    d.setAttribute("aria-label", TEXT.chat.working);
     d.appendChild(h("i")); d.appendChild(h("i")); d.appendChild(h("i"));
     c.appendChild(d);
     el.thread.appendChild(c);
@@ -193,6 +274,13 @@
 
   function scrollToCard(card, top) {
     card.scrollIntoView({ block: top ? "start" : "nearest", behavior: "auto" });
+  }
+
+  function enterChat(firstMessage) {
+    el.thread.textContent = "";
+    el.thread.appendChild(assistantCard(firstMessage));
+    go("/chat");
+    window.scrollTo(0, 0);
   }
 
   // ---------------------------------------------------------------- chat
@@ -209,12 +297,12 @@
     el.ask.value = "";
     var wait = waitingCard();
     refresh();
-    scrollToCard(wait);
+    scrollToCard(me);
     el.ask.focus();
     api("POST", "/sessions/" + state.sid + "/chat", { message: q }, CHAT_TIMEOUT_MS).then(function (out) {
-      fillCard(wait, typeof out.reply === "string" && out.reply ? out.reply : SLOW);
+      fillCard(wait, typeof out.reply === "string" && out.reply ? out.reply : TEXT.chat.slow);
     }).catch(function (e) {
-      fillCard(wait, e && (e.status === 404 || e.status === 429) ? e.message : SLOW);   // a session that ended, or too many requests: the server's own plain sentence
+      fillCard(wait, e && (e.status === 404 || e.status === 429) ? e.message : TEXT.chat.slow);   // a session that ended, or too many requests: the server's own plain sentence
     }).finally(function () {
       state.pending = false;
       refresh();
@@ -222,4 +310,79 @@
       el.ask.focus();
     });
   });
+
+  // ---------------------------------------------------------------- the report and starting over
+  el.report.addEventListener("click", function (e) {
+    e.preventDefault();
+    if (!state.sid || el.report.hasAttribute("disabled")) return;
+    el.report.setAttribute("disabled", "disabled");
+    el.reportLabel.textContent = TEXT.chat.reportWorking;
+    el.toolNote.textContent = "";
+    fetch("/sessions/" + state.sid + "/report.pdf").then(function (r) {
+      if (!r.ok) throw new Error("report");
+      var name = (r.headers.get("content-disposition") || "").match(/filename="([^"]+)"/);
+      return r.blob().then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = h("a");
+        a.href = url;
+        a.download = name ? name[1] : "ARC-claim-report.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      });
+    }).catch(function () {
+      el.toolNote.textContent = TEXT.chat.reportFailed;
+    }).finally(function () {
+      el.reportLabel.textContent = TEXT.chat.report;
+      el.report.removeAttribute("disabled");
+    });
+  });
+
+  el.restart.addEventListener("click", function () {
+    if (!state.restarting) {                       // two steps: the second click confirms
+      state.restarting = true;
+      el.restartLabel.textContent = TEXT.chat.restartConfirm;
+      setTimeout(function () {
+        if (state.restarting) { state.restarting = false; el.restartLabel.textContent = TEXT.chat.restart; }
+      }, 5000);
+      return;
+    }
+    state.restarting = false;
+    el.restartLabel.textContent = TEXT.chat.restartWorking;
+    var sid = state.sid;
+    forget();
+    (sid ? api("DELETE", "/sessions/" + sid).catch(function () { return null; }) : Promise.resolve()).then(function () {
+      el.thread.textContent = "";
+      el.files.textContent = "";
+      el.reasons.textContent = "";
+      el.toolNote.textContent = "";
+      el.restartLabel.textContent = TEXT.chat.restart;
+      el.tools.hidden = true;
+      go("/upload");
+    });
+  });
+
+  // ---------------------------------------------------------------- boot: a refresh on /chat brings the conversation back
+  fill();
+  link(el.start, "/upload");
+  link(document.querySelector(".logo"), "/");
+
+  var sid = recall();
+  if (sid) {
+    state.sid = sid;
+    api("GET", "/sessions/" + sid + "/messages").then(function (out) {
+      state.ready = !!out.ready;
+      (out.messages || []).forEach(function (m) {
+        if (m.who === "you") el.thread.appendChild(h("article", "card me", m.text));
+        else el.thread.appendChild(assistantCard(m.text));
+      });
+      show(location.pathname);
+    }).catch(function () {
+      forget();
+      show(location.pathname);
+    });
+  } else {
+    show(location.pathname);
+  }
 })();

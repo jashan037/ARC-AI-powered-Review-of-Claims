@@ -58,7 +58,7 @@ def test_adding_the_prescription_updates_the_claim_and_the_chat_uses_it():
     added = upload(sid, [("prescription.pdf", rx)]).json()
     assert added["files"][0]["type"] == "prescription" and all(c["state"] == "received" for c in added["checklist"])
     out = client.post(f"/sessions/{sid}/intake").json()
-    assert out["status"] == "ready" and out["missing"] == [] and "Your documents look complete." in out["first_message"]
+    assert out["status"] == "ready" and out["missing"] == [] and "Your documents look complete (10 of 10 received)." in out["first_message"]
     chat = client.post(f"/sessions/{sid}/chat", json={"message": "How much will be paid?"}).json()
     assert "₹1,22,125" in chat["reply"]
 

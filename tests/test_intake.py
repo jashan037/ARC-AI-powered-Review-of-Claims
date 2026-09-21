@@ -271,17 +271,42 @@ def test_helpers():
     assert I.nice_date("2025-09-05T09:00") == "5 Sep 2025"
 
 
-def test_the_first_message_is_short_plain_text_with_no_table():
-    out = I.build(session())
-    md = I.first_message(out["claim"], out["missing"])
+def test_the_first_message_is_short_plain_text_with_no_table(monkeypatch):
+    monkeypatch.setenv("ARC_TODAY", "2025-09-21")
+    s = session()
+    out = I.build(s)
+    counts = I.document_counts(s["documents"])
+    md = I.first_message(out["claim"], out["missing"], counts=counts)
     assert md.startswith("**Rohan Verma**, here's what I've read: laparoscopic appendectomy for acute appendicitis at Riverside Multispeciality Hospital (DEMO), 10 Sep 2025 to 14 Sep 2025, bill ₹1,84,500.")
     assert "Your policy runs from 15 Mar 2025 to 14 Mar 2026." in md
-    assert "**One document is still missing:** the doctor's prescription for your pharmacy bills. You can drop it anywhere on this page." in md
-    assert md.endswith("Ask me anything about your claim. Amounts I give are estimates; your insurer's team makes the final decision.")
-    assert "|" not in md and len(md.split()) < 90 and not any(w in md.lower() for w in ("annexure", "e.1.7", "engine", "json", "needed"))
+    assert "Your policy was in force on the admission date (10 Sep 2025)" in md                     # the line on being in force
+    assert "inside the 30 days the policy asks for (by 14 Oct 2025)" in md                          # the line on filing time
+    assert "**One document is still missing** (9 of 10 received): the doctor's prescription for your pharmacy bills. You can drop it anywhere on this page." in md
+    assert md.endswith("I've also prepared a report you can download for your insurer (top right). Amounts I give are estimates; your insurer's team makes the final decision.")
+    assert "|" not in md and len(md.split()) < 150 and not any(w in md.lower() for w in ("annexure", "e.1.7", "engine", "json", "officer"))
     complete = I.first_message(out["claim"], [], first=False)
     assert "Your documents look complete." in complete and "missing" not in complete and "estimates" not in complete
-    several = I.first_message(out["claim"], ["Policy schedule", "KYC form (claims above ₹1 lakh)"])
-    assert "**2 documents are still missing:** policy schedule and KYC form." in several
+    several = I.first_message(out["claim"], ["Policy schedule", "KYC form (claims above ₹1 lakh)"], counts=counts)
+    assert "**2 documents are still missing** (9 of 10 received): policy schedule and KYC form." in several
     no_dates = dict(out["claim"], policy_period=None)
     assert "Your policy runs" not in I.first_message(no_dates, [])
+
+
+def test_the_first_message_leads_with_a_policy_that_was_not_in_force(monkeypatch):
+    monkeypatch.setenv("ARC_TODAY", "2026-09-21")
+    s = {"id": "t2", "history": [], "claim": None}
+    for name, data in I.sample_files("expired"):
+        I.store(s, name, I.process_file(name, data))
+    out = I.build(s)
+    md = I.first_message(out["claim"], out["missing"], counts=I.document_counts(s["documents"]))
+    assert "Your policy was not in force on the admission date (20 Apr 2026)" in md
+    assert "unless a renewal was in force on that date, this claim would likely not be covered" in md
+    assert "officer" not in md.lower()
+
+
+def test_the_first_message_says_how_late_the_filing_is(monkeypatch):
+    monkeypatch.setenv("ARC_TODAY", "2026-09-21")
+    out = I.build(session())
+    md = I.first_message(out["claim"], out["missing"])
+    assert "372 days after discharge" in md and "flagged for your insurer's team to review, not rejected" in md
+    assert "beyond your control" in md

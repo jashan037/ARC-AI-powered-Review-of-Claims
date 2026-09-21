@@ -1,4 +1,4 @@
-"""The demo web UI: served at "/", same origin as the API, static files only. The trace shown to officers is sanitized. The JS renderer is safe."""
+"""The customer page: three real paths served by one file, same origin as the API, static files only, strict CSP. The JS renderer is safe."""
 import json
 import re
 import shutil
@@ -21,13 +21,25 @@ def text(name):
 
 
 # ---------------------------------------------------------------- the page
-def test_root_serves_the_page_with_the_security_headers():
-    r = client.get("/")
+@pytest.mark.parametrize("path", ["/", "/upload", "/chat"])
+def test_every_view_path_serves_the_one_page_with_the_security_headers(path):
+    r = client.get(path)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert r.text == text("index.html")
     assert "/static/app.js" in r.text and "/static/app.css" in r.text and "/static/md.js" in r.text
     csp = r.headers["content-security-policy"]
     assert "default-src 'none'" in csp and "script-src 'self'" in csp and "style-src 'self'" in csp and "connect-src 'self'" in csp and "frame-ancestors 'none'" in csp
+    assert "font-src 'self'" in csp and "img-src 'self' data:" in csp
     assert "unsafe-inline" not in csp and "unsafe-eval" not in csp and r.headers["x-content-type-options"] == "nosniff" and r.headers["referrer-policy"] == "no-referrer"
+
+
+def test_the_page_carries_the_font_the_icon_and_the_theme_colour():
+    html = text("index.html")
+    assert 'rel="preload" href="/static/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin' in html
+    assert 'rel="icon" href="/static/logo.svg" type="image/svg+xml"' in html and 'name="theme-color" content="#F7F7F5"' in html
+    for asset in ("/static/fonts/InterVariable.woff2", "/static/logo.svg", "/static/fonts/Inter-OFL.txt"):
+        assert client.get(asset).status_code == 200, asset
+    assert "SIL Open Font License" in (STATIC / "fonts" / "Inter-OFL.txt").read_text(encoding="utf-8")
 
 
 def test_the_old_ui_is_gone():
@@ -46,7 +58,8 @@ def test_the_page_is_csp_clean_and_uses_no_outside_resources():
     for name in ("index.html", "app.css", "app.js", "md.js"):
         urls = [u for u in re.findall(r"https?://[^\s\"')]+", text(name)) if u != "http://www.w3.org/2000/svg"]
         assert urls == [], (name, urls)                                              # nothing from a CDN, nothing external at all
-    assert "@import" not in text("app.css") and "url(" not in text("app.css")
+    assert "@import" not in text("app.css")
+    assert re.findall(r"url\(([^)]*)\)", text("app.css")) == ['"/static/fonts/InterVariable.woff2"']     # one same-origin font, nothing else
 
 
 def test_the_static_assets_are_served_with_the_right_types():
@@ -60,13 +73,56 @@ def test_the_static_assets_are_served_with_the_right_types():
 def test_the_design_tokens_are_defined_once_at_the_top_of_the_stylesheet():
     css = text("app.css")
     root = css[css.index(":root"):css.index("}", css.index(":root"))]
-    for token, value in (("--bg", "#F7F7F5"), ("--card", "#FFFFFF"), ("--line", "#E7E7E3"), ("--text", "#1F2933"), ("--muted", "#6B7580"), ("--tint", "#EEF3F6")):
+    for token, value in (("--bg", "#F7F7F5"), ("--card", "#FFFFFF"), ("--line", "#E7E7E3"), ("--text", "#1F2933"), ("--muted", "#5E6A75"),
+                         ("--tint", "#EEF3F6"), ("--navy", "#0B2545"), ("--teal", "#0FA3B1"), ("--amber", "#F2A541")):
         assert f"{token}: {value};" in root
-    assert "linear-gradient" not in css.replace("linear-gradient(to bottom, transparent, var(--bg) 24px)", "")   # the only gradient is the fade above the bar
+    for step in ("4px", "8px", "12px", "16px", "24px", "32px", "48px", "72px"):
+        assert step in root                                                        # the spacing scale lives here too
+
+
+def _luminance(hex_colour: str) -> float:
+    def channel(c):
+        c = int(c, 16) / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(hex_colour[i:i + 2]) for i in (1, 3, 5))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def test_muted_text_has_enough_contrast_on_the_background():
+    a, b = _luminance("#5E6A75"), _luminance("#F7F7F5")
+    ratio = (max(a, b) + 0.05) / (min(a, b) + 0.05)
+    assert ratio >= 4.5, ratio
+
+
+def test_the_only_gradient_is_the_fade_above_the_composer():
+    css = text("app.css")
+    assert "linear-gradient" not in css.replace("linear-gradient(to bottom, transparent, var(--bg) 24px)", "")
 
 
 def test_the_api_still_answers_json_errors_next_to_the_page():
     assert client.get("/nope").json()["error"]["code"] == "http_404"
+
+
+def test_every_string_the_customer_reads_is_in_one_block():
+    js = text("app.js")
+    block = js[js.index("var TEXT = {"):js.index("var BATCH")]
+    for phrase in ("Know where your claim stands before it's decided.", "Upload your documents", "Try with sample documents",
+                   "Drop your documents here, or click to upload", "Ask about your claim", "Download report", "Start over", "Drop to add documents"):
+        assert phrase in block, phrase
+        assert js.count(phrase) == 1, phrase                                        # and nowhere else in the file
+    assert "Know where your claim stands" not in text("index.html")                 # the page itself carries no copy
+
+
+def test_the_conversation_can_be_read_back_after_a_refresh():
+    sid = client.post("/sessions").json()["session_id"]
+    assert client.get(f"/sessions/{sid}/messages").json() == {"ready": False, "messages": []}
+    client.post(f"/sessions/{sid}/documents/sample")
+    first = client.post(f"/sessions/{sid}/intake").json()["first_message"]
+    client.post(f"/sessions/{sid}/chat", json={"message": "how much will be paid?"})
+    out = client.get(f"/sessions/{sid}/messages").json()
+    assert out["ready"] is True and [m["who"] for m in out["messages"]] == ["arc", "you", "arc"]
+    assert out["messages"][0]["text"] == first and out["messages"][1]["text"] == "how much will be paid?"
+    assert client.get("/sessions/unknown/messages").status_code == 404
 
 
 # ---------------------------------------------------------------- the markdown renderer (run under Node)

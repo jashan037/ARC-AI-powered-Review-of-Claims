@@ -78,7 +78,7 @@ class TurnContext:
 
 
 _REC = {"likely_eligible": "likely eligible", "likely_eligible_pending_documents": "likely eligible once the missing documents arrive",
-        "likely_not_payable": "likely not payable", "needs_human_review": "needs a claims officer's review"}
+        "likely_not_payable": "likely not payable", "needs_human_review": "needs your insurer's team to look at it"}
 _STATUS = {"satisfied": "already met", "violated": "not yet met", "not_applicable": "does not apply"}
 
 

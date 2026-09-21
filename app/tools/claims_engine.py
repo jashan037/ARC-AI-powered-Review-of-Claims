@@ -210,7 +210,7 @@ def filing_text(r: dict) -> str:
     if not r["late"]:
         return f"Your documents are being sent {r['days_since_discharge']} days after discharge, inside the {r['limit_days']} days the policy asks for (by {f(r['due_by'])})."
     return (f"Your documents are being sent {r['days_since_discharge']} days after discharge; the policy asks for them within {r['limit_days']} days (by {f(r['due_by'])}). "
-            "This is flagged for a claims officer to review, not rejected: a delay can be accepted when it was beyond your control.")
+            "This is flagged for your insurer's team to review, not rejected: a delay can be accepted when it was beyond your control.")
 
 
 def check_filing_time(c):

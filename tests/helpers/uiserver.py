@@ -12,10 +12,11 @@ from app import main
 from app.agent.runner import AgentResult
 
 REPLIES = [
-    "Your claim looks likely to be paid **₹1,22,125** once your documents are complete. ₹1,01,625 is confirmed today and ₹20,500 is held until you send the doctor's prescription.",
-    "Your plan pays for a room up to ₹5,000 a day and yours cost ₹8,000, so the room and the related doctor and nursing charges are paid at 62.5%.\n\n"
-    "- Room rent: ₹12,000 taken off\n- Doctor and other fees: ₹37,875 taken off\n- Non-medical items: ₹12,500 taken off",
-    "Your policy expires on 14 Mar 2026.",
+    "About **₹1,22,125** of your ₹1,84,500 bill looks payable. ₹1,01,625 is counted so far, and ₹20,500 is waiting for the doctor's prescription for your pharmacy bills.",
+    "Your claim looks likely to be paid, at about **₹1,22,125** of the ₹1,84,500 bill once one document arrives.\n\n"
+    "| | Amount |\n|---|---:|\n| Hospital bill | ₹1,84,500 |\n| Room cost above your plan's limit | −₹49,875 |\n| Extras your plan doesn't cover | −₹12,500 |\n| **Estimated payment** | **₹1,22,125** |\n\n"
+    "Your room was ₹8,000 a day against your plan's ₹5,000, so the room and related charges are reduced in the same proportion.",
+    "Your policy expires on 14 Mar 2027.",
     "I don't see that in your documents.",
 ]
 

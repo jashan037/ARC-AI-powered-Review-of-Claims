@@ -85,7 +85,7 @@ def _rules(ctx):
         out.append(("outlook", rec != "likely_not_payable",
                     re.compile(r"\byour claim\b[^.?!]*\b(?:looks|appears|is|seems) likely to be (?:paid|payable|eligible|covered)\b|\byour claim (?:will|should) be paid\b", re.I),
                     re.compile(r"\byour claim\b[^.?!]*\b(?:would likely not|is likely not|looks (?:unlikely|likely not)|is not|isn't|won't be|will not be|would not be) (?:to be )?(?:payable|paid|covered|eligible)\b|\byour claim\b[^.?!]*\bunlikely to be paid\b", re.I),
-                    "Your claim looks likely not payable, and a claims officer decides." if rec == "likely_not_payable" else ""))
+                    "Your claim looks likely not payable, and your insurer's team decides." if rec == "likely_not_payable" else ""))
     return out
 
 
@@ -154,7 +154,7 @@ def hedge_problems(text: str) -> list[str]:
     out = []
     for s in sentences(text):
         if _APPROVE.search(s) and not _NEG_APPROVE.search(s):
-            out.append(f"Do not say 'approved': say what looks likely and that a claims officer decides. ({s[:60]!r})")
+            out.append(f"Do not say 'approved': say what looks likely and that the insurer's team decides. ({s[:60]!r})")
         m = _UNHEDGED.search(s)
         if m and (m.group(1) or re.search(r"n't|not|won't|wouldn't", m.group(0), re.I)) and not _HEDGE_WORDS.search(s):
             out.append(f"Hedge an outcome that is not payable: say 'would likely not be payable' or 'appears not to be covered'. ({s[:60]!r})")

@@ -38,7 +38,7 @@ def test_a_late_filing_is_a_review_flag_not_a_rejection(monkeypatch):
     assert res["recommendation"] == "needs_human_review" and res["coverage"]["status"] == "needs_review"                       # flagged for a person, not "not payable"
     assert res["amounts"]["estimated_payable_if_docs_supplied"] == 122125 and res["amounts"]["payable_confirmed_now"] == 101625   # the money is untouched
     view = assessment_view(res)
-    assert "flagged for a claims officer to review, not rejected" in view["time_limit_for_sending_documents"] and "372 days" in view["time_limit_for_sending_documents"]
+    assert "flagged for your insurer's team to review, not rejected" in view["time_limit_for_sending_documents"] and "372 days" in view["time_limit_for_sending_documents"]
     assert any("Time limit for sending documents" in i for i in view["issues"])
 
 
@@ -46,9 +46,10 @@ def test_the_first_message_says_so_when_the_filing_is_late(monkeypatch):
     monkeypatch.setenv("ARC_TODAY", "2026-09-21")
     s = customer_session()
     msg = intake.first_message(s["claim"], intake.build(s)["missing"])
-    assert "**About timing:** Your documents are being sent 372 days after discharge; the policy asks for them within 30 days (by 14 Oct 2025)." in msg and "not rejected" in msg
+    assert "Your documents are being sent 372 days after discharge; the policy asks for them within 30 days (by 14 Oct 2025)." in msg and "not rejected" in msg
     monkeypatch.setenv("ARC_TODAY", "2025-09-20")
-    assert "About timing" not in intake.first_message(s["claim"], [])
+    on_time = intake.first_message(s["claim"], [])
+    assert "inside the 30 days the policy asks for (by 14 Oct 2025)" in on_time and "flagged" not in on_time
 
 
 def test_the_facts_carry_the_filing_check_the_patient_and_the_renewal(monkeypatch):

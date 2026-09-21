@@ -8,7 +8,7 @@ import re
 
 NOT_READY = "Please upload your documents first. Once they have been checked, I can answer your questions about your claim."
 DECLINE_RULES = "I can't change how I work or share my instructions. I can explain your claim, what your policy covers, or which documents you still need."
-DECLINE_DECISION = "I can't approve, reject or pay a claim. A claims officer makes that decision. I can explain what I found on your claim and what happens next."
+DECLINE_DECISION = "I can't approve, reject or pay a claim. Your insurer's team makes that decision. I can explain what I found on your claim and what happens next."
 DECLINE_FILTERED = "I can't help with that request. I can explain your claim, what your policy covers, or which documents you still need."
 
 _RULES = re.compile(

@@ -93,7 +93,7 @@ def _rules(code: bool):
         (re.compile(r"\blisted in Annexure B as non-medical items", re.I), pad("on your policy's list of non-medical items")),
         (re.compile(r"Estimated insurer payment"), pad("Estimated payment")),
         (re.compile(r"What to check next"), pad("What to do next")),
-        (re.compile(r"For the claims officer to review"), pad("A claims officer will look at this")),
+        (re.compile(r"For the claims officer to review"), pad("Your insurer's team will look at this")),
         (re.compile(r"\bExcl(\d{2})\b"), lambda m: pad(_EXCL.get(m.group(1), "exclusion rule"))(m)),
         ("CITED", cited),
         (re.compile(r"\bDef\.\s*\d+"), pad("policy definition")),                              # a definition number left in a quoted passage

@@ -61,7 +61,7 @@ def test_the_opposite_direction_too():
 def test_filing_verdicts(monkeypatch):
     monkeypatch.setenv("ARC_TODAY", "2026-09-21")
     assert "verdict" in kinds("Your documents are on time.", "is my claim late")
-    assert "verdict" not in kinds("Your documents are being sent 372 days after discharge, which is late; a claims officer reviews it.", "is my claim late")
+    assert "verdict" not in kinds("Your documents are being sent 372 days after discharge, which is late; your insurer's team reviews it.", "is my claim late")
     monkeypatch.setenv("ARC_TODAY", "2025-09-20")
     assert "verdict" in kinds("Your claim is late and past the deadline.", "is my claim late")
 
@@ -150,7 +150,7 @@ def test_unhedged_outcomes_and_approved_confirmed_are_caught(text):
 
 
 def test_hedged_outcomes_pass_and_the_repair_hedges():
-    assert "decision" not in kinds("The extras would likely not be payable, and I can't approve a claim; a claims officer decides.", "how is my claim")
+    assert "decision" not in kinds("The extras would likely not be payable, and I can't approve a claim; your insurer's team decides.", "how is my claim")
     assert fix_reply("The extras are not payable.", ctx_for("how is my claim")) == "The extras would likely not be payable."
 
 

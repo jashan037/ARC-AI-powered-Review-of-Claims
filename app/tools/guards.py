@@ -29,6 +29,8 @@ _DECISION = re.compile(
     r"|\b(?:approve|reject|deny|decline|settle) (?:this|the|your) claim\b|\bmark (?:it|the claim|this) as (?:approved|payable|rejected|non-?payable)\b", re.I)
 _CONFIRMED = re.compile(r"\bconfirmed\b", re.I)   # an estimate is never "confirmed": it is "counted so far"
 _VOICE = re.compile(r"\bthe insured\b|\bthe claimant\b|\bthe policy ?holder\b|\binsured person\b|\bthe customer\b", re.I)
+# the customer deals with their insurer, not with a named role inside it: "your insurer's team", never "a claims officer"
+_OFFICER = re.compile(r"\b(?:claims?\s+)?officers?(?:'s)?\b", re.I)
 _LEAK = re.compile(r"\bAudience:", re.I)
 _FACTS_WORDS = re.compile(r"\b(?:your |the )?claim facts\b|totals_by_cause|\bthe assessment\b", re.I)   # the model's own inputs are not something the customer knows about
 # "will I get this claim", "is my claim going to be paid": answered with "likely" or "appears", never with a bare Yes or No
@@ -112,6 +114,13 @@ def _bad_sentences(text: str, pattern: re.Pattern) -> list[str]:
     return out
 
 
+def _officer_free(text: str) -> str:
+    """"a claims officer decides" -> "your insurer's team decides", without leaving "your your" behind."""
+    text = re.sub(r"\b(?:a|an|the)\s+(?:claims?\s+)?officers?(?:'s)?\b", "your insurer's team", text, flags=re.I)
+    text = _OFFICER.sub("your insurer's team", text)
+    return re.sub(r"\b(your|the|a)\s+your\b", "your", text, flags=re.I)
+
+
 def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
     """(kind, what to tell the model) for each problem of the reply."""
     problems = []
@@ -123,13 +132,15 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
         found = (find_internal(text) + _CODE.findall(text) + [m.group(0) for m in _FACTS_WORDS.finditer(text)])[:3]
         problems.append(("internal", f"Remove internal terms ({found}): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id."))
     if _DECISION.search(text):
-        problems.append(("decision", "You never approve, reject, deny or settle a claim and never tell anyone to. Say what appears likely and that a claims officer decides."))
+        problems.append(("decision", "You never approve, reject, deny or settle a claim and never tell anyone to. Say what appears likely and that the insurer's team decides."))
     if _CONFIRMED.search(text):
         problems.append(("decision", "Do not say 'confirmed': say 'counted so far' or 'looks likely'."))
     if _OUTCOME_Q.search(ctx.question) and _YES_NO.match(text):
-        problems.append(("decision", "Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say a claims officer decides."))
+        problems.append(("decision", "Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say the insurer's team decides."))
     if _VOICE.search(text):
         problems.append(("voice", "Speak to the customer: 'you' and 'your claim', never 'the insured', 'the claimant' or 'the customer'."))
+    if _OFFICER.search(text):
+        problems.append(("voice", "Never name a role inside the insurer: write \"your insurer's team\", never \"a claims officer\"."))
     missing = [v for v, _ in _required(ctx) if not _has_number(text, v)]
     if missing:
         problems.append(("figures", "The answer must state these figures from the tools: " + ", ".join(inr(v) for v in missing)
@@ -167,6 +178,7 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
         if stripped != text:
             text = stripped[:1].upper() + stripped[1:]
     text = _CONFIRMED.sub("counted so far", re.sub(r"\bis confirmed today\b", "is counted so far", text))
+    text = _officer_free(text)
     for pattern in (_DECISION, _VOICE):
         for s in _bad_sentences(text, pattern):
             text = text.replace(s, "")

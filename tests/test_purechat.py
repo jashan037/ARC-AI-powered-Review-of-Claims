@@ -76,8 +76,8 @@ def test_decisions_are_a_problem(bad):
     assert "decision" in kinds(bad)
 
 
-@pytest.mark.parametrize("good", ["Your claim looks likely to be paid; a claims officer decides.", "I can't approve or reject a claim.", "It appears eligible and is flagged for the officer to confirm.",
-                                  "A claims officer will decide whether to pay."])
+@pytest.mark.parametrize("good", ["Your claim looks likely to be paid; your insurer's team decides.", "I can't approve or reject a claim.",
+                                  "It appears eligible and is flagged for your insurer's team to confirm.", "Your insurer's team will decide whether to pay."])
 def test_likely_appears_and_refusals_are_fine(good):
     assert "decision" not in kinds(good)
 

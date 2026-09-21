@@ -115,7 +115,7 @@ def test_the_line_that_answers_each_question_is_in_the_model_input(question, lin
 def test_the_customer_states_a_wrong_expiry_the_reply_must_not_open_with_yes_or_say_it_is_missing():
     q = "will I get this claim as my policy expired in march 2026"
     assert "decision" in kinds("Yes, you will get this claim.", q) and "decision" in kinds("No. Your policy has expired.", q)
-    ok = "It appears likely: your policy period runs from 15 Mar 2025 to 14 Mar 2026, and you were admitted on 10 Sep 2025, inside it. About ₹1,22,125 once your documents arrive; ₹1,01,625 is counted so far. A claims officer decides."
+    ok = "It appears likely: your policy period runs from 15 Mar 2025 to 14 Mar 2026, and you were admitted on 10 Sep 2025, inside it. About ₹1,22,125 once your documents arrive; ₹1,01,625 is counted so far. Your insurer's team decides."
     assert kinds(ok, q) == []
 
 
