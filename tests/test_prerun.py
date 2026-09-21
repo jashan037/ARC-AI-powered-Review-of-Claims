@@ -249,3 +249,12 @@ def test_the_exception_is_found_in_the_passage_of_the_rule_the_answer_cites_a_li
     res = agent(model).ask(customer_session(), "Is knee replacement covered?")
     assert [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [False, True]
     assert model.outputs[2]["problems"][0].startswith("Exception:") and "accident" in model.outputs[2]["problems"][0].lower()
+
+
+def test_the_exception_is_found_even_when_the_turn_only_retrieved_the_list_under_the_rule():
+    listing = "optima-secure-v062425:C1-b-list"
+    again = lambda m: coverage("A 24-month waiting period applies to cataract surgery.", listing)   # noqa: E731
+    model = Script([[("get_clause", {"clause_ref": "C.1.b.vi"})], [("final_answer", again)], [("final_answer", again)]])
+    res = agent(model).ask(customer_session(), "Is cataract surgery covered?")
+    assert model.outputs[1]["problems"][0].startswith("Exception:") and "ccident" in model.outputs[1]["problems"][0]
+    assert "makes an exception" in res.summary_markdown + "".join(s["markdown"] for s in res.sections)      # asked once, still missing: the rule's own words are added

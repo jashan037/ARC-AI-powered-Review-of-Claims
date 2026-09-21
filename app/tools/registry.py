@@ -372,10 +372,17 @@ def missing_exception(a: dict, ctx: TurnContext) -> str | None:
 
 
 def _same_rule(chunk: Chunk, ctx: TurnContext) -> list[Chunk]:
-    """The cited passage and the other passages of this turn that belong to the same rule (C.1.b.vi is the list under C.1.b, where the exception is stated)."""
+    """The cited passage, the other passages of this turn that belong to the same rule, and the rule's own passage (C.1.b.vi is the list under C.1.b, where the exception is stated,
+    even when this turn only retrieved the list)."""
     def rule(c: Chunk) -> str:
         return ".".join(c.clause.split(" ")[0].split(".")[:3])
-    return [chunk] + [c for c in ctx.seen.values() if c is not chunk and rule(c) == rule(chunk)]
+    parts = [chunk] + [c for c in ctx.seen.values() if c is not chunk and rule(c) == rule(chunk)]
+    if rule(chunk) != chunk.clause.split(" ")[0]:      # a deeper clause than the rule: read the rule's passage too
+        for cid in resolve([rule(chunk)]):
+            parent = ctx.retriever.get_by_chunk_id(cid, ctx.uin)
+            if parent and all(parent.chunk_key != c.chunk_key for c in parts):
+                parts.append(parent)
+    return parts
 
 
 def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
