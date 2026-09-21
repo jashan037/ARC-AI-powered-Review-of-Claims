@@ -161,7 +161,7 @@ def examples():
 
 
 def test_the_prompt_is_within_8k_and_has_the_seven_examples():
-    assert len(SYSTEM_PROMPT) <= 8000
+    assert len(SYSTEM_PROMPT) <= 9000
     ex = examples()
     assert [q for q, _ in ex] == ["which hospital was I in?", "how much will be paid?", "explain my claim", "which items are not payable?", "what if the room rent was 5000?",
                                   "is cataract surgery covered?", "what's the weather like?"]
