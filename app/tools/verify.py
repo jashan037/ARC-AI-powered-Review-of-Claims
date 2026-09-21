@@ -269,15 +269,55 @@ def drop_policy(text: str, ctx) -> str:
     return text or CANNOT_CONFIRM
 
 
-# ---------------------------------------------------------------- names: plans and hospitals must be the ones in the customer's documents
+# ---------------------------------------------------------------- names: plans, hospitals and documents must be the ones in the customer's documents
 _HOSPITAL = re.compile(r"\b([A-Z][\w'&.-]*(?:\s+(?:of\s+)?[A-Z][\w'&.-]*){0,4}\s+(?:Hospital|Hospitals|Clinic|Nursing Home|Medical Centre|Medical Center))\b")
+# a document the reply asks the customer for: every distinctive word of its name must be in this turn's support, or it is a document this claim does not have
+_DOC_NOUN = r"forms?|certificates?|summar(?:y|ies)|invoices?|receipts?|reports?|prescriptions?|papers|bills?|slips?|statements?|cheques?|proofs?|records?|letters?"
+_DOC_PHRASE = re.compile(rf"\b((?:[A-Za-z][\w'-]*\s+){{0,3}}(?:{_DOC_NOUN}))\b", re.I)
+_ASK = re.compile(r"\b(?:send|sent|provide|attach|attached|upload|drop|add|submit|supply|share|need|needs|needed|require[sd]?|missing|outstanding|waiting for|ask(?:ing|ed)? for)\b", re.I)
+_DOC_STOP = set("""the a an your my our this that these those his her their its of for with and or to from is are was were will would can could
+you i it in on at any some one two all more still also only just each per when what which who how why please need needs needed require required
+send sent sending provide provided attach attached upload uploaded drop add added submit submitted supply supplied share shared missing outstanding""".split())
+
+
+def _doc_vocab() -> set[str]:
+    """The six-letter stem of every word of every document name ARC knows about, from the checklist and the E.1.7 rule table."""
+    from .. import intake
+    from .fmt import DOC_SHORT
+    names = list(intake.LABEL.values()) + list(DOC_SHORT.values()) + [d["name"] for d in E.DOC_RULES]
+    return {w[:6] for name in names for w in re.findall(r"[a-z]{3,}", name.lower())}
+
+
+def _modifiers(phrase: str) -> list[str]:
+    """The words that name the document, read backwards from the document noun and stopping at the first ordinary word: 'send the treating doctor certificate' -> ['treating', 'doctor']."""
+    mods = []
+    for w in reversed(phrase.split()[:-1]):
+        lw = re.sub(r"[^a-z]", "", w.lower())
+        if len(lw) < 4 or lw in _DOC_STOP:
+            break
+        mods.insert(0, lw)
+    return mods
+
+
+def _doc_problems(text: str, support: str) -> list[str]:
+    """Document names the reply asks the customer for that this turn's text does not support (a document this claim does not have)."""
+    vocab, stems, out = _doc_vocab(), _stems(support), []
+    for s in sentences(text):
+        if not _ASK.search(s):
+            continue
+        for m in _DOC_PHRASE.finditer(s):
+            mods = _modifiers(m.group(1))
+            if mods and not all(w[:6] in stems or w[:6] in vocab for w in mods):
+                out.append(m.group(1).strip())
+    return out
 
 
 def entity_problems(text: str, ctx) -> list[str]:
     support = corpus(ctx, rules=False).lower()           # the rule tables name every plan: only this customer's documents and this turn's results count
     out = [p for p in E.PLANS if re.search(rf"\b{re.escape(p)}\b", text, re.I) and p.lower() not in support]
     out += [m.group(1) for m in _HOSPITAL.finditer(text) if m.group(1).lower() not in support and not m.group(1).lower().startswith(("the ", "a ", "your "))]
-    return out
+    out += _doc_problems(text, support)
+    return list(dict.fromkeys(out))
 
 
 def drop_entities(text: str, ctx) -> str:

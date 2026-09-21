@@ -151,7 +151,7 @@ def test_the_guard_rejects_once_then_repairs_in_code():
 
 def test_confirmed_is_never_used_for_an_estimate():
     assert "decision" in kinds("₹1,01,625 is confirmed.", "how much will be paid")
-    assert fix_reply("₹1,01,625 is confirmed today.", ctx_for("which items are not payable")) == "₹1,01,625 is counted so far."
+    assert fix_reply("₹1,01,625 is confirmed today.", ctx_for("how much is counted so far")) == "₹1,01,625 is counted so far."
 
 
 # ---------------------------------------------------------------- the prompt's own examples pass every guard
@@ -160,8 +160,8 @@ def examples():
     return [(m[0].strip(), m[1].strip()) for m in re.findall(r"Customer: (.*?)\nYou: (.*?)(?=\n\nCustomer: |\Z)", body, re.S)]
 
 
-def test_the_prompt_is_within_8k_and_has_the_seven_examples():
-    assert len(SYSTEM_PROMPT) <= 9500
+def test_the_prompt_is_within_9k_and_has_the_seven_examples():
+    assert len(SYSTEM_PROMPT) <= 9000
     ex = examples()
     assert [q for q, _ in ex] == ["which hospital was I in?", "how much will be paid?", "explain my claim", "which items are not payable?", "what if the room rent was 5000?",
                                   "is cataract surgery covered?", "what's the weather like?"]

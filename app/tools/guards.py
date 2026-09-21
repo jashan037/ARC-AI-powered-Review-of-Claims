@@ -16,7 +16,7 @@ import re
 
 from ..rendering.customer_labels import customerize
 from ..rendering.scrub import find as find_internal, scrub
-from . import format_guard, verify
+from . import focus, format_guard, timing, verify
 from .number_guard import allowed_from, drop_blocks, offenders, split_sentences
 from .facts import facts_text
 from .fmt import inr
@@ -53,6 +53,11 @@ def _required(ctx: TurnContext) -> list[tuple[float, str]]:
         est, now = res["amounts"]["estimated_payable_if_docs_supplied"], res["amounts"]["payable_confirmed_now"]
         both = f"About {inr(est)} once your documents arrive; {inr(now)} is counted so far."
         out += [(est, both), (now, both)]
+    if res and res.get("what_if") and res.get("baseline"):
+        before, after = res["baseline"]["estimated"], res["amounts"]["estimated_payable_if_docs_supplied"]
+        if abs(before - after) >= 1:
+            change = f"Your estimated payment would change from {inr(before)} to {inr(after)}."
+            out += [(before, change), (after, change)]
     if res and res.get("what_if") and ctx.claim:
         was = sum(l["amount"] for l in ctx.claim["bill_lines"])
         now_bill = res["amounts"]["gross_billed"]
@@ -75,7 +80,7 @@ def _mentions(ctx: TurnContext) -> list[tuple]:
     """(does the reply contain it?, what to tell the model, the sentence built in code)."""
     out = []
     if _WAITING_Q.search(ctx.question) and not _NOT_ACCIDENT_RULE.search(ctx.question):
-        out.append((lambda t: bool(re.search(r"accident", t, re.I)), "A waiting-period answer must say that accidents are exempt.", "Accidents are exempt from this waiting period."))
+        out.append((lambda t: bool(re.search(r"accident", t, re.I)), "A waiting-period answer must say the exception for an accident, as a condition ('unless it was caused by an accident').", "This waiting period wouldn't apply if the condition was caused by an accident."))
     period = (ctx.claim or {}).get("policy_period")
     if period and all(period) and _STATED_ENDED.search(ctx.question) and "policy" in ctx.question.lower():
         from .fmt import d_fmt
@@ -143,6 +148,8 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
     items = verify.policy_problems(text, ctx)
     if items:
         problems.append(("policy", verify.policy_message(items)))
+    problems += [("timing", m) for m in timing.problems(text, ctx)]
+    problems += [("focus", m) for m in focus.problems(text, ctx)]
     problems += [("format", m) for m in format_guard.problems(text, ctx.question, ctx.session.get("history", []))]
     return problems
 
@@ -167,12 +174,14 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
     text = verify.hedge_fix(text)
     text = verify.drop_entities(text, ctx)
     text = verify.drop_policy(text, ctx)
+    text = timing.repair(text, ctx)
     for v, sentence in _required(ctx):
         if sentence and not _has_number(text, v) and sentence not in text:
             text = f"{text}\n\n{sentence}".strip()
     for has, _, sentence in _mentions(ctx):
         if not has(text):
             text = f"{text}\n\n{sentence}".strip()
+    text = focus.repair(text, ctx)            # after the figures above: the lead is judged on the text the customer would read
     text = format_guard.repair(text, ctx.question, ctx.session.get("history", []))
     text = re.sub(r"[ \t]{2,}", " ", re.sub(r"\n{3,}", "\n\n", text)).strip()
     return text or fallback_reply(ctx)

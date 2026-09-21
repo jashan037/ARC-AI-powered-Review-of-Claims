@@ -151,7 +151,7 @@ def test_unhedged_outcomes_and_approved_confirmed_are_caught(text):
 
 def test_hedged_outcomes_pass_and_the_repair_hedges():
     assert "decision" not in kinds("The extras would likely not be payable, and I can't approve a claim; a claims officer decides.", "how is my claim")
-    assert fix_reply("The extras are not payable.", ctx_for("which extras")) == "The extras would likely not be payable."
+    assert fix_reply("The extras are not payable.", ctx_for("how is my claim")) == "The extras would likely not be payable."
 
 
 def test_a_note_already_shown_is_not_shown_again():
@@ -206,3 +206,20 @@ def test_a_date_the_customer_did_not_ask_about_is_never_judged_as_a_query_date()
     ctx = ctx_for("is there a 30 day waiting period?")
     text = "Your policy started on 15 Mar 2024 and the renewal began on 15 Mar 2026, so the 30-day rule does not apply."
     assert "verdict" not in [k for k, _ in check_reply(text, ctx)] and fix_reply(text, ctx).startswith("Your policy started on 15 Mar 2024")
+
+
+# ---------------------------------------------------------------- document names (the checklist is the source of truth)
+def test_a_document_this_claim_does_not_have_is_not_asked_for():
+    ctx = ctx_for("what documents are missing?")
+    ok = "Only the doctor's prescription for your pharmacy bills is still missing. You can drop it anywhere on this page."
+    assert verify.entity_problems(ok, ctx) == []
+    bad = "Please also send the treating physician certificate and a notarised indemnity statement."
+    assert verify.entity_problems(bad, ctx)
+    assert "names" in [k for k, _ in check_reply(bad, ctx)]
+    assert "indemnity" not in fix_reply(bad, ctx)
+
+
+def test_the_documents_the_customer_really_has_are_named_freely():
+    ctx = ctx_for("which documents have I sent?")
+    text = "Your claim form, discharge summary, final hospital bill with receipts, KYC form and NEFT form with cancelled cheque are all in."
+    assert verify.entity_problems(text, ctx) == []

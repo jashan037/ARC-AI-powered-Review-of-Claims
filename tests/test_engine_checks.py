@@ -96,8 +96,9 @@ def test_a_what_if_that_changes_the_bill_must_state_the_new_bill():
     call_tool("assess_claim", {"what_if": {"room_rate_per_day": 5000}}, ctx)
     reply = "Your estimated payment would rise to ₹1,60,000, with ₹1,39,500 counted so far."
     assert "figures" in [k for k, _ in check_reply(reply, ctx)]
-    assert "In that case your bill would be ₹1,72,500." in fix_reply(reply, ctx)
-    ok = reply + " Your bill would be ₹1,72,500."
+    fixed = fix_reply(reply, ctx)
+    assert "In that case your bill would be ₹1,72,500." in fixed and "from ₹1,22,125 to ₹1,60,000" in fixed   # a what-if opens with the change
+    ok = "Your estimated payment would change from ₹1,22,125 to ₹1,60,000, with ₹1,39,500 counted so far. Your bill would be ₹1,72,500."
     assert "figures" not in [k for k, _ in check_reply(ok, ctx)]
 
 
@@ -118,7 +119,7 @@ def test_a_waiting_period_answer_mentions_the_accident_exception():
     for q in ("is there a 30 day waiting period?", "is cataract surgery covered?"):
         ctx = ctx_for(q)
         assert "figures" in [k for k, _ in check_reply("No, it does not apply to you.", ctx)]
-        assert fix_reply("No, it does not apply to you.", ctx).endswith("Accidents are exempt from this waiting period.")
+        assert fix_reply("No, it does not apply to you.", ctx).endswith("This waiting period wouldn't apply if the condition was caused by an accident.")
         assert "figures" not in [k for k, _ in check_reply("No; accidents are exempt anyway.", ctx)]
     assert "figures" not in [k for k, _ in check_reply("It is 36 months.", ctx_for("what is the waiting period for a condition I had before the policy?"))]
 
