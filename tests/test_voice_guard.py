@@ -56,7 +56,7 @@ def test_customer_section_titles_have_no_officer_wording():
 def test_a_customers_documents_or_deduction_answer_is_sent_back_once_to_become_a_direct_answer():
     for kind, extra in (("documents_answer", {}), ("deduction_explanation", {"focus": "room"})):
         first = lambda m, kind=kind, extra=extra: dict({"answer_type": kind, "headline": "Here it is.", "result_id": m.rid}, **extra)   # noqa: E731
-        good = {"answer_type": "direct_answer", "reply": "Your room rent was reduced by ₹12,000.", "details": ["room_working"]}
+        good = {"answer_type": "direct_answer", "reply": "Your room rent was reduced by ₹12,000 because it was above your plan's daily limit.", "details": ["room_working"]}
         model = Script([[("assess_claim", {})], [("final_answer", first)], [("final_answer", good)]])
         res = agent(model).ask(customer_session(), "Why was my room rent reduced?")
         assert res.answer_type == "direct_answer" and [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [False, True]

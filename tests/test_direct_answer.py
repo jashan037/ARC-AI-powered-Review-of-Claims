@@ -80,7 +80,7 @@ def test_a_list_of_three_is_allowed():
 
 
 def test_details_need_the_tool_result_they_are_built_from():
-    _, model = run([[("final_answer", direct("Here it is.", details=["room_working"]))], [("assess_claim", {})], [("final_answer", direct("Your room rent was reduced by ₹12,000.", details=["room_working"]))]], "why was my room rent reduced")
+    _, model = run([[("final_answer", direct("Here it is.", details=["room_working"]))], [("assess_claim", {})], [("final_answer", direct("Your room rent was reduced by ₹12,000 because the room cost more than your plan's daily limit.", details=["room_working"]))]], "why was my room rent reduced")
     assert "needs assess_claim" in model.outputs[0]["problems"][0]
     _, model = run([[("final_answer", direct("Here it is.", details=["policy_reference"]))], [("final_answer", direct("Here it is."))]], "hello")
     assert "needs citations" in model.outputs[0]["problems"][0]
@@ -96,7 +96,7 @@ def test_the_waiting_period_detail_comes_from_check_waiting_period():
 
 def test_policy_citations_become_reference_chips_and_the_section_is_marked():
     res, _ = run([[("get_clause", {"clause_ref": "C.1.c"})], [("final_answer", lambda m: direct("The first 30 days have a waiting period, except for accidents.",
-                                                                                                 citations=["optima-secure-v062425:C1-c"], details=["policy_reference"]))]], "is there a waiting period at the start")
+                                                                                                 citations=["optima-secure-v062425:C1-c"], details=["policy_reference"]))]], "what happens in the first thirty days")
     assert res.citations and res.citations[0]["label"].startswith("Policy rule") and "chunk_key" in res.citations[0]
 
 
@@ -155,7 +155,7 @@ def test_after_a_text_reply_the_next_call_is_forced_to_final_answer_and_no_secon
             assert kw.get("tool_choice") == {"type": "function", "name": "final_answer"}
             return NS(output=[NS(type="function_call", name="final_answer", arguments=json.dumps(direct("Your name on this claim is Rohan Verma.")), call_id="b")])
     a = object.__new__(FoundryAgent)
-    a.openai, a.ref = M(), {"agent_reference": {"name": "t", "type": "agent_reference"}}
+    a.openai, a.ref, a.code_first = M(), {"agent_reference": {"name": "t", "type": "agent_reference"}}, False    # this test is about the model loop
     res = a.ask(customer_session(), "what's my name")
     assert res.status == "ok" and [t["tool"] for t in res.trace] == ["get_claim_summary", "final_answer"]
     assert "tool_choice" not in calls[0][1] and "tool_choice" not in calls[1][1] and "already above" in calls[2][0]

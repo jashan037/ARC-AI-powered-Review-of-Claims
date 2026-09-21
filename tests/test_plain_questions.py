@@ -133,7 +133,7 @@ class Script:
 
 def agent(model):
     a = object.__new__(FoundryAgent)
-    a.openai, a.ref = model, {"agent_reference": {"name": "t", "type": "agent_reference"}}
+    a.openai, a.ref, a.code_first = model, {"agent_reference": {"name": "t", "type": "agent_reference"}}, False    # these tests exercise the model loop and its guards; test_prerun.py covers code-first
     return a
 
 

@@ -20,6 +20,7 @@ from . import claims_engine as E
 from .evidence import resolve
 from .focus import focus_for
 from .number_guard import allowed_from, drop_sentences, offenders, reformat_amounts, split_sentences
+from .routing import policy_kind
 from .plain_questions import NOT_IN_DOCUMENTS, claim_facts, fact_answer, plain_kind
 
 ANSWER_TYPES = ["claim_assessment", "coverage_answer", "waiting_period_answer", "deduction_explanation",
@@ -53,6 +54,9 @@ class TurnContext:
     voice_rejected: bool = False            # the customer-voice guard asks for a rewrite once
     type_rejected: bool = False             # a customer's documents_answer or deduction_explanation is sent back once, to become a direct_answer
     figures_rejected: bool = False          # a payment answer with no figure in it is sent back once
+    policy_rejected: bool = False           # a policy question answered as a direct_answer is sent back once
+    reason_rejected: bool = False           # an amount without the reason behind it is sent back once; after that the reason is added in code
+    prerun: str = ""                        # "assess" or "search": what the code ran before the model's first call (see runner.py)
     number_rejected: bool = False           # the number guard asks for a rewrite once
     numbers_dropped: list = field(default_factory=list)   # offending numbers that were still there after the rewrite (their sentence was dropped)
     number_fallbacks: int = 0               # replies rebuilt in code because nothing was left after dropping
@@ -119,6 +123,23 @@ SCHEMAS = [
              "focus": {"type": "string", "enum": ["room", "associated", "non_medical", "hold", "deductible", "all"], "description": "For deduction_explanation."}},
              ["answer_type"])),
 ]
+
+
+def customer_facts(res: dict) -> dict:
+    """What lies behind the amounts of an assessment, straight from the engine's result: the room-rent limit and proportion, the non-medical items, the documents, the waiting periods."""
+    bill, c = res["bill"], res["claim"]
+    lines, sums = bill["lines"], R._sum
+    facts = {"plan": c["plan"], "base_sum_insured": round(c["base_si_lakh"] * 100000)}
+    if bill["room_rule"]["type"] != "at_actuals" and bill["room_ratio"] < 1:
+        facts["room_rent"] = dict(plan_limit_per_day=bill["room_limit_per_day"], billed_per_day=bill["room_rate_per_day"], days=bill["room_days"],
+                                  proportion_paid_percent=round(bill["room_ratio"] * 100, 1), rule=R._rule_text(bill["room_rule"], c["base_si_lakh"]),
+                                  applies_to="the room charges and the associated medical expenses (doctor and consultation fees, operation theatre, nursing, anaesthesia)")
+    nm = [l for l in lines if l["category"] == "non_medical"]
+    facts["non_medical_items"] = dict(count=len(nm), total=sums(lines, ("non_medical",), "billed"), examples=[l["description"] for l in nm[:4]], payable=bool(bill["protect_benefit_in_force"]))
+    facts["associated_medical_expenses"] = dict(billed=sums(lines, ("associated",), "billed"), payable=sums(lines, ("associated",), "payable"))
+    facts["documents"] = dict(missing=[R.DOC_SHORT.get(d["id"], d["name"]) for d in res["documents"]["checklist"] if d["status"] != "ok"])
+    facts["waiting_periods"] = [dict(name=k["name"], status=k["status"]) for k in res["waiting"]["checks"]]
+    return facts
 
 
 def _remember(ctx: TurnContext, chunks: list[Chunk]) -> list[dict]:
@@ -221,7 +242,12 @@ def _dispatch(name: str, a: dict, ctx: TurnContext) -> dict:
             res["baseline"] = dict(estimated=base["amounts"]["estimated_payable_if_docs_supplied"], confirmed=base["amounts"]["payable_confirmed_now"],
                                    recommendation=base["recommendation"])
         rid = _new_result(ctx, "claim", res)
-        return {**E.compact_summary(res), "result_id": rid, "what_if_applied": bool(a.get("what_if")), "evidence": _evidence_for(ctx, res["evidence_refs"])}
+        out = {**E.compact_summary(res), "result_id": rid, "what_if_applied": bool(a.get("what_if"))}
+        if ctx.session.get("audience") == "customer":   # the facts behind each reason, so a reply can say why and not only how much; the policy quotes come from search_policy
+            out["customer_facts"] = customer_facts(res)
+        else:
+            out["evidence"] = _evidence_for(ctx, res["evidence_refs"])
+        return out
 
     if name == "final_answer":
         return _final(a, ctx)
@@ -271,6 +297,51 @@ def voice_problems(a: dict) -> list[tuple[str, str]]:
     return out
 
 
+# The reason a customer needs together with an amount, by topic (the topic comes from the question: see focus.py). A reply that gives the amount and not the reason is sent back once;
+# if it still lacks it, the reason is added in code from the tool result (_ensure_reason).
+_REASON = {
+    "room": ("the room rent was reduced because your plan pays for a room only up to a daily limit and the room billed cost more, so the room and the related doctor and nursing charges are paid in proportion.",
+             lambda t: "room" in t and re.search(r"limit|cap\b|allowed|maximum|proportion|per day|a day|/day|%", t)),
+    "associated": ("doctor and consultation fees are reduced together with the room rent, because the room-rent proportion also applies to them.",
+                   lambda t: re.search(r"\broom\b|proportion", t)),
+    "non_medical": ("your policy does not pay for non-medical items such as gloves and masks.",
+                    lambda t: re.search(r"non-?\s?medical|not (?:cover|pay)\b|(?:doesn't|does not|do not|don't) (?:cover|pay)", t)),
+    "hold": ("the amount is held until you send the missing prescription.", lambda t: re.search(r"prescription|document|missing", t)),
+}
+
+
+def _has_reason(reply: str, topic: str) -> bool:
+    return bool(_REASON[topic][1](re.sub(r"[\u2010\u2011]", "-", reply).lower()))
+
+
+def _reason_sentence(ctx: TurnContext) -> str | None:
+    """The reason for the topic of the question, built in code from the assessment result. None when the result has no such reason (for example a plan with no room limit)."""
+    claims = [r["data"] for r in ctx.results.values() if r["kind"] == "claim"]
+    topic = focus_for(ctx.question)
+    if not claims or topic not in _REASON:
+        return None
+    facts = customer_facts(claims[-1])
+    room = facts.get("room_rent")
+    if topic in ("room", "associated") and room:
+        return (f"Your plan pays for a room up to {R.inr(room['plan_limit_per_day'])} a day and yours was {R.inr(room['billed_per_day'])} a day, "
+                f"so the room and the related doctor and nursing charges are paid at {R.pct(room['proportion_paid_percent'] / 100)}.")
+    nm = facts["non_medical_items"]
+    if topic == "non_medical" and nm["count"] and not nm["payable"]:
+        ex = " and ".join(x.lower() for x in nm["examples"][:2])
+        return f"Your policy does not pay for non-medical items such as {ex}."
+    if topic == "hold" and claims[-1]["bill"].get("prescription_missing"):
+        return "The amount is held until you send the missing prescription."
+    return None
+
+
+def _ensure_reason(a: dict, ctx: TurnContext) -> dict:
+    """The model was asked once for the reason and still left it out: add the sentence built from the tool result."""
+    topic, reply = focus_for(ctx.question), a.get("reply") or ""
+    if topic in _REASON and re.search(r"[₹\d]", reply) and not _has_reason(reply, topic) and (sentence := _reason_sentence(ctx)):
+        return dict(a, reply=f"{reply.rstrip()} {sentence}")
+    return a
+
+
 def _allowed_numbers(ctx: TurnContext) -> dict:
     """What a direct answer may state: the tool results of this turn, the customer's own figures (a what-if asks about ₹6,000 and the answer may say so),
     and the numbers the model passed to the calculating tools, which the engine then used."""
@@ -306,6 +377,8 @@ def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
     if have_claim and not ctx.figures_rejected and not ctx.number_rejected and not re.search(r"\d", reply):
         errs.append("Answer with the figures: a payment answer states the actual amounts, percentages or counts from the assess_claim result, "
                     "for example what was deducted and why. Rewrite the reply with them.")
+    if have_claim and not ctx.reason_rejected and re.search(r"[₹\d]", reply) and (topic := focus_for(ctx.question)) in _REASON and not _has_reason(reply, topic):
+        errs.append(f"Give the reason: {_REASON[topic][0]} Say it in one plain sentence together with the amount, using the figures in customer_facts.")
     if not ctx.number_rejected:
         bad = offenders(reply, _allowed_numbers(ctx))
         if bad:
@@ -330,6 +403,9 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     if ctx.session.get("audience") == "customer" and t in ("documents_answer", "deduction_explanation") and not ctx.type_rejected:
         errs.append("Customer answer type: a customer's question about one payment topic or about documents gets answer_type direct_answer. Write reply (at most 4 sentences and about 80 words, "
                     "with the figures from assess_claim) and details (documents_checklist, room_working, non_medical_list, estimate_breakdown), and call final_answer again.")
+    if ctx.session.get("audience") == "customer" and t == "direct_answer" and policy_kind(ctx.question) in ("coverage", "definition") and not ctx.policy_rejected:
+        errs.append("Policy question: this asks what the policy wording says, not about the customer's own claim. Answer with coverage_answer (a verdict, points and citations), "
+                    "waiting_period_answer or definition_answer, using the policy passages and their chunk_keys, not with direct_answer.")
     if ctx.plain and t not in ("general_answer", "direct_answer") and not ctx.plain_rejected:
         errs.append("This is a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods or documents. "
                     "Do not assess the claim and do not use a longer answer type. Answer with answer_type general_answer: one short sentence, no points, no citations. "
@@ -448,6 +524,10 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         ctx.length_caps_rejected = True         # once: the officer's view shows the top three points either way
     if any(e.startswith("This is a plain question") for e in errs):
         ctx.plain_rejected = True               # once; a persistent fact question is then answered from the claim itself (see the top of this function)
+    if any(e.startswith("Policy question:") for e in errs):
+        ctx.policy_rejected = True
+    if any(e.startswith("Give the reason:") for e in errs):
+        ctx.reason_rejected = True
     if any(e.startswith("Customer answer type:") for e in errs):
         ctx.type_rejected = True
     if any(e.startswith("Answer with the figures") for e in errs):
@@ -465,6 +545,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         for p in a.get("points") or []:
             p["citations"] = [c for c in p.get("citations") or [] if c in ctx.seen]
         a["caveats"] = list(a.get("caveats") or []) + ["Some citations could not be verified and were removed. Treat this answer with extra care."]
+    if a.get("answer_type") == "direct_answer" and ctx.reason_rejected:
+        a = _ensure_reason(a, ctx)
     ctx.final = a
     return {"status": "accepted"}
 

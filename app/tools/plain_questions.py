@@ -123,7 +123,7 @@ def chat_answer(message: str) -> str:
     if re.search(r"thank|thx", m):
         return "You're welcome. Ask me anything about your claim."
     if re.search(r"weather|joke|news|time|date", m):
-        return "I can only help with your claim and your policy."
+        return "I can only help with your claim and your policy. For example, I can explain how much will be paid or which documents you still need."
     if re.search(r"who are you|what are you|who is this|what can you do", m):
         return "I'm ARC. I can explain your claim and your policy, using your documents and the policy wording."
     if re.search(r"bye", m):

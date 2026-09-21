@@ -12,6 +12,7 @@ from ..retrieval.azure_search import get_retriever
 from ..tools.canned import DECLINE_FILTERED, canned_reply
 from ..tools.focus import focus_for
 from ..tools.plain_questions import chat_answer, fact_answer, plain_kind
+from ..tools.routing import claim_related, policy_kind
 from ..tools.registry import TurnContext, call_tool, render_final
 from ..tools.sanitize import clean, quoted
 
@@ -82,8 +83,34 @@ def _content_filtered(e: Exception) -> bool:
     return type(e).__name__ == "BadRequestError" and ("content_filter" in str(e) or "content management policy" in str(e))
 
 
+def _prerun(ctx: TurnContext, session: dict, message: str) -> str:
+    """For a customer with a claim loaded, run in code the tool the question needs first, so the model can answer in one call instead of two:
+    search_policy for a question about the policy wording, assess_claim for a question about the claim. Both are recorded like any tool call, so the number guard
+    and the citation check see their results. The model keeps both tools for what the code did not foresee (a what-if, more of a clause)."""
+    claim = session.get("claim")
+    if session.get("audience") != "customer" or not claim or plain_kind(message, claim):
+        return ""
+    if policy_kind(message):
+        out = call_tool("search_policy", {"query": message, "top_k": 4}, ctx)
+        if "results" in out:
+            ctx.prerun = "search"
+            rows = [dict(chunk_key=r["chunk_key"], citation=r["citation"], excerpt=r["excerpt"][:900]) for r in out["results"]]
+            return ("Policy passages already searched this turn for this question (a tool result: cite their chunk_keys; call get_clause only for more of a clause):\n"
+                    + json.dumps(rows, ensure_ascii=False, separators=(",", ":")) + "\n\n")
+    elif claim_related(message, session.get("history", [])):
+        out = call_tool("assess_claim", {}, ctx)
+        if "result_id" in out:
+            ctx.prerun = "assess"
+            return (f"Assessment of the loaded claim, already run this turn (a tool result with result_id {out['result_id']}): state its figures and use this result_id; "
+                    "call assess_claim again only for a what-if.\n" + json.dumps({k: v for k, v in out.items() if k != "result_id"}, ensure_ascii=False, separators=(",", ":")) + "\n\n")
+    return ""
+
+
 class FoundryAgent:
+    code_first = True    # see settings.code_first; tests that exercise the model loop itself turn it off on the instance
+
     def __init__(self):
+        self.code_first = settings.code_first
         from azure.ai.projects import AIProjectClient
         from azure.identity import DefaultAzureCredential
 
@@ -101,13 +128,21 @@ class FoundryAgent:
         t0 = time.perf_counter()
         if reply := canned_reply(message):
             return _canned_result("canned", session, message, reply, t0)
+        claim = session.get("claim")
+        if self.code_first and session.get("audience") == "customer" and claim:        # a plain fact or small talk needs no model: the answer is built from the claim's own fields
+            kind = plain_kind(message, claim)
+            if kind == "fact" and (reply := fact_answer(message, claim)):
+                return _canned_result("facts", session, message, reply, t0)
+            if kind == "chat":
+                return _canned_result("chat", session, message, chat_answer(message), t0)
         ctx = TurnContext(session=session, retriever=get_retriever(), question=message)
         conv, status, error = None, "ok", None
         with turn_scope() as scope:
             try:
+                prerun = _prerun(ctx, session, message) if self.code_first else ""
                 # A fresh conversation per turn: the backend owns chat history, so there are never dangling tool calls.
                 conv = self._model(scope, lambda t: self.openai.conversations.create(timeout=t))
-                input_ = _claim_block(session) + _history_block(session) + "Question: " + message
+                input_ = _claim_block(session) + prerun + _history_block(session) + "Question: " + message
                 force = False   # set after a reply that was plain text: the next call must be final_answer (a second tool call there is what made turns slow or empty)
                 for step in range(settings.max_agent_steps):
                     extra = {"tool_choice": {"type": "function", "name": "final_answer"}} if force else {}
@@ -153,7 +188,8 @@ class FoundryAgent:
             return AgentResult(_notice(status), "general_answer", [], ctx.trace, None, ctx.results, status, latency)
         out = render_final(ctx.final, ctx)
         return AgentResult(out.markdown, ctx.final["answer_type"], out.citations, ctx.trace, ctx.final, ctx.results, "ok", latency, out.summary_markdown, out.sections,
-                           guards=dict(focus_corrected=len(ctx.focus_corrected), numbers_dropped=len(ctx.numbers_dropped), number_fallbacks=ctx.number_fallbacks))
+                           guards=dict(focus_corrected=len(ctx.focus_corrected), numbers_dropped=len(ctx.numbers_dropped), number_fallbacks=ctx.number_fallbacks,
+                                       prerun=ctx.prerun, model_calls=scope.model_calls, retries=sum(scope.retries.values())))
 
 
 # =============================================================================================

@@ -37,7 +37,8 @@ class Settings:
     model_deployment: str = os.getenv("MODEL_DEPLOYMENT", "gpt-5-mini")
     agent_name: str = os.getenv("AGENT_NAME", "claims-adjudication-agent-v2")
     max_agent_steps: int = int(os.getenv("MAX_AGENT_STEPS", "8"))
-    reasoning_effort: str = os.getenv("AGENT_REASONING_EFFORT", "")   # minimal | low | medium | high, set on the agent definition by scripts/setup/create_agent.py; empty = the model default
+    reasoning_effort: str = os.getenv("AGENT_REASONING_EFFORT", "low")   # minimal | low | medium | high, set on the agent definition by scripts/setup/create_agent.py; "low" halved the latency in the tests; empty = the model default
+    code_first: bool = os.getenv("CODE_FIRST", "1") == "1"   # for a customer: facts and small talk answered in code, assess_claim / search_policy run before the first model call; 0 = the model does all of it
     agent_version: str = os.getenv("AGENT_VERSION", "")   # empty = the latest version; set e.g. 7 to pin (rollback) without deleting anything
 
     # Timeouts, retries and limits. Every Azure call has a timeout; a whole chat turn has a deadline.
