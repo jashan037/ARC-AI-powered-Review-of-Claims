@@ -28,7 +28,7 @@ Wording of question-and-answer replies changes a little between runs. The claim 
 
 Start it with `scripts/run_demo.sh` and open **http://127.0.0.1:8765/** (it refuses to start unless `.env` selects the real agent). Screenshots are in `demo/screenshots/`.
 
-1. Press **Use sample documents** (or drop the 10 PDFs from `demo/documents/`). ARC recognises 10 files; the checklist shows 9 received and the pharmacy bills marked partial because the doctor's prescription is missing.
+1. Press **Use sample documents** (or drop the 10 PDFs from `demo/samples/on_time/`). ARC recognises 10 files; the checklist shows 9 received and the pharmacy bills marked partial because the doctor's prescription is missing.
 2. **Continue to my claim.** The first message summarises the claim (Rohan Verma, Optima Lite, appendectomy, ₹1,84,500) and lists what is still needed.
 3. Tap **How much will be paid?**: estimated **₹1,22,125**, confirmed today **₹1,01,625**, held for documents **₹20,500**. "Show more" opens the working.
 4. Tap **Why was my room rent reduced?**, **What documents are missing?**, **Which items are not payable?**. Ask "what's my name": a one-line answer.

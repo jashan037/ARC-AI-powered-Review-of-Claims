@@ -1,5 +1,6 @@
 {
-  "description": "Ground truth for scoring Azure Content Understanding / extraction on the demo PDFs.",
+  "description": "Ground truth for scoring extraction on the demo PDFs. It describes the 'late_filing' set (policy 15/03/2025 to 14/03/2026, admitted 10/09/2025); the other two sets differ only in the dates and the age, as demo/make_sample_sets.py shows.",
+  "set": "late_filing",
   "policy_schedule": {
     "policy_number": "SYN-2805-0000-0001",
     "plan": "Optima Lite",

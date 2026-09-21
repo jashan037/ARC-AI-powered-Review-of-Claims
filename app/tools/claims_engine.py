@@ -397,7 +397,8 @@ def assess(c: dict) -> dict:
     review = [k for k in checks if k["status"] == "needs_review"]
 
     if violated:
-        rec, est, now, amt_est = "likely_not_payable", 0.0, 0.0, None
+        # nothing is payable, so nothing is waiting for a document either: an amount "on hold" would suggest it is only a paperwork problem
+        rec, est, now, amt_est, held = "likely_not_payable", 0.0, 0.0, None, 0.0
     else:
         amt_est, amt_now = calculate_claim_amount(c, payable_all), calculate_claim_amount(c, payable_all - held)
         est, now = amt_est["payable"], amt_now["payable"]

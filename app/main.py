@@ -282,9 +282,10 @@ async def upload_documents(sid: str, files: list[UploadFile] = File(...)):
 
 
 @app.post("/sessions/{sid}/documents/sample")
-async def use_sample_documents(sid: str):
+async def use_sample_documents(sid: str, set: str | None = None):
+    """Loads one of the three synthetic sets (on_time by default; 'late' and 'expired' for the other two). An unknown name loads the default."""
     s = _session(sid)
-    return await _read_all(s, intake.sample_files())
+    return await _read_all(s, intake.sample_files(set))
 
 
 @app.post("/sessions/{sid}/intake")

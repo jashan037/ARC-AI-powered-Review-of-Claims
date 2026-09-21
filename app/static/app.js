@@ -128,7 +128,8 @@
     addFiles(e.dataTransfer.files);
   });
 
-  if (/[?&]sample=1(&|$)/.test(location.search)) {
+  var sampleSet = (location.search.match(/[?&]sample=([a-z_0-9]+)/i) || [])[1];
+  if (sampleSet) {
     el.sample.hidden = false;
     el.sampleLink.addEventListener("click", function (e) {
       e.preventDefault();
@@ -136,7 +137,7 @@
       state.uploading = true;
       var li = h("li", null, "Sample documents, reading…");
       el.files.appendChild(li);
-      session().then(function (sid) { return api("POST", "/sessions/" + sid + "/documents/sample"); }).then(function () {
+      session().then(function (sid) { return api("POST", "/sessions/" + sid + "/documents/sample?set=" + encodeURIComponent(sampleSet)); }).then(function () {
         li.textContent = "Sample documents, ready";
         return api("POST", "/sessions/" + state.sid + "/intake");
       }).then(function (out) {

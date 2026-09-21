@@ -1,0 +1,65 @@
+{
+  "description": "Synthetic customer document set 'expired' for the ARC demo. Everything is fictional. The doctor's prescription is left out on purpose.",
+  "set": "expired",
+  "generated_by": "demo/make_sample_sets.py",
+  "parameters": {
+    "age": 28,
+    "dob": "12/06/1997",
+    "first_inception": "15/03/2024",
+    "period_start": "15/03/2025",
+    "period_end": "14/03/2026",
+    "adm_date": "20/04/2026",
+    "adm_time": "14:30",
+    "dis_date": "24/04/2026",
+    "dis_time": "11:00",
+    "procedure_date": "21/04/2026",
+    "consult_time": "12:40",
+    "lab_time": "15:10",
+    "days": 4
+  },
+  "files": [
+    {
+      "file": "policy_schedule.pdf",
+      "document_type": "policy_schedule"
+    },
+    {
+      "file": "claim_form.pdf",
+      "document_type": "claim_form"
+    },
+    {
+      "file": "photo_id_proof.pdf",
+      "document_type": "photo_id_age_proof"
+    },
+    {
+      "file": "discharge_summary.pdf",
+      "document_type": "discharge_summary"
+    },
+    {
+      "file": "hospital_bill.pdf",
+      "document_type": "final_bill_receipts"
+    },
+    {
+      "file": "lab_report.pdf",
+      "document_type": "diagnostic_reports_bills"
+    },
+    {
+      "file": "consultation_papers.pdf",
+      "document_type": "previous_consultation_papers"
+    },
+    {
+      "file": "pharmacy_bills.pdf",
+      "document_type": "pharmacy_bills_prescription"
+    },
+    {
+      "file": "kyc_form.pdf",
+      "document_type": "kyc"
+    },
+    {
+      "file": "neft_form.pdf",
+      "document_type": "neft_form"
+    }
+  ],
+  "intentionally_missing": [
+    "prescription for the pharmacy bills (E.1.7.i)"
+  ]
+}

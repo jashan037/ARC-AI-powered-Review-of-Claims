@@ -1,5 +1,22 @@
 {
-  "description": "Complete synthetic customer document set for the ARC demo (claim SYN-CLM-007). Everything is fictional. One document is intentionally missing so the demo shows a real gap.",
+  "description": "Synthetic customer document set 'on_time' for the ARC demo. Everything is fictional. The doctor's prescription is left out on purpose.",
+  "set": "on_time",
+  "generated_by": "demo/make_sample_sets.py",
+  "parameters": {
+    "age": 29,
+    "dob": "12/06/1997",
+    "first_inception": "15/03/2024",
+    "period_start": "15/03/2026",
+    "period_end": "14/03/2027",
+    "adm_date": "10/09/2026",
+    "adm_time": "14:30",
+    "dis_date": "14/09/2026",
+    "dis_time": "11:00",
+    "procedure_date": "11/09/2026",
+    "consult_time": "12:40",
+    "lab_time": "15:10",
+    "days": 4
+  },
   "files": [
     {
       "file": "policy_schedule.pdf",
@@ -31,8 +48,7 @@
     },
     {
       "file": "pharmacy_bills.pdf",
-      "document_type": "pharmacy_bills_prescription",
-      "note": "bills only; the prescription is not included"
+      "document_type": "pharmacy_bills_prescription"
     },
     {
       "file": "kyc_form.pdf",
@@ -45,12 +61,5 @@
   ],
   "intentionally_missing": [
     "prescription for the pharmacy bills (E.1.7.i)"
-  ],
-  "expected_outcome": {
-    "recommendation": "likely_eligible_pending_documents",
-    "estimated_payment": 122125,
-    "confirmed_today": 101625,
-    "held_for_documents": 20500,
-    "same_as_sample_claim": "TC07 in data/sample_claims.json"
-  }
+  ]
 }

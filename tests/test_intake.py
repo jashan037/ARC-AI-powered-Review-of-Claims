@@ -11,9 +11,9 @@ from app.tools import claims_engine as E
 from tests.helpers.pdfmaker import edit, make_pdf
 
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
-MANIFEST = json.load(open(ROOT / "demo" / "documents" / "manifest.json", encoding="utf-8"))
-EXPECTED = json.load(open(ROOT / "demo" / "documents" / "expected_extraction.json", encoding="utf-8"))
-FILES = dict(I.sample_files())
+MANIFEST = json.load(open(ROOT / "demo" / "samples" / "late_filing" / "manifest.json", encoding="utf-8"))
+EXPECTED = json.load(open(ROOT / "demo" / "samples" / "expected_extraction.json", encoding="utf-8"))
+FILES = dict(I.sample_files("late_filing"))   # the set the ground truth below was hand-derived from
 
 
 def session(**skip):

@@ -70,7 +70,7 @@ Developer routes, only with `DEBUG=1`: `/docs`, `/openapi.json`, `/samples`, `PO
 ## Status and known limits
 
 - Tested: 366 offline tests and, on the real Azure agent, the accuracy suite (68 questions x 3 runs, `docs/evidence/accuracy_report.md`) and the format suite (`docs/evidence/format_before_after.md`). Older eval scripts (`eval_agent.py`, `quality_suite.py`, `demo_check.py`) target a removed answer format and no longer run.
-- Intake reads text PDFs in the layout of `demo/documents/` only; scans and other layouts are refused, not guessed. Azure Content Understanding is not built.
+- Intake reads text PDFs in the layout of `demo/samples/` only; scans and other layouts are refused, not guessed. Azure Content Understanding is not built.
 - Sessions are in memory (expiry, caps and a per-IP rate limit exist, see `docs/SECURITY.md`), there is no authentication, and dependencies are pinned but not locked: see `docs/SYSTEM_REPORT.md` (P0 and P1 lists) before any deployment.
 - Only wording HDFHLIP25041V062425 is indexed. Non-medical items use HDFC's Annexure B (68 items), not IRDAI's longer list.
 - All data is synthetic. Never load a real person's documents.

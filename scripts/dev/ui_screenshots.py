@@ -15,7 +15,7 @@ from playwright.sync_api import expect, sync_playwright  # noqa: E402
 from tests.helpers.uiserver import Server  # noqa: E402
 
 OUT = ROOT / "docs" / "screenshots" / "ui_final"
-DOCS = sorted((ROOT / "demo" / "documents").glob("*.pdf"))
+DOCS = sorted((ROOT / "demo" / "samples" / "on_time").glob("*.pdf"))
 SIZES = {"1280x800": (1280, 800), "390x844": (390, 844)}
 
 

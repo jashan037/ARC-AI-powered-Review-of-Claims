@@ -18,7 +18,7 @@ client = TestClient(main.app, raise_server_exceptions=False)
 
 def customer_session():
     s = {"id": "s", "history": [], "uin": "HDFHLIP25041V062425"}
-    for name, data in intake.sample_files():
+    for name, data in intake.sample_files("late_filing"):   # the guard tests quote this set's dates
         intake.store(s, name, intake.process_file(name, data))
     assert intake.build(s)["status"] == "ready"
     return s

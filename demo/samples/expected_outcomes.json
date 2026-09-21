@@ -1,0 +1,98 @@
+{
+  "description": "Hand-derived expected outcomes for the three synthetic document sets, worked out from the documents and the my:Optima Secure wording (UIN HDFHLIP25041V062425), NOT from ARC's code. Never change a number here to make a test or an evaluation pass: re-derive it from the wording. Dates are judged as of ARC_TODAY=2026-09-21.",
+  "common": {
+    "insured_name": "Rohan Verma",
+    "plan": "Optima Lite",
+    "policy_number": "SYN-2805-0000-0001",
+    "first_policy_inception": "2024-03-15",
+    "base_sum_insured": 500000,
+    "cumulative_bonus": 50000,
+    "cover_amount": 550000,
+    "room_limit_per_day": 5000,
+    "room_rate_billed_per_day": 8000,
+    "share_of_room_paid_percent": 62.5,
+    "protect_benefit": "not opted",
+    "aggregate_deductible": 0,
+    "copay_percent": 0,
+    "hospital_bill_total": 184500,
+    "documents_received": 9,
+    "documents_expected": 10,
+    "missing_document": "the doctor's prescription for the pharmacy bills",
+    "room_related_reduction": 49875,
+    "room_reduction": 12000,
+    "associated_reduction": 37875,
+    "non_medical_count": 12,
+    "non_medical_total": 12500,
+    "largest_non_medical_items": [
+      {"item": "Attendant food charges", "amount": 2800},
+      {"item": "Surgical gloves", "amount": 2400},
+      {"item": "Service charges", "amount": 2000}
+    ],
+    "other_non_medical_count": 9,
+    "other_non_medical_total": 5300,
+    "held_until_the_prescription_arrives": 20500,
+    "estimated_payment_if_in_force": 122125,
+    "counted_now_if_in_force": 101625,
+    "what_if_room_5000_a_day": {"bill": 172500, "estimate": 160000, "counted_now": 139500},
+    "what_if_room_5000_a_day_and_protect_benefit": {"bill": 172500, "estimate": 172500, "counted_now": 152000},
+    "what_if_protect_benefit_only": {"bill": 184500, "estimate": 134625, "counted_now": 114125},
+    "cover_left_after_this_claim": 427875,
+    "cover_left_with_a_stated_other_claim_of_300000": 127875
+  },
+  "on_time": {
+    "policy_period": ["2026-03-15", "2027-03-14"],
+    "admission": "2026-09-10T14:30",
+    "discharge": "2026-09-14T11:00",
+    "age": 29,
+    "policy_in_force_on_admission": true,
+    "days_since_discharge": 7,
+    "documents_due_by": "2026-10-14",
+    "filing_is_late": false,
+    "recommendation": "likely_eligible_pending_documents",
+    "estimated_payment": 122125,
+    "counted_now": 101625,
+    "held": 20500,
+    "notes": [
+      "Surgery on 20 Apr 2027 would be after the policy period ends on 14 Mar 2027, so it would not be in force.",
+      "The 24-month wait for cataract was served on 15 Mar 2026, so cataract surgery in October 2026 is past it and would likely be payable subject to the documents."
+    ]
+  },
+  "late_filing": {
+    "policy_period": ["2025-03-15", "2026-03-14"],
+    "admission": "2025-09-10T14:30",
+    "discharge": "2025-09-14T11:00",
+    "age": 28,
+    "policy_in_force_on_admission": true,
+    "days_since_discharge": 372,
+    "documents_due_by": "2025-10-14",
+    "filing_is_late": true,
+    "recommendation": "needs_human_review",
+    "estimated_payment": 122125,
+    "counted_now": 101625,
+    "held": 20500,
+    "notes": [
+      "The documents are 372 days after discharge, past the 30 days E.1.6 asks for: a review flag, never a rejection (E.1.7 Note iv).",
+      "Cataract surgery in December 2025 would fall before the 24-month wait ends on 15 Mar 2026, so it would likely not be payable then.",
+      "Surgery on 20 Apr 2026 would be after the policy period ends on 14 Mar 2026, so it would not be in force."
+    ]
+  },
+  "expired": {
+    "policy_period": ["2025-03-15", "2026-03-14"],
+    "admission": "2026-04-20T14:30",
+    "discharge": "2026-04-24T11:00",
+    "age": 28,
+    "policy_in_force_on_admission": false,
+    "days_since_discharge": 150,
+    "documents_due_by": "2026-05-24",
+    "filing_is_late": true,
+    "recommendation": "likely_not_payable",
+    "estimated_payment": 0,
+    "counted_now": 0,
+    "held": 0,
+    "notes": [
+      "The admission on 20 Apr 2026 is after the policy period ended on 14 Mar 2026, so the claim is likely not covered and nothing is payable: the bill figures under 'common' are what the documents contain, not a payment.",
+      "It could still be covered if a continuous renewal was in force: the customer would show the renewal schedule or proof of premium payment for that year.",
+      "The first message and every payment answer must lead with the policy not being in force."
+    ]
+  }
+}

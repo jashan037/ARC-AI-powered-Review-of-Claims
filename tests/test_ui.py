@@ -11,7 +11,7 @@ from playwright.sync_api import expect, sync_playwright  # noqa: E402
 
 from tests.helpers.uiserver import Server  # noqa: E402
 
-DOCS = sorted((ROOT / "demo" / "documents").glob("*.pdf"))
+DOCS = sorted((ROOT / "demo" / "samples" / "on_time").glob("*.pdf"))
 TINT, FOCUS, TEXT = (238, 243, 246), (201, 214, 221), (31, 41, 51)   # the allowed non-neutral colours: --tint, the focus border, and the --text token
 
 

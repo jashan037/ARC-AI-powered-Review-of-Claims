@@ -1,6 +1,6 @@
 """Claim intake: read the customer's documents and build the claim the engine needs.
 
-Scope, stated plainly: this reads TEXT PDFs in the format of the synthetic sample documents (demo/documents). It is a small rule-based
+Scope, stated plainly: this reads TEXT PDFs in the format of the synthetic sample documents (demo/samples). It is a small rule-based
 reader, not OCR and not a general document understanding service. Scans, photos and unfamiliar layouts are reported back to the customer as
 "we couldn't read this", never guessed at. Roadmap step 8 (Azure AI Content Understanding) can replace `read_pdf` / `extract` behind the same
 `process_file` / `build_claim` interface.
@@ -19,7 +19,13 @@ from .config import ROOT
 from .tools import claims_engine as E
 from .tools.fmt import inr
 
-SAMPLE_DIR = ROOT / "demo" / "documents"
+SAMPLE_DIR = ROOT / "demo" / "samples"
+# The three synthetic document sets (demo/make_sample_sets.py builds them). "Use sample documents" loads on_time; ?sample=late and
+# ?sample=expired load the other two, so the demo can show a late filing and a policy that had ended.
+SAMPLE_SETS = ("on_time", "late_filing", "expired")
+DEFAULT_SAMPLE_SET = "on_time"
+SAMPLE_ALIASES = {"1": "on_time", "on": "on_time", "on_time": "on_time", "ontime": "on_time", "late": "late_filing", "late_filing": "late_filing",
+                  "expired": "expired", "expiry": "expired"}
 MAX_FILE_BYTES = 5 * 1024 * 1024
 MAX_PAGES = 20
 MAX_FILES_PER_UPLOAD = 15
@@ -287,8 +293,13 @@ def store(session: dict, name: str, result: dict) -> dict:
                         message=f"Recognised as: {result['label']}." + (" This replaced the earlier file." if old and old["digest"] != result["digest"] else ""))
 
 
-def sample_files() -> list[tuple[str, bytes]]:
-    return [(p.name, p.read_bytes()) for p in sorted(SAMPLE_DIR.glob("*.pdf"))]
+def sample_set(which: str | None) -> str:
+    """The set a request asked for, by name or alias. Anything unknown falls back to the default: a query parameter never picks a path."""
+    return SAMPLE_ALIASES.get(str(which or "").strip().lower(), DEFAULT_SAMPLE_SET)
+
+
+def sample_files(which: str | None = None) -> list[tuple[str, bytes]]:
+    return [(p.name, p.read_bytes()) for p in sorted((SAMPLE_DIR / sample_set(which)).glob("*.pdf"))]
 
 
 # ---------------------------------------------------------------- putting it together

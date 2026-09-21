@@ -17,7 +17,8 @@ tools
 CLAUDE.md
 README.md
 requirements-dev.txt
-# demo/ is excluded except the sample documents: "Use sample documents" reads them at runtime (app/intake.py SAMPLE_DIR)
+# demo/ is excluded except the three sample document sets: "Use sample documents" reads them at runtime (app/intake.py SAMPLE_DIR)
 demo/*
-!demo/documents
-demo/documents/expected_extraction.json
+!demo/samples
+demo/samples/expected_extraction.json
+demo/samples/expected_outcomes.json
