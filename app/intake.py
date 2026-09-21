@@ -13,11 +13,11 @@ from __future__ import annotations
 import hashlib
 import io
 import re
-from datetime import date, datetime
+from datetime import date
 
 from .config import ROOT
-from .rendering.render import inr
 from .tools import claims_engine as E
+from .tools.fmt import inr
 
 SAMPLE_DIR = ROOT / "demo" / "documents"
 MAX_FILE_BYTES = 5 * 1024 * 1024
@@ -389,42 +389,11 @@ def _categorise(lines: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------- what the customer is told
-def claim_summary_markdown(claim: dict, missing: list[str]) -> str:
-    stay = (datetime.fromisoformat(claim["discharge_datetime"]).date() - datetime.fromisoformat(claim["admission_datetime"]).date()).days
-    out = ["**Thanks. I've read your documents.** Here's what I understood about your claim.", "",
-           f"- **Insured person:** {claim['insured_name']}", f"- **Plan:** {claim['plan']}, sum insured {inr(claim['base_si_lakh'] * 100000)}",
-           f"- **Treatment:** {claim['procedure'] or 'Hospital stay'}" + (f" for {claim['diagnosis']}" if claim.get("diagnosis") else ""),
-           f"- **Hospital:** {claim.get('hospital') or 'as on your bill'}",
-           f"- **Stay:** {nice_date(claim['admission_datetime'])} to {nice_date(claim['discharge_datetime'])} ({stay} day{'s' if stay != 1 else ''})",
-           f"- **Hospital bill:** {inr(claim['claimed_amount'])}"]
-    out += [""] + ([f"**Still needed:** {'; '.join(missing)}."] if missing else ["**All the documents we asked for are here.**"])
-    out += ["", "Ask me anything about your claim, or tap a suggestion below."]
-    return "\n".join(out)
-
-
-def suggestions(claim: dict | None, asked: list[str]) -> list[str]:
-    """Up to three follow-up questions that make sense for this claim, skipping ones already asked."""
-    if not claim:
-        return []
-    res = E.assess(claim)
-    a = res["amounts"]
-    # Every phrasing here has been tried against the real agent: each one lands on the answer type it is meant to. ("Why is my claim not payable?" does not:
-    # it is routed to a deduction explanation, which has nothing to say for a claim that fails a waiting period.)
-    wants = []
-    if res["recommendation"] == "likely_not_payable":
-        wants += ["What did you find on my claim?", "What happens next?", "What documents are missing?"]
-    else:
-        wants.append("How much will be paid?")
-        if a["deductions"]["room"] or a["deductions"]["associated"]:
-            wants.append("Why was my room rent reduced?")
-        if res["documents"]["missing"] or res["documents"]["incomplete"]:
-            wants.append("What documents are missing?")
-        if a["deductions"]["non_medical"]:
-            wants.append("Which items are not payable?")
-        wants += ["What documents are missing?", "What happens next?"]
-    seen = {re.sub(r"\W+", " ", q).strip().lower() for q in asked}
-    out = []
-    for q in wants:
-        if re.sub(r"\W+", " ", q).strip().lower() not in seen and q not in out:
-            out.append(q)
-    return out[:3]
+def first_message(claim: dict, missing: list[str]) -> str:
+    """The first chat message after the documents are read: short plain text built in code, no table. Which claim it is, what is still missing, an invitation to ask."""
+    stay = f"{nice_date(claim['admission_datetime'])} to {nice_date(claim['discharge_datetime'])}"
+    what = (claim["procedure"] or "a hospital stay") + (f" for {claim['diagnosis']}" if claim.get("diagnosis") else "")
+    where = f" at {claim['hospital']}" if claim.get("hospital") else ""
+    todo = f"Still needed: {'; '.join(missing)}." if missing else "All the documents we asked for are here."
+    return (f"Thanks, I've read your documents. This is the claim for **{claim['insured_name']}** ({claim['plan']}): {what}{where}, {stay}, with a hospital bill of {inr(claim['claimed_amount'])}. "
+            f"{todo} Ask me anything about your claim.")

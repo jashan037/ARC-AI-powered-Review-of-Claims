@@ -21,5 +21,6 @@ while True:
     if not q:
         continue
     r = get_agent().ask(session, q)
-    session["history"].append(dict(user=q, answer_type=r.answer_type, headline=(r.final or {}).get("headline") or r.markdown.splitlines()[0]))
-    print("\n" + r.markdown + "\n" + f"[tools: {' > '.join(t['tool'] for t in r.trace)}]\n")
+    session["history"].append(dict(user=q, reply=r.reply))
+    src = "; ".join(x["title"] for x in r.sources)
+    print("\n" + r.reply + (f"\n\nSources: {src}" if src else "") + "\n" + f"[tools: {' > '.join(t['tool'] for t in r.trace) or 'none'}; model calls: {r.guards.get('model_calls', 0)}]\n")

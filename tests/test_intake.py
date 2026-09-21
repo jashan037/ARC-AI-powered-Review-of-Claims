@@ -271,22 +271,11 @@ def test_helpers():
     assert I.nice_date("2025-09-05T09:00") == "5 Sep 2025"
 
 
-def test_the_summary_is_short_plain_and_lists_what_is_still_needed():
+def test_the_first_message_is_short_plain_text_with_no_table():
     out = I.build(session())
-    md = I.claim_summary_markdown(out["claim"], out["missing"])
-    assert "Rohan Verma" in md and "Optima Lite, sum insured ₹5,00,000" in md and "Laparoscopic appendectomy for Acute appendicitis" in md
-    assert "10 Sep 2025 to 14 Sep 2025 (4 days)" in md and "₹1,84,500" in md and "**Still needed:** The doctor's prescription for your pharmacy bills." in md
-    assert len(md.splitlines()) <= 14 and not any(w in md.lower() for w in ("annexure", "e.1.7", "engine", "json"))
-    complete = I.claim_summary_markdown(out["claim"], [])
+    md = I.first_message(out["claim"], out["missing"])
+    assert "Rohan Verma" in md and "Optima Lite" in md and "Laparoscopic appendectomy for Acute appendicitis" in md and "10 Sep 2025 to 14 Sep 2025" in md and "₹1,84,500" in md
+    assert "Still needed: The doctor's prescription for your pharmacy bills." in md and "Ask me anything about your claim." in md
+    assert "|" not in md and "\n" not in md and len(md.split()) < 70 and not any(w in md.lower() for w in ("annexure", "e.1.7", "engine", "json"))
+    complete = I.first_message(out["claim"], [])
     assert "All the documents we asked for are here." in complete and "Still needed" not in complete
-
-
-def test_suggestions_fit_the_claim_and_skip_what_was_asked():
-    c = I.build(session())["claim"]
-    assert I.suggestions(c, []) == ["How much will be paid?", "Why was my room rent reduced?", "What documents are missing?"]
-    assert I.suggestions(c, ["How much will be paid?"]) == ["Why was my room rent reduced?", "What documents are missing?", "Which items are not payable?"]
-    assert I.suggestions(c, ["why was my ROOM RENT reduced"])[:2] == ["How much will be paid?", "What documents are missing?"]
-    assert I.suggestions(None, []) == []
-    not_payable = E.assess(SAMPLES["TC02"]["claim"]) and SAMPLES["TC02"]["claim"]
-    assert I.suggestions(not_payable, []) == ["What did you find on my claim?", "What happens next?", "What documents are missing?"]   # phrasings tried on the real agent
-    assert len(I.suggestions(c, ["a", "b", "c", "d", "e", "f"])) == 3

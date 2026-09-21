@@ -238,11 +238,8 @@ class ScriptedOpenAI:
         if self.failures:
             raise self.failures.pop(0)
         self.step += 1
-        fc = lambda name, args, cid: NS(type="function_call", name=name, arguments=json.dumps(args), call_id=cid)  # noqa: E731
-        if self.step == 1:
-            return NS(output=[fc("assess_claim", {}, "c1")], output_text="")
-        rid = json.loads(input[0]["output"])["result_id"]
-        return NS(output=[fc("final_answer", {"answer_type": "claim_assessment", "headline": "x", "result_id": rid}, "c2")], output_text="")
+        text = "Your claim looks likely to be paid ₹1,22,125, of which ₹1,01,625 is confirmed today."
+        return NS(output=[NS(type="message", content=[NS(text=text)])], output_text=text)
 
 
 def agent_with(fake):
@@ -257,37 +254,37 @@ def session():
 
 def test_agent_survives_a_429_from_the_model(fast):
     fake = ScriptedOpenAI([Err(429)])
-    res = agent_with(fake).ask(session(), "Assess this claim")
-    assert res.status == "ok" and "₹1,22,125" in res.markdown and fast == [0.5]
+    res = agent_with(fake).ask(session(), "How much will be paid?")
+    assert res.status == "ok" and "₹1,22,125" in res.reply and fast == [0.5]
     assert all(0 < t <= settings.model_timeout_s for t in fake.timeouts)
 
 
 def test_a_model_timeout_gives_a_try_again_answer_not_a_hang_or_an_exception():
     fake = ScriptedOpenAI([APITimeoutError()])
-    res = agent_with(fake).ask(session(), "Assess this claim")
-    assert res.status == "timeout" and res.final is None and fake.calls == 1      # not retried: the request may still be running
-    assert "try again" in res.markdown.lower() and "₹" not in res.markdown         # no numbers invented on the failure path
+    res = agent_with(fake).ask(session(), "How much will be paid?")
+    assert res.status == "timeout" and fake.calls == 1      # not retried: the request may still be running
+    assert "try again" in res.reply.lower() and "₹" not in res.reply         # no numbers invented on the failure path
     assert fake.deleted                                                            # the conversation is still cleaned up
 
 
 def test_persistent_429_ends_as_unavailable_after_a_bounded_number_of_tries(fast):
     fake = ScriptedOpenAI([Err(429)] * 20)
-    res = agent_with(fake).ask(session(), "Assess this claim")
+    res = agent_with(fake).ask(session(), "How much will be paid?")
     assert res.status == "unavailable" and fake.calls == settings.max_retries + 1 == 4 and len(fast) == 3
-    assert "try again" in res.markdown.lower()
+    assert "try again" in res.reply.lower()
 
 
 def test_an_exhausted_deadline_answers_at_once_without_calling_the_model(monkeypatch):
     monkeypatch.setattr(R, "settings", dataclasses.replace(R.settings, turn_deadline_s=0.5))
     fake = ScriptedOpenAI()
-    res = agent_with(fake).ask(session(), "Assess this claim")
-    assert res.status == "timeout" and fake.calls == 0 and "try again" in res.markdown.lower()
+    res = agent_with(fake).ask(session(), "How much will be paid?")
+    assert res.status == "timeout" and fake.calls == 0 and "try again" in res.reply.lower()
 
 
 def test_a_real_error_still_raises_so_the_api_can_answer_500(fast):
     fake = ScriptedOpenAI([Err(400)])
     with pytest.raises(Err):
-        agent_with(fake).ask(session(), "Assess this claim")
+        agent_with(fake).ask(session(), "How much will be paid?")
     assert fake.calls == 1 and fake.deleted
 
 
@@ -304,6 +301,8 @@ def _capture():
 
 
 def test_each_turn_logs_tools_latency_and_answer_type_and_no_claim_data():
+    from app.observability import configure_logging
+    configure_logging()
     records, h = _capture()
     try:
         s = session()
@@ -316,8 +315,8 @@ def test_each_turn_logs_tools_latency_and_answer_type_and_no_claim_data():
     turns = [r for r in records if r["event"] == "turn"]
     assert len(turns) == 2 and {t["agent"] for t in turns} == {"offline", "foundry"}
     t = turns[-1]
-    assert t["answer_type"] == "claim_assessment" and t["status"] == "ok" and t["latency_ms"] >= 0 and t["session"] == "s1"
-    assert [x["tool"] for x in t["tools"]] == ["assess_claim", "final_answer"] and all("ms" in x for x in t["tools"])
+    assert t["answer_type"] == "chat" and t["status"] == "ok" and t["latency_ms"] >= 0 and t["session"] == "s1"
+    assert [x["tool"] for x in t["tools"]] == ["assess_claim"] and all("ms" in x for x in t["tools"]) and t["model_calls"] == 2      # the assessment ran in code; one conversation and one response
     blob = json.dumps(turns)
     for private in (marker, s["claim"]["insured_name"], str(s["claim"].get("diagnosis")), "1,22,125", "122125"):
         assert private not in blob, f"{private!r} leaked into the log"
@@ -326,7 +325,7 @@ def test_each_turn_logs_tools_latency_and_answer_type_and_no_claim_data():
 def test_a_timeout_is_logged_with_its_status_and_where_it_happened():
     records, h = _capture()
     try:
-        agent_with(ScriptedOpenAI([APITimeoutError()])).ask(session(), "Assess this claim")
+        agent_with(ScriptedOpenAI([APITimeoutError()])).ask(session(), "How much will be paid?")
     finally:
         logging.getLogger("claims").removeHandler(h)
     t = [r for r in records if r["event"] == "turn"][-1]
@@ -356,11 +355,11 @@ def test_unexpected_errors_are_a_clean_500_without_a_stack_trace_or_the_exceptio
 
 def test_a_timed_out_turn_returns_the_try_again_answer_with_a_status_and_is_not_added_to_history(api, monkeypatch):
     client, main = api
-    stub = AgentResult("## This is taking longer than expected\n\nPlease try again.", "general_answer", status="timeout")
+    stub = AgentResult("This is taking longer than expected. Please try again.", [], [], "timeout")
     monkeypatch.setattr(main, "get_agent", lambda: NS(ask=lambda *a, **k: stub))
     sid = _new_session(client)
     r = client.post(f"/sessions/{sid}/chat", json={"message": "assess"})
-    assert r.status_code == 200 and r.json()["status"] == "timeout" and "try again" in r.json()["answer_markdown"].lower()
+    assert r.status_code == 200 and r.json()["status"] == "timeout" and "try again" in r.json()["reply"].lower()
     assert main.SESSIONS[sid]["history"] == []
 
 

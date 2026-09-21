@@ -19,11 +19,9 @@ from . import intake
 from .agent.runner import get_agent
 from .config import settings
 from .observability import configure_logging
-from .retrieval.azure_search import get_retriever
-from .rendering.render import render_claim_assessment
 from .tools import claims_engine as E
 from .tools.canned import NOT_READY
-from .tools.registry import trace_summary
+from .tools.registry import assessment_view
 
 configure_logging()
 log = logging.getLogger("claims.api")
@@ -117,7 +115,7 @@ class ClaimIn(BaseModel):
 
 
 class SessionIn(BaseModel):
-    audience: str = Field("officer", pattern="^(officer|customer)$", description="customer: plain wording for the person who made the claim")
+    audience: str | None = Field(None, description="ignored: every session is a customer session")
 
 
 class ChatIn(BaseModel):
@@ -128,11 +126,6 @@ def _session(sid: str) -> dict:
     if sid not in SESSIONS:
         raise HTTPException(404, "Unknown session. Create one with POST /sessions.")
     return SESSIONS[sid]
-
-
-def _public_citations(citations: list[dict]) -> list[dict]:
-    """What a caller may see of each citation: label, clause, citation text and excerpt. The internal chunk_key only with DEBUG_TRACE=1."""
-    return citations if settings.debug_trace else [{k: v for k, v in c.items() if k != "chunk_key"} for c in citations]
 
 
 def _summary(c: dict) -> dict:
@@ -178,7 +171,7 @@ def samples():
 @app.post("/sessions")
 def create_session(body: SessionIn | None = None):
     sid = uuid.uuid4().hex[:12]
-    SESSIONS[sid] = dict(id=sid, uin=settings.default_uin, claim=None, history=[], audience=(body.audience if body else "officer"))
+    SESSIONS[sid] = dict(id=sid, uin=settings.default_uin, claim=None, history=[], audience="customer")
     return dict(session_id=sid, intake=True)     # lets the page notice a server that predates document intake
 
 
@@ -216,8 +209,7 @@ def run_intake(sid: str):
     if out["status"] == "ready":
         claim = out.pop("claim")
         out["claim"] = _summary(claim)
-        out["summary_markdown"] = intake.claim_summary_markdown(claim, out["missing"])
-        out["suggestions"] = intake.suggestions(claim, [h["user"] for h in s["history"]])
+        out["first_message"] = intake.first_message(claim, out["missing"])
     return out
 
 
@@ -241,24 +233,20 @@ def load_claim(sid: str, body: ClaimIn):
 @app.post("/sessions/{sid}/chat")
 def chat(sid: str, body: ChatIn):
     s = _session(sid)
-    if s.get("audience") == "customer" and not s.get("claim"):   # no upload yet, or the documents need attention: a fixed answer, no model call
-        return dict(session_id=sid, status="ok", answer_type="direct_answer", answer_markdown=NOT_READY, summary_markdown=NOT_READY, sections=[], citations=[], suggestions=[])
+    if not s.get("claim"):   # no upload yet, or the documents need attention: a fixed answer, no model call
+        return dict(status="ok", reply=NOT_READY, sources=[])
     result = get_agent().ask(s, body.message)
-    if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the officer will simply ask again
-        headline = (result.final or {}).get("headline") or (result.final or {}).get("reply") or next((l.strip("# ").strip() for l in result.markdown.splitlines() if l.strip()), "")
-        s["history"].append(dict(user=body.message, answer_type=result.answer_type, headline=headline))
-    out = dict(session_id=sid, status=result.status, answer_type=result.answer_type, answer_markdown=result.markdown,
-               summary_markdown=result.summary_markdown or result.markdown, sections=result.sections, citations=_public_citations(result.citations),
-               suggestions=intake.suggestions(s.get("claim"), [h["user"] for h in s["history"]]))
-    if settings.debug_trace:   # developer detail only when the server was started with DEBUG_TRACE=1; nothing the caller sends can switch it on
-        out.update(trace_summary=trace_summary(result.trace),   # tool, ok, ms only
-                   tool_trace=result.trace)                     # includes tool arguments
+    if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the customer will simply ask again
+        s["history"].append(dict(user=body.message, reply=result.reply))
+    out = dict(status=result.status, reply=result.reply, sources=result.sources)
+    if settings.debug_trace:   # developer detail only when the server was started with DEBUG_TRACE=1
+        out.update(tool_trace=result.trace, guards=result.guards)
     return out
 
 
 @app.post("/assess")
 def assess_stateless(body: ClaimIn):
-    """Deterministic assessment with the standard format. No LLM involved."""
+    """Deterministic assessment as JSON. No model involved."""
     if body.sample_id:
         if body.sample_id not in SAMPLES:
             raise HTTPException(404, f"Unknown sample {body.sample_id}")
@@ -269,6 +257,4 @@ def assess_stateless(body: ClaimIn):
         raise HTTPException(422, "Provide sample_id or claim.")
     _check_claim(claim)
     res = E.assess(claim)
-    rendered = render_claim_assessment(res, get_retriever())
-    return dict(recommendation=res["recommendation"], amounts=res["amounts"], answer_markdown=rendered.markdown,
-                summary_markdown=rendered.summary_markdown, sections=rendered.sections, citations=_public_citations(rendered.citations))
+    return dict(recommendation=res["recommendation"], amounts=res["amounts"], assessment=assessment_view(res))

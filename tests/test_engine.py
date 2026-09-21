@@ -39,14 +39,3 @@ def test_every_evidence_ref_resolves_to_a_real_chunk():
             got = resolve(ref)
             assert got, f"{sid}: unresolved reference {ref}"
             assert all(g in ids for g in got), f"{sid}: {ref} -> {got} not in chunk file"
-
-
-@pytest.mark.parametrize("sid", sorted(SAMPLES))
-def test_rendered_assessment_cites_every_clause_the_sample_says_it_must(sid):
-    """The backend renders the evidence itself, so this holds whatever the model puts in its own citations."""
-    from app.rendering.render import render_claim_assessment
-    from app.retrieval.azure_search import get_retriever
-    out = render_claim_assessment(assess(SAMPLES[sid]["claim"]), get_retriever())
-    have = {c["chunk_key"].split(":", 1)[1] for c in out.citations}
-    missing = [c for c in SAMPLES[sid]["expected"].get("must_cite", []) if c not in have]
-    assert not missing, f"{sid}: {missing} not cited in the rendered answer"

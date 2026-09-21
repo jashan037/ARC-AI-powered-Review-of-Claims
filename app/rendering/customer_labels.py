@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import re
 
-from .render import Rendered
-
 # What each clause is about. Anything not listed falls back to its section (see _SECTION_NAMES).
 _CLAUSES = {
     "A.1.2 Def. 5": "Policy definition: associated medical expenses",
@@ -116,10 +114,9 @@ def customerize(text: str) -> str:
     return "```".join(_one(p, code=i % 2 == 1) for i, p in enumerate(parts))
 
 
-def customerize_rendered(r: Rendered) -> Rendered:
-    """A copy of a finished answer in customer wording. chunk_key, ids and statuses are left alone."""
-    return Rendered(
-        markdown=customerize(r.markdown),
-        summary_markdown=customerize(r.summary_markdown),
-        sections=[dict(s, **{k: customerize(s[k]) for k in ("title", "markdown") if isinstance(s.get(k), str)}) for s in r.sections],
-        citations=[dict(c, **{k: customerize(c[k]) for k in ("citation", "label", "clause", "excerpt") if isinstance(c.get(k), str)}) for c in r.citations])
+def section_name(chunk) -> str:
+    """The plain name of the policy section a passage belongs to, for the model and for the Sources list ("Policy rule: room rent")."""
+    clause = (getattr(chunk, "clause", "") or "").strip()
+    if clause.lower().startswith("annexure"):
+        return _ANNEXURES.get(clause.split()[-1].upper(), "Policy annexure")
+    return clause_name(clause) if clause else "Policy wording"

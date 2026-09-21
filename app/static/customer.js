@@ -30,7 +30,7 @@
     filesBox: $("files-box"), filesSummary: $("files-summary"), ready: $("ready"), readyText: $("ready-text"), cont: $("continue"), checklist: $("checklist"), sample: $("use-sample"),
     thread: $("thread"), form: $("composer"), q: $("chat-input"), send: $("send"), addDoc: $("add-doc"), addInput: $("add-input"), note: $("note")
   };
-  var state = { sid: null, busy: false, intake: null, checklist: null, replaceFor: null, chips: null, last: "" };
+  var state = { sid: null, busy: false, intake: null, checklist: null, replaceFor: null, last: "" };
 
   // ------------------------------------------------------------------ helpers
   function h(tag, cls, text) {
@@ -316,77 +316,15 @@
     window.scrollTo(0, 0);
   }
 
-  function withoutEvidence(md) {
-    return String(md || "").replace(/(^|\n)###\s+Evidence[^\n]*\n[\s\S]*?(?=\n>\s|\s*$)/, "$1").replace(/\n{3,}/g, "\n\n");
-  }
-
-  function refsBlock(citations) {
-    if (!citations || !citations.length) return null;
-    var box = h("div", "refs");
-    box.appendChild(h("h3", null, "Policy references"));
-    var row = h("ul", "ref-list");
-    var quotes = h("div");
-    citations.forEach(function (c, i) {
-      var chip = h("button", "ref-chip", c.label || c.citation || "Policy");
-      chip.type = "button";
-      chip.setAttribute("aria-expanded", "false");
-      chip.title = c.citation || "";
-      var q = h("blockquote", "ref-quote");
-      q.hidden = true;
-      q.id = "ref" + Date.now().toString(36) + i;
-      chip.setAttribute("aria-controls", q.id);
-      q.appendChild(h("b", null, c.citation || c.label || "Policy"));
-      if (c.excerpt) q.appendChild(h("i", null, "“" + c.excerpt + "”"));
-      chip.addEventListener("click", function () {
-        var open = q.hidden;
-        q.hidden = !open;
-        chip.setAttribute("aria-expanded", open ? "true" : "false");
-      });
-      var li = h("li");
-      li.appendChild(chip);
-      row.appendChild(li);
-      quotes.appendChild(q);
-    });
-    box.appendChild(row);
-    box.appendChild(quotes);
-    return box;
-  }
-
-  function moreBlock(data) {
-    var sections = (data.sections || []).filter(function (s) { return s && s.id !== "evidence"; });   // the policy reference chips take the place of the evidence section
-    var refs = refsBlock(data.citations);
-    if (!sections.length && !refs) return null;
-    var wrap = h("div");
-    var btn = h("button", "more-btn", "Show more");
-    btn.type = "button";
-    btn.setAttribute("aria-expanded", "false");
-    var more = h("div", "more");
-    more.hidden = true;
-    more.id = "more" + Date.now().toString(36) + Math.floor(Math.random() * 1000);
-    btn.setAttribute("aria-controls", more.id);
-    sections.forEach(function (s) {
-      var sec = h("section", "sec");
-      var head = h("h3");
-      var dot = h("span", "dot dot-" + (s.status || "info"));
-      dot.setAttribute("aria-hidden", "true");
-      head.appendChild(dot);
-      head.appendChild(h("span", null, s.title));
-      sec.appendChild(head);
-      var body = h("div", "md");
-      body.innerHTML = ARCMarkdown.render(s.markdown);
-      sec.appendChild(body);
-      more.appendChild(sec);
-    });
-    if (refs) more.appendChild(refs);
-    btn.addEventListener("click", function () {
-      var open = more.hidden;
-      more.hidden = !open;
-      btn.textContent = open ? "Show less" : "Show more";
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    });
-    wrap.appendChild(btn);
-    wrap.appendChild(more);
-    return wrap;
+  // The policy sections the assistant looked at, collapsed under the reply. No sources are shown when no policy section was used.
+  function sourcesBlock(sources) {
+    if (!sources || !sources.length) return null;
+    var d = h("details", "sources");
+    d.appendChild(h("summary", null, "Sources"));
+    var ul = h("ul");
+    sources.forEach(function (x) { ul.appendChild(h("li", null, x.title + (x.page ? ", page " + x.page : ""))); });
+    d.appendChild(ul);
+    return d;
   }
 
   function arcMessage(markdown, extra) {
@@ -396,36 +334,6 @@
     body.innerHTML = ARCMarkdown.render(markdown);
     m.appendChild(body);
     return m;
-  }
-
-  // The suggestions are the end of the conversation, so they must be fully visible above the sticky input bar (never under it).
-  // Scroll down just far enough to clear the bar. On a short screen the first lines of a long answer may scroll up out of view to make room:
-  // the answer is one swipe away, a suggestion hidden behind the bar is not.
-  function revealChips(row) {
-    var need = row.getBoundingClientRect().bottom + 12 - el.form.getBoundingClientRect().top;    // pixels of the chips under the bar or below it
-    if (need > 0) window.scrollBy(0, need);
-  }
-
-  function clearChips() {
-    if (state.chips) { state.chips.remove(); state.chips = null; }
-  }
-
-  function showChips(list) {
-    clearChips();
-    var three = (list || []).slice(0, 3);
-    if (!three.length) return;
-    var row = h("div", "chips");
-    row.setAttribute("aria-label", "Suggested questions");
-    three.forEach(function (text) {
-      var b = h("button", "chip", text);
-      b.type = "button";
-      b.disabled = state.busy;
-      b.addEventListener("click", function () { ask(text); });
-      row.appendChild(b);
-    });
-    el.thread.appendChild(row);
-    state.chips = row;
-    revealChips(row);
   }
 
   function note(text) {
@@ -451,7 +359,7 @@
 
   function answerCard(data, question) {
     var notOk = data.status && data.status !== "ok";
-    var text = typeof data.summary_markdown === "string" && data.summary_markdown.trim() ? data.summary_markdown : withoutEvidence(data.answer_markdown);
+    var text = typeof data.reply === "string" ? data.reply : "";
     var card = arcMessage(text, notOk ? " warn" : "");
     if (notOk) {
       var retry = h("button", "btn retry", "Try again");
@@ -459,7 +367,7 @@
       retry.addEventListener("click", function () { if (!state.busy) ask(question, true); });
       card.appendChild(retry);
     } else {
-      var more = moreBlock(data);
+      var more = sourcesBlock(data.sources);
       if (more) card.appendChild(more);
     }
     return card;
@@ -482,7 +390,6 @@
     question = String(question || "").trim();
     if (!question || state.busy || !state.sid) return;
     state.last = question;
-    clearChips();
     if (!isRetry) el.thread.appendChild(h("div", "msg msg-me", question));
     var wait = typing();
     el.thread.appendChild(wait);
@@ -492,9 +399,8 @@
       wait.stop();
       var card = answerCard(data, question);
       el.thread.appendChild(card);
-      card.scrollIntoView({ block: "start" });    // instant: the chips are placed against the answer's final position right after
+      card.scrollIntoView({ block: "start" });
       document.dispatchEvent(new CustomEvent("arc:answer", { detail: { data: data, card: card } }));
-      if (!data.status || data.status === "ok") showChips(data.suggestions);
     }, function (e) {
       wait.stop();
       if (isLostSession(e)) {   // the claim was kept only in the old visit: start again from the upload screen and say why
@@ -521,7 +427,6 @@
     var big = files.filter(function (f) { return f.size > MAX_BYTES; });
     files = files.filter(function (f) { return f.size <= MAX_BYTES; });
     el.note.textContent = "";
-    clearChips();
     var names = files.map(function (f) { return f.name; }).join(", ");
     var wait = note(files.length ? "Reading " + names + "…" : "");
     big.forEach(function (f) { note("We couldn't use " + f.name + ": it is larger than 5 MB."); });
@@ -544,10 +449,9 @@
       state.intake = out;
       if (out.status === "ready") {
         wait.textContent = "Added: " + added + ". I checked your claim again.";
-        var card = arcMessage(out.summary_markdown);
+        var card = arcMessage(out.first_message);
         el.thread.appendChild(card);
         card.scrollIntoView({ block: "start" });
-        showChips(out.suggestions);
       } else {
         wait.textContent = "Added: " + added + ". Something needs a look before I can go on.";
         backToUpload();
@@ -591,14 +495,12 @@
     var out = state.intake;
     if (!out || out.status !== "ready" || state.busy) return;
     el.thread.textContent = "";
-    enterChat();                                   // show the chat screen first: the chips are placed by measuring it
-    el.thread.appendChild(arcMessage(out.summary_markdown));
-    showChips(out.suggestions);
+    enterChat();
+    el.thread.appendChild(arcMessage(out.first_message));
   });
   el.form.addEventListener("submit", function (e) { e.preventDefault(); var q = el.q.value; if (!q.trim() || state.busy) return; el.q.value = ""; el.q.style.height = ""; ask(q); });
   el.q.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); el.form.requestSubmit(); } });
-  el.q.addEventListener("input", function () { el.q.style.height = "auto"; el.q.style.height = Math.min(el.q.scrollHeight, 128) + "px"; if (state.chips) revealChips(state.chips); });
-  window.addEventListener("resize", function () { if (state.chips && !el.chat.hidden) revealChips(state.chips); });
+  el.q.addEventListener("input", function () { el.q.style.height = "auto"; el.q.style.height = Math.min(el.q.scrollHeight, 128) + "px"; });
   el.addDoc.addEventListener("click", function () { if (!state.busy) el.addInput.click(); });
   el.addInput.addEventListener("change", function () { addDocuments(el.addInput.files); el.addInput.value = ""; });
 

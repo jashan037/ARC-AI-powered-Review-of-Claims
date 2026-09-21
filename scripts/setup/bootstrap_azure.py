@@ -228,12 +228,12 @@ def smoke_test() -> bool:
     from app.agent.runner import FoundryAgent   # imported late so the env vars above are respected
     samples = json.load(open(ROOT / "data" / "sample_claims.json", encoding="utf-8"))
     session = {"claim": samples["TC07"]["claim"], "uin": samples["TC07"]["claim"]["policy_uin"], "history": []}
-    res = FoundryAgent().ask(session, "Assess this claim")
-    ok = res.answer_type == "claim_assessment" and "₹1,22,125" in res.markdown and "₹1,01,625" in res.markdown
+    res = FoundryAgent().ask(session, "How much will be paid?")
+    ok = res.status == "ok" and "1,22,125" in res.reply and "1,01,625" in res.reply
     print(f"  tools used: {' > '.join(t['tool'] for t in res.trace)}")
-    print("  " + ("PASS: formatted assessment with ₹1,22,125 and ₹1,01,625" if ok else "FAIL: unexpected answer, first lines below"))
+    print("  " + ("PASS: the reply states ₹1,22,125 and ₹1,01,625" if ok else "FAIL: unexpected answer, shown below"))
     if not ok:
-        print("\n".join(res.markdown.splitlines()[:25]))
+        print(res.reply[:1500])
     return ok
 
 

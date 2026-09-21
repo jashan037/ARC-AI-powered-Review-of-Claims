@@ -36,12 +36,11 @@ def test_sample_documents_then_intake_then_chat():
     out = client.post(f"/sessions/{sid}/intake").json()
     assert out["status"] == "ready" and out["reasons"] == [] and out["missing"] == ["The doctor's prescription for your pharmacy bills"]
     assert out["claim"]["insured"] == "Rohan Verma" and out["claim"]["plan"] == "Optima Lite" and "claim_id" in out["claim"]
-    assert "Still needed" in out["summary_markdown"] and out["suggestions"] == ["How much will be paid?", "Why was my room rent reduced?", "What documents are missing?"]
+    assert "Still needed" in out["first_message"] and "suggestions" not in out and "summary_markdown" not in out
     assert "bill_lines" not in json.dumps(out) and "documents_data" not in json.dumps(out)              # the customer never gets the raw claim back
 
     chat = client.post(f"/sessions/{sid}/chat", json={"message": "How much will be paid?"}).json()      # the intake loaded the claim into the session
-    assert chat["answer_type"] == "claim_assessment" and "₹1,22,125" in chat["summary_markdown"] and "₹1,01,625" in chat["summary_markdown"]
-    assert chat["suggestions"] and "How much will be paid?" not in chat["suggestions"] and len(chat["suggestions"]) <= 3
+    assert set(chat) == {"status", "reply", "sources"} and "₹1,22,125" in chat["reply"] and "₹1,01,625" in chat["reply"]
 
 
 def test_uploading_files_works_the_same_as_the_sample_button():
@@ -59,9 +58,9 @@ def test_adding_the_prescription_updates_the_claim_and_the_chat_uses_it():
     added = upload(sid, [("prescription.pdf", rx)]).json()
     assert added["files"][0]["type"] == "prescription" and all(c["state"] == "received" for c in added["checklist"])
     out = client.post(f"/sessions/{sid}/intake").json()
-    assert out["status"] == "ready" and out["missing"] == [] and "All the documents we asked for are here." in out["summary_markdown"]
+    assert out["status"] == "ready" and out["missing"] == [] and "All the documents we asked for are here." in out["first_message"]
     chat = client.post(f"/sessions/{sid}/chat", json={"message": "How much will be paid?"}).json()
-    assert "₹1,22,125" in chat["summary_markdown"] and "held until it arrives" not in chat["summary_markdown"]
+    assert "₹1,22,125" in chat["reply"]
 
 
 # ---------------------------------------------------------------- needs_attention
@@ -147,40 +146,11 @@ def test_a_new_visit_says_the_server_supports_intake():
     assert body["intake"] is True and set(body) == {"session_id", "intake"}          # the page uses this to notice an older server
 
 
-def test_the_audience_must_be_officer_or_customer():
-    assert client.post("/sessions", json={"audience": "hacker"}).status_code == 422
-    assert client.post("/sessions").status_code == 200                                              # the officer page creates sessions with no body
-
 
 # ---------------------------------------------------------------- the customer hears customer wording; the officer keeps the officer wording
 def chat(sid, msg="How much will be paid?"):
     return client.post(f"/sessions/{sid}/chat", json={"message": msg}).json()
 
-
-def test_customer_summary_uses_customer_wording():
-    sid = new_session("customer")
-    client.post(f"/sessions/{sid}/documents/sample")
-    client.post(f"/sessions/{sid}/intake")
-    s = chat(sid)["summary_markdown"]
-    assert "Likely eligible once your documents are complete" in s and "Please send the missing prescription." in s
-    assert "Room rent above your plan's limit: −₹49,875" in s and "held until it arrives" in s and "non-medical items your policy doesn't cover: −₹12,500" in s
-    for officer_only in ("The officer decides", "Annexure B", "Request the prescription", "on hold", "subject to human review"):
-        assert officer_only not in s, officer_only
-
-
-def test_officer_summary_is_unchanged():
-    sid = new_session("officer")
-    client.post(f"/sessions/{sid}/documents/sample")
-    client.post(f"/sessions/{sid}/intake")
-    s = chat(sid)["summary_markdown"]
-    assert "The officer decides." in s and "Request the prescription" in s and "Likely eligible — pending documents, subject to human review" in s and "(Annexure B)" in s
-
-
-def test_customer_wording_for_a_claim_that_is_not_payable_never_mentions_rejection():
-    sid = new_session("customer")
-    main.SESSIONS[sid]["claim"] = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))["TC02"]["claim"]
-    s = chat(sid, "assess this claim")["summary_markdown"]
-    assert "A claims officer will confirm this before any decision is made." in s and "communicating a rejection" not in s and "Likely not payable — a claims officer will confirm" in s
 
 
 # ---------------------------------------------------------------- privacy

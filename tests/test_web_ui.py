@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.config import ROOT
-from app.tools.registry import TOOL_NAMES, trace_summary
 
 STATIC = ROOT / "app" / "static"
 client = TestClient(main.app, raise_server_exceptions=False)
@@ -64,48 +63,6 @@ def test_the_brand_colours_are_used():
 def test_the_api_still_answers_json_errors_next_to_the_page():
     assert client.get("/health").json()["status"] == "ok"
     assert client.get("/nope").json()["error"]["code"] == "http_404"
-
-
-# ---------------------------------------------------------------- the sanitized trace
-def debug_on(monkeypatch):
-    import dataclasses
-    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, debug_trace=True))
-
-
-def _chat(message):
-    sid = client.post("/sessions").json()["session_id"]
-    client.post(f"/sessions/{sid}/claim", json={"sample_id": "TC07"})
-    return client.post(f"/sessions/{sid}/chat", json={"message": message}).json()
-
-
-def test_with_debug_trace_the_chat_response_has_a_trace_summary_with_only_tool_ok_and_ms(monkeypatch):
-    debug_on(monkeypatch)
-    body = _chat("Please assess this claim")
-    steps = body["trace_summary"]
-    assert steps and all(set(s) == {"tool", "ok", "ms"} for s in steps)
-    assert all(s["tool"] in TOOL_NAMES and isinstance(s["ok"], bool) and isinstance(s["ms"], int) for s in steps)
-    assert steps[0]["tool"] == "assess_claim"
-
-
-def test_trace_summary_never_contains_argument_values(monkeypatch):
-    debug_on(monkeypatch)
-    body = _chat("Assess it, what if the room rent was 5,000 per day")
-    raw = json.dumps(body["tool_trace"])
-    assert "room_rate_per_day" in raw and "5000" in raw                              # the raw developer trace does carry the arguments ...
-    shown = json.dumps(body["trace_summary"])
-    for value in ("room_rate_per_day", "5000", "what_if", "args", "arguments"):
-        assert value not in shown, value                                             # ... and the sanitized field never does
-
-
-def test_trace_summary_drops_everything_but_the_three_fields_even_for_hostile_input():
-    hostile = [dict(tool="assess_claim", args={"diagnosis": "SECRET-DIAGNOSIS"}, ok=True, ms=812, problems=["SECRET-PROBLEM"], result="SECRET-RESULT"),
-               dict(tool="evil<script>alert(1)</script>", args={"x": "SECRET-ARG"}, ok=False, ms="812"),
-               dict(tool="final_answer", ok=1, ms=True), dict(tool="search_policy", ok=False), {}]
-    out = trace_summary(hostile)
-    assert out == [dict(tool="assess_claim", ok=True, ms=812), dict(tool="other", ok=False, ms=None), dict(tool="final_answer", ok=True, ms=None),
-                   dict(tool="search_policy", ok=False, ms=None), dict(tool="other", ok=False, ms=None)]
-    assert "SECRET" not in json.dumps(out) and "script" not in json.dumps(out)
-    assert trace_summary(None) == [] and trace_summary([]) == []
 
 
 # ---------------------------------------------------------------- the markdown renderer (run under Node)
@@ -172,19 +129,6 @@ def test_markdown_cannot_inject_markup():
     escaped = render_all(["<script>alert(1)</script>"])[0]
     assert escaped == "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"             # shown to the reader as text
     assert render_all(["&lt;b&gt;"])[0] == "<p>&amp;lt;b&amp;gt;</p>"             # already-escaped input is escaped again, never decoded
-
-
-@needs_node
-def test_every_saved_example_answer_renders_cleanly():
-    files = sorted((ROOT / "demo" / "examples").glob("*.md"))
-    assert len(files) == 19
-    for f, html in zip(files, render_all([p.read_text(encoding="utf-8") for p in files])):
-        assert "<script" not in html and "```" not in html, f.name                       # fences are consumed
-        assert "**" not in re.sub(r"<pre.*?</pre>", "", html, flags=re.S), f.name        # no unconverted bold left outside code blocks
-        assert html.startswith("<h2>"), f.name
-    claim = render_all([(ROOT / "demo" / "examples" / "TC07_demo_claim_prescription_missing.md").read_text(encoding="utf-8")])[0]
-    assert '<pre class="md-code">' in claim and "₹1,22,125" in claim and "₹1,01,625" in claim and "<table>" in claim and "<blockquote>" in claim
-    assert "🟢" in claim and "<h3>Recommendation</h3>" in claim
 
 
 def test_health_says_whether_the_real_agent_is_answering(monkeypatch):

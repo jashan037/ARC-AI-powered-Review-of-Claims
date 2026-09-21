@@ -54,34 +54,3 @@ def scrub(text: str) -> str:
     out = re.sub(r"\b(the|a|an|of|to|for) \1\b", r"\1", out, flags=re.I)   # "the the" left by a replacement
     out = re.sub(r"\s{2,}", " ", out).strip(" ,;:")
     return out
-
-
-def officer_texts(final: dict) -> list[tuple[str, str]]:
-    """(where, text) for every string of a final_answer that the officer reads. Citations are not among them."""
-    out = [("headline", final.get("headline") or ""), ("reply", final.get("reply") or "")]
-    for i, p in enumerate(final.get("points") or [], 1):
-        out += [(f"point {i} label", p.get("label") or ""), (f"point {i} detail", p.get("detail") or "")]
-    out += [(f"next_steps[{i}]", s) for i, s in enumerate(final.get("next_steps") or [], 1)]
-    out += [(f"caveats[{i}]", s) for i, s in enumerate(final.get("caveats") or [], 1)]
-    return out
-
-
-def scrub_final(final: dict) -> dict:
-    """A copy of final with internal terms removed from everything the officer reads. Empty next steps, caveats and points are dropped."""
-    f = dict(final)
-    if "headline" in f:
-        f["headline"] = scrub(f["headline"]) or "See the details below."
-    if "reply" in f:
-        f["reply"] = scrub(f["reply"]) or "I couldn't confirm that from your documents."
-    points = []
-    for p in f.get("points") or []:
-        q = dict(p, label=scrub(p.get("label") or ""), detail=scrub(p.get("detail") or ""))
-        if q["label"] or q["detail"]:
-            q["label"] = q["label"] or q["detail"][:60]
-            points.append(q)
-    if "points" in f:
-        f["points"] = points
-    for key in ("next_steps", "caveats"):
-        if key in f:
-            f[key] = [s for s in (scrub(x) for x in f[key] or []) if s]
-    return f
