@@ -33,7 +33,8 @@ def claim_facts(claim: dict) -> dict:
     base = claim.get("base_si_lakh")
     c = lambda k: clean(claim.get(k)) or None   # noqa: E731 - text from the customer's documents: one line, no control characters, capped
     return dict(claim_id=c("claim_id"), insured=c("insured_name"), plan=claim.get("plan"),
+                policy_started=_when(claim.get("first_policy_inception")), policy_started_yyyy_mm_dd=claim.get("first_policy_inception"),
                 sum_insured=inr(base * 100000) if base else None, policy_number=c("policy_number"), policy_uin=claim.get("policy_uin"),
                 hospital=c("hospital"), diagnosis=c("diagnosis"), procedure=c("procedure"),
-                admitted=_when(claim.get("admission_datetime")), discharged=_when(claim.get("discharge_datetime")), days_in_hospital=stay_days(claim),
+                admitted=_when(claim.get("admission_datetime")), admitted_yyyy_mm_dd=(claim.get("admission_datetime") or "")[:10] or None, discharged=_when(claim.get("discharge_datetime")), days_in_hospital=stay_days(claim),
                 claimed_amount=inr(claim["claimed_amount"]) if claim.get("claimed_amount") else None)
