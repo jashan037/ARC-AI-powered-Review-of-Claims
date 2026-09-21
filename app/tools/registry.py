@@ -55,6 +55,7 @@ class TurnContext:
     type_rejected: bool = False             # a customer's documents_answer or deduction_explanation is sent back once, to become a direct_answer
     figures_rejected: bool = False          # a payment answer with no figure in it is sent back once
     policy_rejected: bool = False           # a policy question answered as a direct_answer is sent back once
+    exception_rejected: bool = False        # a coverage or waiting-period answer that leaves out the exception its own cited passage states is sent back once
     reason_rejected: bool = False           # an amount without the reason behind it is sent back once; after that the reason is added in code
     prerun: str = ""                        # "assess" or "search": what the code ran before the model's first call (see runner.py)
     number_rejected: bool = False           # the number guard asks for a rewrite once
@@ -349,6 +350,24 @@ def _allowed_numbers(ctx: TurnContext) -> dict:
     return allowed_from(ctx.tool_outputs + [ctx.question] + args)
 
 
+_EXC = re.compile(r"(?:\bexcept(?:\s+for)?|\bnot\s+(?:be\s+)?applicable\s+(?:for|to))\s+([^.;:]{3,90})", re.I)
+_EXC_STOP = {"claims", "arising", "provided", "covered", "treatment", "policy", "which", "under", "where", "being", "cover", "those", "their", "there", "these", "shall", "made", "such", "with"}
+
+
+def missing_exception(a: dict, ctx: TurnContext) -> str | None:
+    """The first exception (\"except claims arising due to an Accident\") stated by a passage the answer cites, when the answer never mentions what the exception is about. None if all is said."""
+    said = " ".join([a.get("headline") or ""] + [f"{p.get('label', '')} {p.get('detail', '')}" for p in a.get("points") or []] + list(a.get("caveats") or []) + list(a.get("next_steps") or [])).lower()
+    keys = list(a.get("citations") or []) + [c for p in a.get("points") or [] for c in p.get("citations") or []]
+    for key in dict.fromkeys(keys):
+        chunk = ctx.seen.get(key)
+        if not chunk or not (m := _EXC.search(chunk.text)):
+            continue
+        words = [w for w in re.findall(r"[a-z]{5,}", m.group(1).lower()) if w not in _EXC_STOP]
+        if words and not any(w in said for w in words):
+            return re.sub(r"\s+", " ", m.group(0)).strip()[:110]
+    return None
+
+
 def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
     """The rules of a direct_answer: short, a list only for three or more items, known details that have something to show, and only numbers the tools returned."""
     errs, reply = [], (a.get("reply") or "").strip()
@@ -400,12 +419,15 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
         errs.append("headline must be under 500 characters.")
     rid = a.get("result_id")
     claim_rids = [k for k, r in ctx.results.items() if r["kind"] == "claim"]
-    if ctx.session.get("audience") == "customer" and t in ("documents_answer", "deduction_explanation") and not ctx.type_rejected:
+    topic_only = t == "claim_assessment" and focus_for(ctx.question) in _REASON and not re.search(r"how much|assess|what did you find|will be paid|estimate|overall", ctx.question, re.I)
+    if ctx.session.get("audience") == "customer" and (t in ("documents_answer", "deduction_explanation") or topic_only) and not ctx.type_rejected:
         errs.append("Customer answer type: a customer's question about one payment topic or about documents gets answer_type direct_answer. Write reply (at most 4 sentences and about 80 words, "
                     "with the figures from assess_claim) and details (documents_checklist, room_working, non_medical_list, estimate_breakdown), and call final_answer again.")
     if ctx.session.get("audience") == "customer" and t == "direct_answer" and policy_kind(ctx.question) in ("coverage", "definition") and not ctx.policy_rejected:
         errs.append("Policy question: this asks what the policy wording says, not about the customer's own claim. Answer with coverage_answer (a verdict, points and citations), "
                     "waiting_period_answer or definition_answer, using the policy passages and their chunk_keys, not with direct_answer.")
+    if ctx.session.get("audience") == "customer" and t in ("coverage_answer", "waiting_period_answer") and not ctx.exception_rejected and (exc := missing_exception(a, ctx)):
+        errs.append(f"Exception: the passage you cite says \"{exc}\". A customer must not be told the rule without its exception. Say it in the headline or in a point, in plain words.")
     if ctx.plain and t not in ("general_answer", "direct_answer") and not ctx.plain_rejected:
         errs.append("This is a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods or documents. "
                     "Do not assess the claim and do not use a longer answer type. Answer with answer_type general_answer: one short sentence, no points, no citations. "
@@ -510,7 +532,9 @@ def _final(a: dict, ctx: TurnContext) -> dict:
     if ctx.session.get("audience") == "customer" and ctx.voice_rejected and voice_problems(a):
         a = _strip_voice(a)
     if a.get("answer_type") == "direct_answer":
-        a = dict(a, reply=reformat_amounts(a.get("reply") or ""))   # ₹1,22,125, never 122125.0; the value is the same, so the number guard is unaffected
+        a = dict(a, reply=re.sub(r"\b([a-z]+)_([a-z]+)\b", r"\1 \2", reformat_amounts(a.get("reply") or "")))   # a status code copied from a tool ("not_applicable") is written as words
+        if "policy_reference" in (a.get("details") or []) and not a.get("citations"):
+            a = dict(a, details=[d for d in a["details"] if d != "policy_reference"])         # nothing to show under it: dropped, not a reason to ask again   # ₹1,22,125, never 122125.0; the value is the same, so the number guard is unaffected
         if ctx.number_rejected:
             a = _drop_unverified_numbers(a, ctx)
     errs = validate_final(a, ctx)
@@ -524,6 +548,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         ctx.length_caps_rejected = True         # once: the officer's view shows the top three points either way
     if any(e.startswith("This is a plain question") for e in errs):
         ctx.plain_rejected = True               # once; a persistent fact question is then answered from the claim itself (see the top of this function)
+    if any(e.startswith("Exception:") for e in errs):
+        ctx.exception_rejected = True
     if any(e.startswith("Policy question:") for e in errs):
         ctx.policy_rejected = True
     if any(e.startswith("Give the reason:") for e in errs):
@@ -547,6 +573,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         a["caveats"] = list(a.get("caveats") or []) + ["Some citations could not be verified and were removed. Treat this answer with extra care."]
     if a.get("answer_type") == "direct_answer" and ctx.reason_rejected:
         a = _ensure_reason(a, ctx)
+    if ctx.session.get("audience") == "customer" and ctx.exception_rejected and a.get("answer_type") in ("coverage_answer", "waiting_period_answer") and (exc := missing_exception(a, ctx)):
+        a = dict(a, caveats=list(a.get("caveats") or []) + [f"The wording makes an exception: {exc}."])   # asked once and still missing: the passage's own words are added
     ctx.final = a
     return {"status": "accepted"}
 

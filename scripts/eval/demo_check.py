@@ -50,6 +50,32 @@ STEPS = [
 ]
 
 
+CUSTOMER_STEPS = ["P01", "P02", "D01", "P03", "F01", "C02"]      # ids of scripts/eval/quality_suite.py: how much, why the room rent, what is missing, not payable, a fact, a policy question
+
+
+def customer_demo() -> int:
+    """The customer page's demo in the current answer format (direct answers, plain names, no officer wording), each question checked by the quality suite's expectations."""
+    if settings.agent_mode != "foundry" or settings.retriever != "azure":
+        sys.exit("Run against the real agent with  RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py --customer")
+    import quality_suite as Q       # the sibling script: its checks and its 40 hand-derived expectations
+    from app.observability import configure_logging
+    configure_logging()
+    Q.counted_search()
+    cases = {c["id"]: c for c in Q.build_cases()}
+    agent, bad, total = get_agent(), 0, 0.0
+    for n, cid_ in enumerate(CUSTOMER_STEPS, 1):
+        r = Q.run_case(cases[cid_], 1, agent)
+        t = r["turns"][-1] if r["turns"] else {}
+        total += r["secs"]
+        bad += not r["ok"]
+        print(f"Step {n}  {'PASS' if r['ok'] else 'FAIL'}  {r['secs']:4.0f}s  {t.get('type', '-'):18} {' > '.join(t.get('tools', [])) or '(answered in code)'}\n        \"{cases[cid_]['turns'][-1][:90]}\"")
+        print(f"        {(t.get('summary') or '').strip()[:160]!r}")
+        for f in r["fails"]:
+            print(f"        - {f}")
+    print(f"\n{len(CUSTOMER_STEPS) - bad}/{len(CUSTOMER_STEPS)} customer steps passed. Agent time in total: {total:.0f}s.")
+    return 1 if bad else 0
+
+
 def cid(key: str) -> str:
     return key.split(":", 1)[1] if ":" in key else key
 
@@ -57,7 +83,10 @@ def cid(key: str) -> str:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--show", type=int, action="append", default=[], help="print the full answer of this step number (repeatable)")
+    ap.add_argument("--customer", action="store_true", help="replay the customer demo (sample documents, then the suggested questions) in the customer answer format, with the quality suite's checks")
     args = ap.parse_args()
+    if args.customer:
+        sys.exit(customer_demo())
     if settings.agent_mode != "foundry" or settings.retriever != "azure":
         sys.exit("Run against the real agent with  RETRIEVER=azure AGENT_MODE=foundry python scripts/eval/demo_check.py")
     from app.observability import configure_logging

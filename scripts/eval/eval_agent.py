@@ -108,8 +108,8 @@ QUESTIONS = [
     dict(id="P10", msg="what's the weather", must_not=[r"°|degrees|sunny|rainy|forecast"], **{"plain": True}),
 ]
 for _q in QUESTIONS:
-    if _q.get("plain"):
-        _q.update(claim="DEMO_DOCS", types=["general_answer"])
+    if _q.get("plain"):     # a customer's plain question is answered in code (or by the model) as a direct_answer; general_answer is the officer's type
+        _q.update(claim="DEMO_DOCS", types=["direct_answer", "general_answer"])
 
 
 # ---------------------------------------------------------------------------------------------------------------

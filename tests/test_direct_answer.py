@@ -82,8 +82,8 @@ def test_a_list_of_three_is_allowed():
 def test_details_need_the_tool_result_they_are_built_from():
     _, model = run([[("final_answer", direct("Here it is.", details=["room_working"]))], [("assess_claim", {})], [("final_answer", direct("Your room rent was reduced by ₹12,000 because the room cost more than your plan's daily limit.", details=["room_working"]))]], "why was my room rent reduced")
     assert "needs assess_claim" in model.outputs[0]["problems"][0]
-    _, model = run([[("final_answer", direct("Here it is.", details=["policy_reference"]))], [("final_answer", direct("Here it is."))]], "hello")
-    assert "needs citations" in model.outputs[0]["problems"][0]
+    res, _ = run([[("final_answer", direct("Here it is.", details=["policy_reference"]))]], "hello")      # nothing to show under it: dropped in code, no second round trip
+    assert res.status == "ok" and [t["ok"] for t in res.trace] == [True] and not [s for s in res.sections if s["id"] != "evidence"]
     _, model = run([[("final_answer", direct("Here it is.", details=["bogus"]))], [("final_answer", direct("Here it is."))]], "hello")
     assert "Unknown details" in model.outputs[0]["problems"][0]
 

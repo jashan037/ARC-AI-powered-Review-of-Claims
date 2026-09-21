@@ -8,7 +8,7 @@ import pytest
 from app.agent.runner import FoundryAgent
 from app.tools.registry import customer_facts
 from app.tools.routing import claim_related, policy_kind
-from tests.test_direct_answer import direct
+from tests.test_direct_answer import direct, run
 from tests.test_plain_questions import Script, agent, customer_session, ctx_for
 
 
@@ -73,7 +73,7 @@ def test_the_model_can_answer_a_claim_assessment_with_the_result_id_from_the_inp
 def test_a_policy_question_gets_the_policy_passages_before_the_first_model_call():
     def final(m):
         key = re.search(r'"chunk_key":"([^"]+)"', m.inputs[0]).group(1)
-        return {"answer_type": "coverage_answer", "headline": "Maternity has conditions.", "verdict": "covered_with_conditions", "citations": [key],
+        return {"answer_type": "coverage_answer", "headline": "Maternity has conditions; ectopic pregnancy and accidents are the exceptions.", "verdict": "covered_with_conditions", "citations": [key],
                 "points": [dict(label="Rule", status="info", detail="See the passage.", citations=[key])]}
     import re
     model = Recorder(final)
@@ -186,3 +186,55 @@ def test_a_policy_question_answered_as_a_direct_answer_is_sent_back_once():
 def test_a_document_list_question_may_still_be_a_direct_answer():
     res = agent(Script([[("final_answer", direct("You need the claim form, photo ID and the discharge summary."))]])).ask(customer_session(), "Which documents do I need for a reimbursement claim?")
     assert res.answer_type == "direct_answer" and [t["ok"] for t in res.trace] == [True]
+
+
+# ---------------------------------------------------------------- the exception a cited passage states, a follow-up that is not a full assessment, tidy-ups
+def coverage(headline, key):
+    return {"answer_type": "coverage_answer", "headline": headline, "verdict": "covered_with_conditions", "citations": [key],
+            "points": [dict(label="Rule", status="info", detail="See the wording.", citations=[key])]}
+
+
+def test_a_waiting_period_answer_that_leaves_out_the_exception_of_its_passage_is_sent_back_once():
+    key = "optima-secure-v062425:C1-b"
+    model = Script([[("get_clause", {"clause_ref": "C.1.b"})], [("final_answer", coverage("A 24-month waiting period applies.", key))],
+                    [("final_answer", coverage("A 24-month waiting period applies, but not after an accident.", key))]])
+    res = agent(model).ask(customer_session(), "Is there a waiting period for knee replacement?")
+    assert [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [False, True] and model.outputs[1]["problems"][0].startswith("Exception:")
+    assert "applicable for claims arising due to an" in model.outputs[1]["problems"][0].replace("\n", " ") or "claims arising" in model.outputs[1]["problems"][0]
+
+
+def test_if_the_model_still_leaves_the_exception_out_the_wording_of_the_passage_is_added():
+    key = "optima-secure-v062425:C1-b"
+    again = lambda m: coverage("A 24-month waiting period applies.", key)   # noqa: E731
+    res = agent(Script([[("get_clause", {"clause_ref": "C.1.b"})], [("final_answer", again)], [("final_answer", again)]])).ask(customer_session(), "Is there a waiting period for knee replacement?")
+    shown = res.summary_markdown + "".join(s["markdown"] for s in res.sections)
+    assert res.status == "ok" and "makes an exception" in shown and "ccident" in shown
+
+
+def test_an_answer_that_states_the_exception_is_accepted_at_once():
+    key = "optima-secure-v062425:C1-b"
+    res = agent(Script([[("get_clause", {"clause_ref": "C.1.b"})], [("final_answer", coverage("A 24-month waiting period applies, except after an accident.", key))]])).ask(customer_session(), "Is there a waiting period?")
+    assert [t["ok"] for t in res.trace] == [True, True]
+
+
+def test_the_exception_rule_is_for_customers_only():
+    key = "optima-secure-v062425:C1-b"
+    s = dict(customer_session(), audience="officer")
+    res = agent(Script([[("get_clause", {"clause_ref": "C.1.b"})], [("final_answer", coverage("A 24-month waiting period applies.", key))]])).ask(s, "Is there a waiting period?")
+    assert [t["ok"] for t in res.trace] == [True, True]
+
+
+def test_a_follow_up_about_one_topic_is_not_answered_with_the_full_assessment():
+    full = lambda m: {"answer_type": "claim_assessment", "headline": "x", "result_id": m.rid}   # noqa: E731
+    good = direct("Your doctor fees were reduced by ₹37,875 because the room-rent proportion of 62.5% also applies to them.", details=["room_working"])
+    model = Script([[("assess_claim", {})], [("final_answer", full)], [("final_answer", good)]])
+    res = agent(model).ask(customer_session(), "and what about the doctor fees?")
+    assert res.answer_type == "direct_answer" and model.outputs[1]["problems"][0].startswith("Customer answer type:")
+    for question in ("How much will be paid?", "What did you find on my claim?"):
+        res = agent(Script([[("assess_claim", {})], [("final_answer", full)]])).ask(customer_session(), question)
+        assert res.answer_type == "claim_assessment" and [t["ok"] for t in res.trace] == [True, True]
+
+
+def test_a_status_code_copied_from_a_tool_is_written_as_words():
+    res, _ = run([[("assess_claim", {})], [("final_answer", direct("Your waiting periods are not_applicable and 12 items are not payable."))]], "Has the waiting period been served?")
+    assert res.summary_markdown == "Your waiting periods are not applicable and 12 items are not payable."

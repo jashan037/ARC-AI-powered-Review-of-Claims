@@ -94,7 +94,7 @@ def test_a_customer_policy_answer_has_no_code_labels(message):
 
 
 def test_a_scripted_coverage_and_waiting_answer_has_no_code_labels():
-    coverage = {"answer_type": "coverage_answer", "headline": "Covered with conditions (Excl02, see C.1.b).", "verdict": "covered_with_conditions",
+    coverage = {"answer_type": "coverage_answer", "headline": "Covered with conditions (Excl02, see C.1.b; accidents are excepted).", "verdict": "covered_with_conditions",
                 "points": [dict(label="Waiting period", status="warning", detail="24 months under Excl02, Annexure B not relevant, Def. 30", citations=[])]}
     chunk = "optima-secure-v062425:C1-b"
     coverage["points"][0]["citations"] = [chunk]

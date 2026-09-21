@@ -113,8 +113,9 @@ def build_cases() -> list[dict]:
         dict(id="C06", cat="coverage", turns=["What does room rent mean?"], types=["definition_answer"], any=[[r"room", r"bed", r"boarding", r"accommodation"]], tools_any=["search_policy", "get_clause"], max_words=150),
         dict(id="C07", cat="coverage", turns=["My policy started on 1 March 2025 and I was admitted on 15 July 2026 for cataract surgery. Has the waiting period been served?"], types=["waiting_period_answer", "direct_answer"],
              contain=[r"1 Mar(?:ch)?,? 2027"], tools_any=["check_waiting_period"], max_words=150),
+        # C08: "not applicable" was added to the phrase list after the v14 pass: it is a correct answer and my list only had "not apply" (disclosed in the report)
         dict(id="C08", cat="coverage", turns=["Has the waiting period been served for my claim?"], types=["waiting_period_answer", "direct_answer", "claim_assessment"],
-             any=[[r"served", r"satisf", r"complet", r"does not apply", r"not apply", r"no waiting", r"passed", r"\b17 months\b", r"544"]], must_not=[r"not yet served", r"not been served"], tools_any=["assess_claim", "check_waiting_period"], max_words=150),
+             any=[[r"served", r"satisf", r"complet", r"does not apply", r"not apply", r"not applicable", r"no waiting", r"passed", r"\b17 months\b", r"544"]], must_not=[r"not yet served", r"not been served"], tools_any=["assess_claim", "check_waiting_period"], max_words=150),
         # ---- 4 documents
         dict(id="D01", cat="documents", turns=["What documents are missing?"], types=["direct_answer"], contain=[r"prescription"], max_words=90, tools_any=["assess_claim"]),
         dict(id="D02", cat="documents", turns=["What should I send next?"], types=["direct_answer", "documents_answer", "claim_assessment"], contain=[r"prescription"], tools_any=["assess_claim"]),
