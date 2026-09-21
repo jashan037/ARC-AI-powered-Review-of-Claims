@@ -199,3 +199,10 @@ def test_a_sentence_about_another_date_is_judged_against_that_date_not_the_admis
     assert "verdict" in kinds("Your policy was not in force on 10 Sep 2025.", q)                                                 # wrong for the admission date
     fixed = fix_reply("Yes, your policy was in force on 20 April 2026.", ctx_for(q))
     assert "Your policy was not in force on that date (20 Apr 2026)" in fixed
+
+
+def test_a_date_the_customer_did_not_ask_about_is_never_judged_as_a_query_date():
+    """Found by the accuracy suite: 'first started on 15 Mar 2024' was rewritten as 'your policy was not in force on 15 Mar 2024'."""
+    ctx = ctx_for("is there a 30 day waiting period?")
+    text = "Your policy started on 15 Mar 2024 and the renewal began on 15 Mar 2026, so the 30-day rule does not apply."
+    assert "verdict" not in [k for k, _ in check_reply(text, ctx)] and fix_reply(text, ctx).startswith("Your policy started on 15 Mar 2024")

@@ -96,8 +96,9 @@ def _date_truth(sentence: str, ctx):
         return None
     r = res["policy_in_force"]
     skip = {tuple(int(x) for x in r[k].split("-")) for k in ("admission_date", "period_start", "period_end")}     # the admission date and the period's own ends are not "another date"
+    asked = {k for k, _ in scan(ctx.question)["dates"] if k[0]}                                                   # only a date the CUSTOMER asked about is judged (not the first inception or a renewal start)
     for (y, m, d), _raw in scan(sentence)["dates"]:
-        if y and (y, m, d) not in skip and 1990 < y < 2100:
+        if y and (y, m, d) not in skip and (y, m, d) in asked and 1990 < y < 2100:
             try:
                 other = E.policy_in_force(dict(policy_period=[r["period_start"], r["period_end"]], admission_datetime=f"{y:04d}-{m:02d}-{d:02d}T00:00"))
             except ValueError:

@@ -49,7 +49,7 @@ _PAYMENT_Q = re.compile(r"\bhow much\b.*\b(?:paid|pay|get|receive|payment|claim)
 def _required(ctx: TurnContext) -> list[tuple[float, str]]:
     """Figures a reply must state, each with the sentence built in code that supplies it: both payment figures when something is held; the changed bill of a what-if; the cover left."""
     res, out = ctx.results.get("assessment"), []
-    if res and _PAYMENT_Q.search(ctx.question) and res["amounts"]["held_pending"]:
+    if res and (_PAYMENT_Q.search(ctx.question) or res.get("what_if")) and res["amounts"]["held_pending"]:
         est, now = res["amounts"]["estimated_payable_if_docs_supplied"], res["amounts"]["payable_confirmed_now"]
         both = f"About {inr(est)} once your documents arrive; {inr(now)} is counted so far."
         out += [(est, both), (now, both)]
