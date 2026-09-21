@@ -105,7 +105,7 @@ async def validation_error(_: Request, exc: RequestValidationError):
 @app.exception_handler(Exception)
 async def unexpected_error(request: Request, exc: Exception):
     log.error("unhandled_error", extra={"fields": dict(path=request.url.path, error=type(exc).__name__)})   # class name only, no trace, no data
-    return JSONResponse(_error_body("internal_error", "Something went wrong on our side. Please try again; if it keeps happening, contact your administrator."), status_code=500)
+    return JSONResponse(_error_body("internal_error", "Something went wrong on our side, and nothing was changed. Please try again in a moment."), status_code=500)
 
 SESSIONS: dict[str, dict] = {}
 
@@ -157,6 +157,32 @@ async def guard_every_request(request: Request, call_next):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+_READY: dict = {"at": 0.0, "body": None}
+
+
+@app.get("/ready")
+async def ready():
+    """Whether the app can reach what it needs. Two booleans and a word: never a URL, a key, an endpoint or an exception message.
+    The answer is cached for 30 seconds so this route cannot be used to hammer Azure."""
+    now = time.monotonic()
+    if _READY["body"] is not None and now - _READY["at"] < 30:
+        return _READY["body"]
+    out = {"retrieval": False, "assistant": False}
+    try:
+        from .retrieval.azure_search import get_retriever
+        out["retrieval"] = bool(await run_in_threadpool(lambda: get_retriever().search("hospitalization", uin=settings.default_uin, top_k=1)))
+    except Exception as e:  # noqa: BLE001 - the class name is enough to diagnose; the customer sees only the boolean
+        log.warning("not_ready", extra={"fields": dict(part="retrieval", error=type(e).__name__)})
+    try:
+        await run_in_threadpool(get_agent)
+        out["assistant"] = True
+    except Exception as e:  # noqa: BLE001
+        log.warning("not_ready", extra={"fields": dict(part="assistant", error=type(e).__name__)})
+    body = dict(status="ready" if all(out.values()) else "degraded", **out)
+    _READY.update(at=now, body=body)
+    return body
 
 
 @app.get("/openapi.json", include_in_schema=False)

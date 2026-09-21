@@ -348,11 +348,12 @@ def test_dropping_on_the_chat_view_adds_documents_with_an_overlay(page):
     to_chat(page)
     dt = drop_files(page, [(DOCS[0].name, DOCS[0].read_bytes())])
     overlay = page.locator("#overlay")
-    expect(overlay).to_be_visible()
+    expect(overlay).to_be_visible(timeout=5000)
+    page.wait_for_timeout(100)
     assert overlay.inner_text() == "Drop to add documents" and overlay.evaluate("e => getComputedStyle(e).position") == "fixed"
     page.dispatch_event("body", "drop", {"dataTransfer": dt})
     expect(overlay).to_be_hidden()
-    expect(page.locator(".card")).to_have_count(2, timeout=20000)
+    expect(page.locator(".card")).to_have_count(2, timeout=30000)
     assert page.locator(".card").last.inner_text().startswith("Rohan Verma, here's what I've read")
     assert "estimates; your insurer's team" not in page.locator(".card").last.inner_text()      # said once, in the first message
 

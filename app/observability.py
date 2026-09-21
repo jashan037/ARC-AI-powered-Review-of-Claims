@@ -1,8 +1,8 @@
 """One JSON log line per chat turn, and for every retry. Written to stderr.
 
 What is logged: ids, the agent and retriever in use, tool names with success and milliseconds, answer type, status, latency,
-retry counts and an error class name. What is never logged: the user's question, claim data, tool arguments, tool results,
-answers or secrets. `message_chars` is only a length.
+retry counts, the model-call token COUNTS and an error class name. What is never logged: the user's question, claim data,
+tool arguments, tool results, answers or secrets. `message_chars` is only a length.
 """
 from __future__ import annotations
 
@@ -59,5 +59,6 @@ def log_turn(*, agent: str, session: dict, message: str, status: str, answer_typ
                   has_claim=bool(session.get("claim")), message_chars=len(message), status=status, answer_type=answer_type, latency_ms=latency_ms,
                   tools=[dict(tool=t["tool"], ok=t["ok"], ms=t.get("ms")) for t in trace],
                   final_rejections=sum(1 for t in trace if t["tool"] == "final_answer" and not t["ok"]),
-                  model_calls=getattr(scope, "model_calls", None), retries=getattr(scope, "retries", None) or {}, error=error)
+                  model_calls=getattr(scope, "model_calls", None), retries=getattr(scope, "retries", None) or {},
+                  tokens_in=getattr(scope, "tokens_in", None), tokens_out=getattr(scope, "tokens_out", None), error=error)
     log.log(logging.INFO if status == "ok" else logging.WARNING, "turn", extra={"fields": fields})

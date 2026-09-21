@@ -4,12 +4,21 @@ Synthetic data only. These are the rules the code enforces and the steps you fol
 
 ## What the code enforces
 
-- **No developer surface by default.** `/docs`, `/openapi.json`, `/samples`, `/assess` and `/sessions/{id}/claim` answer 404 unless the server starts with `DEBUG=1`. `/health` returns only `{"status":"ok"}`.
+- **No developer surface by default.** `/docs`, `/openapi.json`, `/samples`, `/assess` and `/sessions/{id}/claim` answer 404 unless the server starts with `DEBUG=1`. `/health` returns only `{"status":"ok"}`; `/ready` says whether Search and the agent can be reached, as two booleans and a word, cached for 30 seconds, and never names an endpoint, a key or an exception.
 - **Headers on every response** (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `frame-ancestors 'none'`, `Cache-Control`); the page adds a strict CSP (no inline script or style, no CDN, same-origin requests only).
-- **Sessions:** deleted after 30 minutes idle (`SESSION_TTL_S`), at most 100 documents (`MAX_DOCS_PER_SESSION`) and 200 chat turns (`MAX_MESSAGES_PER_SESSION`) each. `DELETE /sessions/{id}` erases everything for that session.
+- **Sessions:** deleted after 30 minutes idle (`SESSION_TTL_S`), at most 100 documents (`MAX_DOCS_PER_SESSION`) and 200 chat turns (`MAX_MESSAGES_PER_SESSION`) each. `DELETE /sessions/{id}` erases everything for that session, and "Start over" in the page calls it.
+- **Documents:** 5 MB and 20 pages per file, 26 MB per upload request, and a 10-second parsing budget per file (`intake.MAX_PARSE_SECONDS`), so a slow or crafted PDF cannot keep a worker busy. Text from a document is cleaned, capped and quoted before it reaches the model (`app/tools/sanitize.py`).
+- **The claims-team report** (`GET /sessions/{id}/report.pdf`) is built in code from the documents, carries nothing from the chat, is never stored, and is served `no-store` as an attachment.
 - **Rate limit** per IP: 120 requests a minute overall, 20 chat turns a minute (`RATE_LIMIT_PER_MIN`, `CHAT_RATE_LIMIT_PER_MIN`). It is in memory: with several workers or servers put a real limiter in front.
-- **Logs and errors:** one JSON line per turn with no question, claim data or answer; every log line passes through a redactor (keys, bearer tokens, auth headers); error responses carry a fixed sentence and never an exception message.
-- **Secrets:** `.env` is git-ignored and mode 600. `scripts/security/scan_secrets.py` looks for the values in `.env` and for key-shaped strings in the working tree and the whole git history, printing only file names. A git pre-commit hook (`sh scripts/security/install_hooks.sh`) and a test (`tests/test_secrets.py`) block a commit that contains one.
+- **Logs and errors:** one JSON line per turn with no question, claim data or answer - ids, tool names, status, latency, retry counts and the model-call token COUNTS only; every log line passes through a redactor (keys, bearer tokens, auth headers); error responses carry a fixed sentence and never an exception message.
+- **Secrets:** `.env` is git-ignored and mode 600. `scripts/security/scan_secrets.py` looks for the values in `.env` (printing only their SHA-256 prefixes) and for key-shaped strings in the working tree and in every line any commit ever added, printing only file names and commit ids. A git pre-commit hook (`sh scripts/security/install_hooks.sh`) and tests (`tests/test_secrets.py`, `tests/test_security.py`) block a commit that contains one. `detect-secrets` (in `requirements-dev.txt`) is the second opinion:
+
+  ```bash
+  python scripts/security/scan_secrets.py
+  detect-secrets scan --exclude-files '\.venv/|\.git/|\.pdf$|\.png$|^\.env$|tests/helpers/axe\.min\.js'
+  ```
+
+  The three findings `detect-secrets` reports are placeholders, not secrets: two invented strings in `scripts/setup/bootstrap_azure.py`'s own self-test and the fake key `tests/test_secrets.py` assembles at run time to prove the detector works.
 
 ## Keyless mode (AUTH_MODE=entra)
 
@@ -31,6 +40,12 @@ Do this whenever a key might have leaked (a screenshot of the Keys page, a paste
 3. `python scripts/security/scan_secrets.py` must say no secret value is in the tree or history. If a value is in git history, the key is burnt: rotating is the fix, rewriting history is optional.
 4. `chmod 600 .env`; check `git status` shows no `.env`.
 5. Prefer `AUTH_MODE=entra` so there is nothing to rotate.
+
+## Packaging
+
+`Dockerfile` builds a single-instance image: one uvicorn worker, a non-root user, no `.env` (`.dockerignore` excludes it, the git
+directory, the tests, the docs, the scripts and everything under `demo/` except the three sample document sets the app reads at
+runtime). `docs/DEPLOY.md` is the deployment path, written out and **not executed**.
 
 ## Rules
 

@@ -82,6 +82,15 @@ def _content_filtered(e: Exception) -> bool:
     return type(e).__name__ == "BadRequestError" and ("content_filter" in str(e) or "content management policy" in str(e))
 
 
+def _count_tokens(scope, resp) -> None:
+    """Add this call's token counts to the turn, for the log and the evidence. Counts only: the text itself is never read here."""
+    usage = getattr(resp, "usage", None)
+    if usage is None:
+        return
+    scope.tokens_in += int(getattr(usage, "input_tokens", 0) or 0)
+    scope.tokens_out += int(getattr(usage, "output_tokens", 0) or 0)
+
+
 def _reply_text(resp) -> str:
     text = getattr(resp, "output_text", None)
     if text:
@@ -122,6 +131,7 @@ class FoundryAgent:
                 nudged = False
                 for _ in range(settings.max_agent_steps):
                     resp = self._model(scope, lambda t: self.openai.responses.create(input=input_, conversation=conv.id, extra_body=self.ref, timeout=t))
+                    _count_tokens(scope, resp)
                     calls = [i for i in resp.output if i.type == "function_call"]
                     if calls:
                         input_ = [{"type": "function_call_output", "call_id": c.call_id,
@@ -160,7 +170,8 @@ class FoundryAgent:
                 status = "incomplete"
             latency = round((time.perf_counter() - t0) * 1000)
             log_turn(agent="foundry", session=session, message=message, status=status, answer_type="chat", trace=ctx.trace, scope=scope, latency_ms=latency, error=error)
-        guards = dict(model_calls=scope.model_calls, retries=sum(scope.retries.values()), rewritten=rewritten, fixed=fixed, prerun=ctx.prerun, problems=first_problems)
+        guards = dict(model_calls=scope.model_calls, retries=sum(scope.retries.values()), rewritten=rewritten, fixed=fixed, prerun=ctx.prerun,
+                      problems=first_problems, tokens_in=scope.tokens_in, tokens_out=scope.tokens_out)
         if reply is None:
             return AgentResult(_ABORT_ANSWERS[status], [], ctx.trace, status, latency, guards)
         return AgentResult(reply, sources_for(ctx), ctx.trace, "ok", latency, guards)

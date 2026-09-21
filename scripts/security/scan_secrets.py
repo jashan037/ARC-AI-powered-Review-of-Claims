@@ -1,8 +1,12 @@
 """Look for the values of the secrets in .env (and for key-shaped strings) in the working tree and in the whole git history, WITHOUT printing any secret.
 Prints only file names, commit ids and counts.
 
-    python scripts/security/scan_secrets.py             # exact values from .env, tree and history
-    python scripts/security/scan_secrets.py --shapes    # key-shaped strings only (what the pre-commit hook and the test use; needs no .env)
+    python scripts/security/scan_secrets.py             # exact values from .env, tree and history, plus key shapes in the tree and the history
+    python scripts/security/scan_secrets.py --shapes    # key-shaped strings in the tree only (what the pre-commit hook and the test use; needs no .env)
+
+A second opinion, over the same tree (detect-secrets is in requirements-dev.txt):
+
+    detect-secrets scan --exclude-files '\.venv/|\.git/|\.pdf$|\.png$|^\.env$'
 """
 from __future__ import annotations
 
@@ -96,6 +100,18 @@ def scan_values() -> int:
     return found
 
 
+def scan_history_shapes() -> list[str]:
+    """Key-shaped strings in every line any commit ever ADDED. Prints commit ids only, never the line."""
+    log = subprocess.Popen(["git", "log", "--all", "-p", "--no-color", "--format=commit %H"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, errors="ignore")
+    commit, hits = "?", []
+    for line in log.stdout:
+        if line.startswith("commit "):
+            commit = line[7:15]
+        elif line.startswith("+") and shape_hits(line) and commit not in hits:
+            hits.append(commit)
+    return hits
+
+
 if __name__ == "__main__":
     if "--shapes" in sys.argv:
         bad = scan_shapes(tree_files())
@@ -104,5 +120,7 @@ if __name__ == "__main__":
     n = scan_values()
     bad = scan_shapes(tree_files())
     print("key-shaped strings in the tree: " + (", ".join(bad) if bad else "none"))
+    old = scan_history_shapes()
+    print("commits that ever added a key-shaped string: " + (", ".join(old) if old else "none"))
     print("RESULT:", "SECRETS FOUND (rotate them)" if n else "no secret value from .env is in the tree or in the git history")
     sys.exit(1 if n or bad else 0)

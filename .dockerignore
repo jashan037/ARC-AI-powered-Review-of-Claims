@@ -17,6 +17,9 @@ tools
 CLAUDE.md
 README.md
 requirements-dev.txt
+Dockerfile
+.dockerignore
+# the font licences stay in the image: the SIL OFL requires the licence to travel with the font
 # demo/ is excluded except the three sample document sets: "Use sample documents" reads them at runtime (app/intake.py SAMPLE_DIR)
 demo/*
 !demo/samples

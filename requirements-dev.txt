@@ -3,4 +3,5 @@
 pytest==9.1.1
 httpx==0.28.1
 playwright==1.63.0
+detect-secrets==1.5.0     # the second opinion on the secret scan (scripts/security/scan_secrets.py is the first)
 # Optional code-quality tools used for the cleanup audit: coverage==7.16.1, vulture==2.16, ruff==0.16.8

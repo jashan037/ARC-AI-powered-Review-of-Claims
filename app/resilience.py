@@ -44,6 +44,8 @@ class TurnScope:
     started: float = field(init=False)
     retries: dict = field(default_factory=dict)   # label -> number of retries made this turn
     model_calls: int = 0
+    tokens_in: int = 0                            # counts only: no question, no answer, no claim data is ever logged
+    tokens_out: int = 0
 
     def __post_init__(self):
         self.started = self.clock()
