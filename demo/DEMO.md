@@ -2,7 +2,7 @@
 
 **One sentence for the audience:** an AI assistant that reads a customer's claim documents, answers policy questions with exact clause citations and assesses the claim in a fixed layout, while every number comes from code and a claims officer always decides.
 
-**Verified** on 20 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, **version 7**, gpt-5-mini, index `claims-kb-v2`): all 8 steps below passed in `scripts/eval/demo_check.py` (113 s of total agent time; 8 to 22 seconds per answer). One earlier run the same day scored 7 of 8 (I did not capture which step; the re-run was 8 of 8), so run it beforehand. The full evaluation (38 cases) passed on version 7: see `docs/evidence/eval_report.md`.
+**Verified** on 21 Sep 2026 against the real Azure agent (`claims-adjudication-agent-v2`, **version 15**, gpt-5-mini with low reasoning effort, index `claims-kb-v2`): the 8 terminal steps below pass in `scripts/eval/demo_check.py` (8 of 8, 130 s of agent time), the customer page's questions pass in `scripts/eval/demo_check.py --customer` (6 of 6, most answers in 10 to 15 s, facts instantly), and the 40 customer questions of `scripts/eval/quality_suite.py` pass at 37 of 40 in every one of 3 runs (`docs/evidence/quality_report.md`).
 
 ## Before you start (2 minutes, do it beforehand)
 

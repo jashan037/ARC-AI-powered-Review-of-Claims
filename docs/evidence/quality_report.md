@@ -134,6 +134,7 @@ This pass aimed at p50 latency under 15 s and at the flaky cases of the previous
 | Retried calls (HTTP 429 and transient errors) | 172 and 187 retry events in the two passes, 2 workers | 0 | **1** |
 | Turns that ended in a timeout | 1 and 15 in the two passes | 0 | **3 in the first execution** (each one model call that stalled to the 40 s model timeout; the 3 runs were repeated and passed in 10 to 15 s) |
 | Azure Search requests per answer (mean / max) | 0.7 / 10 | 0.5 / 8 | **0.5 / 8** |
+| Turns with at least one rejected `final_answer` (a wasted model call) | 24 of 129 | 29 of 129 | **23 of 129** |
 
 **p50 target: met** (11.6 s for answers that use the model, 10.0 s over every turn). The comparison is not perfectly like for like: the previous pass used 2 workers, which is what triggered the 429 rate limiting; this pass used 1, as asked. The 2-worker behaviour of the final configuration was **not** measured.
 
