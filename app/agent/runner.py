@@ -12,6 +12,7 @@ from ..resilience import TurnAbort, call_with_retry, turn_scope
 from ..retrieval.azure_search import get_retriever
 from ..tools.canned import DECLINE_FILTERED, canned_reply
 from ..tools.guards import check_reply, fix_reply
+from ..tools.verify import suppress_repeats
 from ..tools.facts import facts_text
 from ..tools.registry import TurnContext, call_tool, fallback_reply, precompute
 from ..tools.sanitize import clean, quoted
@@ -139,7 +140,7 @@ class FoundryAgent:
                         continue
                     if problems:                        # and then the text is repaired in code
                         text, fixed = fix_reply(text, ctx), True
-                    reply = text
+                    reply = suppress_repeats(text, session.get("history", []))
                     break
             except TurnAbort as e:
                 status, error = e.kind, f"{e.where}:{type(e.cause).__name__ if e.cause else 'deadline'}"

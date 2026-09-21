@@ -16,7 +16,7 @@ import re
 
 from ..rendering.customer_labels import customerize
 from ..rendering.scrub import find as find_internal, scrub
-from . import format_guard
+from . import format_guard, verify
 from .number_guard import allowed_from, drop_blocks, offenders, split_sentences
 from .facts import facts_text
 from .fmt import inr
@@ -87,6 +87,17 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
     both = _both_figures(ctx)
     if both and not all(_has_number(text, v) for v in both):
         problems.append(("figures", f"Give both figures when something is waiting for a document: {inr(both[0])} once your documents arrive and {inr(both[1])} counted so far."))
+    items = verify.verdict_problems(text, ctx)
+    if items:
+        problems.append(("verdict", verify.verdict_message(items)))
+    for m in verify.hedge_problems(text):
+        problems.append(("decision", m))
+    names = verify.entity_problems(text, ctx)
+    if names:
+        problems.append(("names", f"These names are not in the customer's documents or the tool results: {names}. Use the plan, hospital and document names exactly as the documents give them."))
+    items = verify.policy_problems(text, ctx)
+    if items:
+        problems.append(("policy", verify.policy_message(items)))
     problems += [("format", m) for m in format_guard.problems(text, ctx.question, ctx.session.get("history", []))]
     return problems
 
@@ -107,6 +118,10 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
     for pattern in (_DECISION, _VOICE):
         for s in _bad_sentences(text, pattern):
             text = text.replace(s, "")
+    text = verify.fix_verdicts(text, ctx)
+    text = verify.hedge_fix(text)
+    text = verify.drop_entities(text, ctx)
+    text = verify.drop_policy(text, ctx)
     both = _both_figures(ctx)
     if both and not all(_has_number(text, v) for v in both):
         text = f"{text}\n\nAbout {inr(both[0])} once your documents arrive; {inr(both[1])} is counted so far.".strip()
