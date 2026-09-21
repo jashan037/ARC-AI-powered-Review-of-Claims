@@ -190,3 +190,12 @@ def test_ordinary_explanation_is_not_dropped_as_a_policy_statement():
     ctx = ctx_for("why is my payment lower")
     text = "Your payment is lower because part of the room charge was withheld in proportion to the plan's limit, and the extras disappear from the total."
     assert "policy" not in [k for k, _ in check_reply(text, ctx)] and fix_reply(text, ctx).startswith("Your payment is lower")
+
+
+def test_a_sentence_about_another_date_is_judged_against_that_date_not_the_admission_date():
+    q = "was my policy active on 20 April 2026?"
+    assert "verdict" not in kinds("**No — your policy was not active on 20 April 2026.**", q)                                  # right: the period ended 14 Mar 2026
+    assert "verdict" in kinds("Yes, your policy was in force on 20 April 2026.", q)                                              # wrong for that date
+    assert "verdict" in kinds("Your policy was not in force on 10 Sep 2025.", q)                                                 # wrong for the admission date
+    fixed = fix_reply("Yes, your policy was in force on 20 April 2026.", ctx_for(q))
+    assert "Your policy was not in force on that date (20 Apr 2026)" in fixed

@@ -1,6 +1,6 @@
 {
  "agent_version": "latest",
- "generated": "2026-09-21 14:13",
+ "generated": "2026-09-21 14:25",
  "repeats": 1,
  "results": [
   {
@@ -8,13 +8,15 @@
    "rep": 1,
    "cat": "facts",
    "q": "what is my name?",
-   "reply": "Your name on the claim is **Rohan Verma**.",
+   "reply": "**Rohan Verma** is the name on your claim.",
    "status": "ok",
-   "latency_s": 7.34,
-   "model_calls": 2,
-   "rewritten": false,
+   "latency_s": 8.65,
+   "model_calls": 3,
+   "rewritten": true,
    "fixed": false,
-   "problems": [],
+   "problems": [
+    "voice: Speak to the customer: 'you' and 'your claim', never 'the insured', 'the claimant' or 'the customer'."
+   ],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -29,9 +31,9 @@
    "rep": 1,
    "cat": "facts",
    "q": "which hospital was I in?",
-   "reply": "You were treated at **Riverside Multispeciality Hospital (DEMO)**.  \nIt was a network hospital.",
+   "reply": "You were treated at **Riverside Multispeciality Hospital (DEMO)**.  \nYour documents show this was a network hospital.",
    "status": "ok",
-   "latency_s": 4.05,
+   "latency_s": 3.5,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -50,9 +52,9 @@
    "rep": 1,
    "cat": "facts",
    "q": "what was my diagnosis?",
-   "reply": "**Acute appendicitis (ICD-10: K35.8).**  \n\nThis is the diagnosis shown on your discharge summary and claim documents for the laparoscopic appendectomy performed on 11 Sep 2025.",
+   "reply": "Your diagnosis was **Acute appendicitis (ICD-10: K35.8)**. It was treated with a laparoscopic appendectomy on 11 Sep 2025.",
    "status": "ok",
-   "latency_s": 4.6,
+   "latency_s": 4.43,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -71,9 +73,9 @@
    "rep": 1,
    "cat": "facts",
    "q": "what procedure did I have?",
-   "reply": "You had a **Laparoscopic appendectomy**. It’s recorded in your documents for treatment of acute appendicitis on 11 Sep 2025 at Riverside Multispeciality Hospital.",
+   "reply": "You had a **Laparoscopic appendectomy**.  \n\nThis is recorded in your documents as the procedure for the diagnosis “Acute appendicitis,” performed on **11 Sep 2025**. If you want the surgery notes or the discharge summary next, tell me which document you need.",
    "status": "ok",
-   "latency_s": 4.19,
+   "latency_s": 5.49,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -92,9 +94,9 @@
    "rep": 1,
    "cat": "facts",
    "q": "what is my policy number?",
-   "reply": "**SYN-2805-0000-0001** is your policy number.",
+   "reply": "Your policy number is **SYN-2805-0000-0001**.  \nIt's shown on the policy schedule you provided.",
    "status": "ok",
-   "latency_s": 3.95,
+   "latency_s": 3.94,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -113,14 +115,14 @@
    "rep": 1,
    "cat": "facts",
    "q": "which plan do I have?",
-   "reply": "**Optima Lite**.",
+   "reply": "**Optima Lite.** Your policy (SYN-2805-0000-0001) lists the plan as Optima Lite.",
    "status": "ok",
-   "latency_s": 7.74,
+   "latency_s": 9.1,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 37 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 34 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -136,9 +138,9 @@
    "rep": 1,
    "cat": "facts",
    "q": "how old am I?",
-   "reply": "You're **28 years old**, as shown in your policy details.",
+   "reply": "**You are 28 years old.** This is what your policy documents show (DOB 12 Jun 1997).",
    "status": "ok",
-   "latency_s": 3.87,
+   "latency_s": 3.84,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -157,15 +159,13 @@
    "rep": 1,
    "cat": "facts",
    "q": "how many days was I in hospital?",
-   "reply": "**4 days** — admitted 10 Sep 2025, discharged 14 Sep 2025.",
+   "reply": "**4 days.**\n\nYour documents show admission on 10 Sep 2025 (14:30) and discharge on 14 Sep 2025 (11:00), which is recorded as a 4-day hospital stay.",
    "status": "ok",
-   "latency_s": 10.22,
-   "model_calls": 3,
-   "rewritten": true,
+   "latency_s": 4.85,
+   "model_calls": 2,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "format: The reply is 50 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -180,13 +180,15 @@
    "rep": 1,
    "cat": "dates",
    "q": "when was I admitted?",
-   "reply": "**You were admitted on 10 Sep 2025 at 14:30.**  \nThis admission falls within your policy period (15 Mar 2025 to 14 Mar 2026).",
+   "reply": "**You were admitted on 10 Sep 2025 at 14:30.**",
    "status": "ok",
-   "latency_s": 4.28,
-   "model_calls": 2,
-   "rewritten": false,
+   "latency_s": 8.34,
+   "model_calls": 3,
+   "rewritten": true,
    "fixed": false,
-   "problems": [],
+   "problems": [
+    "format: The reply is 35 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+   ],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -201,13 +203,15 @@
    "rep": 1,
    "cat": "dates",
    "q": "when was I discharged?",
-   "reply": "You were discharged on **14 Sep 2025 at 11:00**.  \n\nThis is recorded on your discharge summary and in the claim documents.",
+   "reply": "**You were discharged on 14 Sep 2025 at 11:00.**",
    "status": "ok",
-   "latency_s": 4.03,
-   "model_calls": 2,
-   "rewritten": false,
+   "latency_s": 7.47,
+   "model_calls": 3,
+   "rewritten": true,
    "fixed": false,
-   "problems": [],
+   "problems": [
+    "format: The reply is 36 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+   ],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -222,9 +226,9 @@
    "rep": 1,
    "cat": "dates",
    "q": "when did my first policy start?",
-   "reply": "**Your first policy started on 15 Mar 2024.**  \nWaiting periods (like pre-existing disease or specified-procedure periods) are counted from that date.",
+   "reply": "**15 Mar 2024.** This is your first policy inception date — waiting periods count from this date.",
    "status": "ok",
-   "latency_s": 4.32,
+   "latency_s": 4.3,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -243,9 +247,9 @@
    "rep": 1,
    "cat": "dates",
    "q": "when did my policy start?",
-   "reply": "Your policy first started on **15 Mar 2024**; the current policy period began on **15 Mar 2025**.",
+   "reply": "Your current policy period started on **15 Mar 2025**.  \n\nFor waiting periods the first policy inception (when your cover began) is **15 Mar 2024**.",
    "status": "ok",
-   "latency_s": 5.69,
+   "latency_s": 5.54,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -264,14 +268,14 @@
    "rep": 1,
    "cat": "dates",
    "q": "when does my policy expire?",
-   "reply": "**14 Mar 2026** is your policy expiry (end of the current policy period).",
+   "reply": "Your policy expires on **14 Mar 2026**.",
    "status": "ok",
-   "latency_s": 8.73,
+   "latency_s": 7.88,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 43 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 55 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -287,9 +291,9 @@
    "rep": 1,
    "cat": "dates",
    "q": "until when is my policy valid?",
-   "reply": "**Your policy is valid until 14 Mar 2026.**\n\nYour current policy period runs from 15 Mar 2025 to 14 Mar 2026. If renewed, the next policy period would start on 15 Mar 2026.",
+   "reply": "Your policy is valid until **14 Mar 2026**.  \n\nThat is the policy expiry (end of the current policy period); renewal would start on 15 Mar 2026 and only cover treatment from that day onward.",
    "status": "ok",
-   "latency_s": 4.29,
+   "latency_s": 3.82,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -308,15 +312,14 @@
    "rep": 1,
    "cat": "dates",
    "q": "what is my renewal date?",
-   "reply": "**15 Mar 2026**.\n\nA renewal only covers treatment on or after the day it starts.",
+   "reply": "**15 Mar 2026** is your next renewal date.",
    "status": "ok",
-   "latency_s": 10.19,
+   "latency_s": 7.32,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Your renewal starts on 15 Mar 2026 and will only cover treatment on or after tha' (not found: keeping, preserves). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 52 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 48 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -332,13 +335,15 @@
    "rep": 1,
    "cat": "period",
    "q": "what is my policy period?",
-   "reply": "**15 Mar 2025 to 14 Mar 2026.**  \nYour current policy period starts 15 Mar 2025 and ends 14 Mar 2026; the next renewal would begin on 15 Mar 2026.",
+   "reply": "**15 Mar 2025 to 14 Mar 2026.**",
    "status": "ok",
-   "latency_s": 4.31,
-   "model_calls": 2,
-   "rewritten": false,
+   "latency_s": 7.74,
+   "model_calls": 3,
+   "rewritten": true,
    "fixed": false,
-   "problems": [],
+   "problems": [
+    "format: The reply is 36 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+   ],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -353,14 +358,14 @@
    "rep": 1,
    "cat": "period",
    "q": "was my policy active on 10 Sep 2025?",
-   "reply": "**Yes — your policy was in force on 10 Sep 2025.**",
+   "reply": "**Yes — your policy was in force on 10 Sep 2025.** It falls within your policy period (15 Mar 2025 to 14 Mar 2026), so that admission date is covered.",
    "status": "ok",
-   "latency_s": 10.19,
+   "latency_s": 8.84,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 49 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 35 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -376,15 +381,15 @@
    "rep": 1,
    "cat": "period",
    "q": "was my policy active on 20 April 2026?",
-   "reply": "Your policy was in force on the admission date (10 Sep 2025): it falls within the policy period 15 Mar 2025 to 14 Mar 2026. \nYour policy was in force on the admission date (10 Sep 2025): it falls within the policy period 15 Mar 2025 to 14 Mar 2026.",
+   "reply": "Your policy was in force on the admission date (10 Sep 2025): it falls within the policy period 15 Mar 2025 to 14 Mar 2026. \nYour policy was in force on 10 Sep 2025; the policy period ran 15 Mar 2025–14 Mar 2026.",
    "status": "ok",
-   "latency_s": 13.64,
+   "latency_s": 14.32,
    "model_calls": 3,
    "rewritten": true,
    "fixed": true,
    "problems": [
-    "verdict: A sentence contradicts what the tools returned (policy in force): '**No — your policy period ended on 14 Mar 2026, so it was not active on 20 Apr 2026.**'. State the tool's result: 'Your policy was in force on the admission date (10 Sep 2025): it falls within the policy period 15 Mar 2025 to 14 Mar 2026.'",
-    "format: The reply is 82 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "verdict: A sentence contradicts what the tools returned (policy in force): '**No — your policy was not active on 20 April 2026.**'. State the tool's result: 'Your policy was in force on the admission date (10 Sep 2025): it falls within the policy period 15 Mar 2025 to 14 Mar 2026.'",
+    "format: The reply is 61 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -402,16 +407,14 @@
    "rep": 1,
    "cat": "period",
    "q": "will I get this claim as my policy expired in march 2026?",
-   "reply": "**Your claim appears likely to be payable because your policy was in force on the admission date (10 Sep 2025).**\n\nEstimated payment would be **₹1,22,125** once the doctor’s prescription for the pharmacy bills arrives; **₹1,01,625** is counted so far and ₹20,500 is held until that prescription is provided. A claims officer makes the final decision. \n\nPlease upload the doctor’s prescription for the pharmacy bills anywhere on this page.",
+   "reply": "**It appears likely your claim can be paid** because your admission (10 Sep 2025) was during the policy period that ended 14 Mar 2026. A claims officer will review the late submission.  \n\n**₹1,01,625** is counted so far and **₹1,22,125** is estimated once the treating doctor's prescription for the pharmacy bills (₹20,500) is provided. Renewing from 15 Mar 2026 would not make this admission eligible.  \n\nPlease upload the doctor's prescription anywhere on this page.",
    "status": "ok",
-   "latency_s": 12.53,
+   "latency_s": 11.52,
    "model_calls": 3,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "internal: Remove internal terms (['The assessment', 'the assessment']): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id.",
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'The late submission of documents (sent 372 days after discharge) is flagged for ' (not found: assessment, justification, submission). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 132 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+    "format: The reply is 143 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -420,24 +423,21 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "missing (?:14(?:st|nd|rd|th)?\\s+Mar[a-z]*\\.?,?\\s+2026|Mar[a-z]*\\.?\\s"
-   ]
+   "expected": []
   },
   {
    "i": 19,
    "rep": 1,
    "cat": "payment",
    "q": "how much will be paid?",
-   "reply": "Your claim appears likely to be paid at **₹1,22,125** once the missing prescription arrives; ₹1,01,625 is counted so far. \n\n \n\nPlease drop the pharmacy prescription anywhere on this page so the claims team can finish your claim.",
+   "reply": "**About ₹1,22,125** looks likely to be paid once the missing prescription arrives; **₹1,01,625** is counted so far.  \n\nThe shortfall is from a room-limit reduction (your room was ₹8,000/day vs plan limit ₹5,000, so room and related doctor/theatre/nursing charges were reduced by ₹49,875) and ₹12,500 of non-medical extras that aren’t payable because you haven’t taken the Protect Benefit. ₹20,500 (pharmacy) is on hold awaiting the doctor’s prescription.  \n\nPlease drop the pharmacy prescription anywhere on this page; the late submission is flagged for a claims officer to review.",
    "status": "ok",
-   "latency_s": 9.8,
+   "latency_s": 10.25,
    "model_calls": 3,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "format: Use at most 3 bold spans: bold only the key figure or fact.",
-    "format: The reply is 97 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+    "format: The reply is 99 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -453,9 +453,9 @@
    "rep": 1,
    "cat": "payment",
    "q": "how much is being held and why?",
-   "reply": "**₹20,500** is being held because your pharmacy bills are missing the treating doctor's prescription.  \n\nOnce that prescription arrives, the estimate would rise to **₹1,22,125**; **₹1,01,625** has been counted so far.  \n\nPlease drop the doctor's prescription for the pharmacy bills anywhere on this page so the claims officer can review and release the held amount.",
+   "reply": "**₹20,500** is being held because the doctor's prescription for the pharmacy bills is missing.  \n\nWith that document missing, **₹1,01,625** has been counted so far and the estimated payment would be **₹1,22,125** once the prescription arrives.  \n\nPlease drop the pharmacy prescription anywhere on this page so the claims officer can review and release the held amount.",
    "status": "ok",
-   "latency_s": 5.23,
+   "latency_s": 4.98,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -474,9 +474,9 @@
    "rep": 1,
    "cat": "payment",
    "q": "how much is counted so far?",
-   "reply": "**₹1,01,625** has been counted so far toward your claim.  \n\nThis is after the room-related reduction of ₹49,875 and non-medical items of ₹12,500 were taken off; ₹20,500 is being held until you provide the doctor's prescription for the pharmacy bills.  \n\n> You can drop the prescription anywhere on this page so the held ₹20,500 can be reviewed.",
+   "reply": "**₹1,01,625** is counted so far; **₹1,22,125** is the estimated payment once the missing pharmacy prescription arrives.  \n\nThis difference exists because **₹20,500** is being held until you provide the doctor's prescription for the pharmacy bills.  \n\nPlease drop the prescription anywhere on this page so the claims officer can review and update the count.",
    "status": "ok",
-   "latency_s": 5.03,
+   "latency_s": 4.75,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -495,9 +495,9 @@
    "rep": 1,
    "cat": "payment",
    "q": "what is my total hospital bill?",
-   "reply": "**Your total hospital bill is ₹1,84,500.**",
+   "reply": "Your total hospital bill is **₹1,84,500**. It’s billed to Riverside Multispeciality Hospital (Bill no. DEMO-BILL-0001).",
    "status": "ok",
-   "latency_s": 3.52,
+   "latency_s": 3.21,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -516,15 +516,14 @@
    "rep": 1,
    "cat": "payment",
    "q": "why is my payment lower than my bill?",
-   "reply": "**₹1,22,125** is the estimated payment for your ₹1,84,500 bill.\n\n \n\nSend the missing prescription (you can drop it anywhere on this page) so the held ₹20,500 can be reviewed and the counted amount updated.\n\nAbout ₹1,22,125 once your documents arrive; ₹1,01,625 is counted so far.",
+   "reply": "**About ₹1,22,125** of your ₹1,84,500 bill looks likely to be paid; **₹1,01,625** is counted so far and **₹20,500** is being held pending a document.\n\n| | Amount |\n|---|---:|\n| Hospital bill | ₹1,84,500 |\n| Room-related reduction (proportionate) | −₹49,875 |\n| Extras not payable (non‑medical items) | −₹12,500 |\n| **Estimated payment once documents arrive** | **₹1,22,125** |\n\nYour room was ₹8,000/day while your plan limit is ₹5,000/day, so the room charge and the associated medical fees (doctor, OT, nursing) are reduced in the same proportion — that caused the ₹49,875 reduction. Twelve non-medical items totalling ₹12,500 would likely not be payable because you haven't taken the Protect Benefit. Pharmacy bills of ₹20,500 are on hold because the doctor's prescription for those medicines is missing.\n\n> You can drop the missing pharmacy prescription anywhere on this page and a claims officer will review the held amount.",
    "status": "ok",
-   "latency_s": 11.35,
+   "latency_s": 15.81,
    "model_calls": 3,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Your payment is lower because three things were reduced or withheld: the plan’s ' (not found: withheld). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: Use at most 3 bold spans: bold only the key figure or fact."
+    "decision: Hedge an outcome that is not payable: say 'would likely not be payable' or 'appears not to be covered'. ('Twelve non-medical items totalling ₹12,500 are not payable b')"
    ],
    "gates": {
     "unsupported numbers": [],
@@ -533,25 +532,20 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "missing (?:49,875|49875)(?![\\d,])",
-    "missing (?:12,500|12500)(?![\\d,])"
-   ]
+   "expected": []
   },
   {
    "i": 24,
    "rep": 1,
    "cat": "payment",
    "q": "why was my room rent reduced?",
-   "reply": "**Your plan’s room limit is ₹5,000/day, so a proportionate deduction was applied and **₹49,875** was taken off.**\n\n \n\nIf you want the per-item breakdown from your bill, I can show it.",
+   "reply": "**Your room was limited to ₹5,000/day but the hospital charged ₹8,000/day, so ₹49,875 was reduced.** The plan rule caps room rent at 1% of the base sum insured (₹5,000/day), so the bill’s room charge and the associated medical expenses (doctor, OT, nursing, anaesthesia) were reduced in the same proportion — you were paid 62.5% of those items.  \n\nIf you want this reviewed, ask the hospital for a written justification or upgraded-room approval and drop it here for the claims officer to consider.",
    "status": "ok",
-   "latency_s": 17.04,
-   "model_calls": 4,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Because the billed room rate (₹8,000/day) is above your plan limit (1% of base S' (not found: proportion). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "latency_s": 5.08,
+   "model_calls": 2,
+   "rewritten": false,
+   "fixed": false,
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -559,19 +553,16 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "missing (?:8,000|8000)(?![\\d,])",
-    "missing 62\\.5"
-   ]
+   "expected": []
   },
   {
    "i": 25,
    "rep": 1,
    "cat": "payment",
    "q": "which items are not payable?",
-   "reply": "**₹12,500** would likely not be payable: 12 non-medical items on your bill.  \n\nThese are extras your plan doesn't cover because you haven't taken the Protect Benefit. The three largest are: Attendant food charges ₹2,800; Surgical gloves ₹2,400; Service charges ₹2,000. The other 9 items total ₹5,300.  \n\nIf you want the full item-by-item list, tell me and I’ll show it.",
+   "reply": "**₹12,500** would likely not be payable: 12 non-medical items on your bill.  \n\nThese are extras your plan doesn't cover because you haven't taken the Protect Benefit (extras such as gloves, masks and food charges). The largest are:  \n- Attendant food charges ₹2,800  \n- Surgical gloves ₹2,400  \n- Service charges ₹2,000  \nThe other 9 items total ₹5,300.  \n\nIf you want the full item-by-item list from your bill, I can show it.",
    "status": "ok",
-   "latency_s": 3.9,
+   "latency_s": 6.76,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -590,15 +581,15 @@
    "rep": 1,
    "cat": "payment",
    "q": "explain my claim",
-   "reply": "Your claim appears likely to be paid at **₹1,22,125** once one document arrives; **₹1,01,625** is counted so far.\n\n| | Amount |\n|---|---:|\n| Hospital bill | ₹1,84,500 |\n| Room-related reduction (proportionate) | −₹49,875 |\n| Non-medical items that would likely not be payable | −₹12,500 |\n| **Estimated payment** | **₹1,22,125** |\n\nThe room was billed at ₹8,000/day against your plan’s limit of ₹5,000/day, so the room and associated medical charges were reduced to 62.5%, which explains the ₹49,875 reduction. Pharmacy bills of **₹20,500** are on hold until you provide the treating doctor’s prescription; once we have that the estimated payment is ₹1,22,125 (₹1,01,625 counted so far).\n\n> Please upload the doctor’s prescription for the pharmacy bills anywhere on this page so the claims officer can complete the review.",
+   "reply": "Your claim appears likely to be paid at **₹1,22,125**, with **₹1,01,625** counted so far.\n\n| Description | Amount |\n|---|---:|\n| Hospital bill | ₹1,84,500 |\n| Room-related reduction (room + associated fees) | −₹49,875 |\n| Non-medical items that would likely not be payable | −₹12,500 |\n| **Estimated payment** | **₹1,22,125** |\n\n₹20,500 of pharmacy bills is being held until you provide the treating doctor's prescription and is not subtracted from the table above. The room was billed at ₹8,000/day against your plan limit of ₹5,000/day, so the room and associated medical fees were reduced proportionally (₹49,875). ₹12,500 of extras (12 items such as attendant food, surgical gloves and service charges) would likely not be payable because the Protect Benefit wasn’t taken. Your documents were sent late (372 days after discharge); this is flagged for a claims officer to review and may be accepted if the delay was beyond your control.\n\nPlease upload the treating doctor's prescription for the pharmacy bills anywhere on this page so the held amount can be reviewed.",
    "status": "ok",
-   "latency_s": 13.95,
+   "latency_s": 18.06,
    "model_calls": 3,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "decision: Hedge an outcome that is not payable: say 'would likely not be payable' or 'appears not to be covered'. ('Twelve non-medical items totalling ₹12,500 are not payable b')",
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Twelve non-medical items totalling ₹12,500 are not payable because you haven’t t' (not found: totalling, twelve). Search the policy wording first, or leave them out, or say the wording does not say."
+    "decision: Hedge an outcome that is not payable: say 'would likely not be payable' or 'appears not to be covered'. ('₹12,500 of extras (12 items such as attendant food, surgical')",
+    "format: The table does not add up: the amounts above the total must sum to it (start from the bill, subtract only what is really taken off; amounts that are waiting for a document are not subtracted). Fix the rows or write a sentence."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -614,16 +605,13 @@
    "rep": 1,
    "cat": "cover",
    "q": "what is my sum insured?",
-   "reply": "Your sum insured (cover amount) is **₹5,50,000** — base ₹5,00,000 plus cumulative bonus ₹50,000.",
+   "reply": "**Your sum insured is ₹5,50,000.**\n\nThis is your base cover of ₹5,00,000 plus a cumulative bonus of ₹50,000, so ₹5,50,000 is the cover amount available for this policy year.",
    "status": "ok",
-   "latency_s": 8.93,
-   "model_calls": 3,
-   "rewritten": true,
+   "latency_s": 4.33,
+   "model_calls": 2,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'If you want, I can tell you how much of this cover would remain after this claim' (not found: assuming, figures). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 49 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -638,9 +626,9 @@
    "rep": 1,
    "cat": "cover",
    "q": "what is my total cover including bonus?",
-   "reply": "**Your total cover (base plus bonus) is ₹5,50,000.**  \nThis is the base sum insured ₹5,00,000 plus the cumulative bonus ₹50,000.",
+   "reply": "**Your total cover including the cumulative bonus is ₹5,50,000.**  \n\nThat's ₹5,00,000 base sum insured plus a ₹50,000 cumulative bonus.",
    "status": "ok",
-   "latency_s": 4.17,
+   "latency_s": 3.44,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -659,14 +647,14 @@
    "rep": 1,
    "cat": "cover",
    "q": "what is my room rent limit?",
-   "reply": "**₹5,000 per day.** This is 1% of your base sum insured (₹5,00,000); charges above this are reduced along with associated doctor, theatre and nursing fees.",
+   "reply": "**₹5,000 per day.** It's 1% of your ₹5,00,000 base sum insured under Optima Lite.",
    "status": "ok",
-   "latency_s": 9.23,
+   "latency_s": 10.07,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 53 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 45 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -682,15 +670,15 @@
    "rep": 1,
    "cat": "cover",
    "q": "do I have a co-pay or deductible?",
-   "reply": "It appears likely **there is no co-payment and no deductible** on your policy, and a claims officer will make the final decision.  \n\nThat rests on the policy schedule in your documents which lists Aggregate deductible: None (Nil) and Co-payment: None (Nil). Would you like me to explain the other reductions shown in your estimate?",
+   "reply": "It appears **you have no co‑payment and no deductible** on this policy; a claims officer will make the final decision.  \nYour policy details list Co‑payment: None (Nil) and Aggregate deductible: None (Nil), so the reductions on your estimate come from the room‑limit and non‑medical items, not a co‑pay or deductible.  \nIf you want, I can explain which specific charges reduced your estimated payment.",
    "status": "ok",
-   "latency_s": 9.68,
+   "latency_s": 9.87,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "decision: Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say a claims officer decides.",
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'If you want, I can explain why the estimated payment is lower (room-limit and no' (not found: figures). Search the policy wording first, or leave them out, or say the wording does not say."
+    "internal: Remove internal terms (['the assessment']): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id.",
+    "decision: Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say a claims officer decides."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -706,14 +694,14 @@
    "rep": 1,
    "cat": "cover",
    "q": "did I take the Protect Benefit?",
-   "reply": "**No — you did not take the Protect Benefit.**\n\nYour policy shows \"Protect Benefit (non-medical expenses): Not opted\" and your claim counts **₹12,500** as non-medical extras not payable because the Protect Benefit wasn't taken. \n\nIf you want the full list of those 12 non-medical items, I can show it.",
+   "reply": "**You have not taken the Protect Benefit.** \n\nBecause your policy shows \"Protect Benefit (non-medical expenses): Not opted\", extras such as attendant food, surgical gloves and service charges **would likely not be payable** under this claim. your claim lists ₹12,500 of non-medical items as not covered for that reason. \n\nIf you want that cover for future treatments, ask your agent or include the Protect Benefit at renewal before the next admission.",
    "status": "ok",
-   "latency_s": 8.98,
+   "latency_s": 7.87,
    "model_calls": 3,
    "rewritten": true,
    "fixed": true,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Your policy details show \"Protect Benefit (non-medical expenses): Not opted\", so' (not found: treated); 'If you want those extras covered in future, consider adding the Protect Benefit ' (not found: adding, consider, future). Search the policy wording first, or leave them out, or say the wording does not say."
+    "decision: Hedge an outcome that is not payable: say 'would likely not be payable' or 'appears not to be covered'. ('The policy data shows \"Protect Benefit (non-medical expenses')"
    ],
    "gates": {
     "unsupported numbers": [],
@@ -729,15 +717,13 @@
    "rep": 1,
    "cat": "cover",
    "q": "does my policy have a restore benefit?",
-   "reply": "**Yes — your plan shows an Automatic Restore benefit listed as “Unlimited times.”**\n\nThe policy wording says the company will add 100% of the Base Sum Insured as a restore when an admissible claim exhausts your cover, and that if “Unlimited times” is shown in the Policy Schedule the restore will trigger every time an admissible claim is paid during the policy year. The restored amount can only be used for subsequent admissible claims in the same policy year and only for covers included (Base coverage and Protect Benefit where applicable). A claims officer makes the final decision on applying restores to any payment.\n\nIf you want, I can check how much cover would remain after this claim — tell me any other claims this policy year.",
+   "reply": "**Yes — your plan includes an automatic restore benefit, unlimited times.**  \n\nThis means if your sum insured is exhausted during the policy year, the cover amount is automatically restored for further claims the same year. You don't need to opt for anything extra; it's part of your Optima Lite benefits.",
    "status": "ok",
-   "latency_s": 14.16,
-   "model_calls": 4,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'That means your cover includes restores that can replenish the sum insured; the ' (not found: explicitly, frequency, replenish). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "latency_s": 3.8,
+   "model_calls": 2,
+   "rewritten": false,
+   "fixed": false,
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -752,15 +738,13 @@
    "rep": 1,
    "cat": "what-if",
    "q": "what if the room rent was 5000 a day?",
-   "reply": "If the room had been ₹5,000 a day your estimated payment would rise to **₹1,60,000**, with **₹1,39,500** counted so far.\n\nThe policy wording says a proportionate deduction is applied when the room charged exceeds the limit in the policy schedule, and that the same proportion is applied to associated medical expenses; if the room rate is within the plan limit that proportionate deduction would not apply. This what‑if assumes only the room rate changes and every other charge stays as billed, so the room-related reduction disappears under that wording. \n\n> Please upload the doctor's prescription for the pharmacy bills anywhere on this page.",
+   "reply": "**If the room had been ₹5,000 a day, your estimated payment would likely be ₹1,60,000.**\n\nThis rises because the room-related reduction disappears (room charge becomes within your plan limit), so the bill drops to ₹1,72,500 and the plan would pay **₹1,60,000** once the missing pharmacy prescription arrives; **₹1,39,500** is counted so far. Only the room rate was changed in this what-if — all other charges stay as billed.\n\n> Please upload the doctor's prescription for the pharmacy bills so the remaining ₹20,500 can be counted.",
    "status": "ok",
-   "latency_s": 16.38,
-   "model_calls": 5,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'The hospital bill would drop to ₹1,72,500, so the room-related proportional redu' (not found: disappears, proportional). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "latency_s": 7.09,
+   "model_calls": 3,
+   "rewritten": false,
+   "fixed": false,
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -768,23 +752,21 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "missing (?:1,72,500|172500|172,500)(?![\\d,])"
-   ]
+   "expected": []
   },
   {
    "i": 34,
    "rep": 1,
    "cat": "what-if",
    "q": "what if the room was 5000 a day and I had the Protect Benefit?",
-   "reply": "**₹1,72,500** estimated payment if the room had been ₹5,000/day and you had the Protect Benefit; **₹1,52,000** is counted so far. \n\n With the Protect Benefit opted, the 12 non-medical extras (₹12,500) would be payable under that add‑on. ₹20,500 is still held until you supply the pharmacy prescription.\n\n> Please drop the pharmacy prescription anywhere on this page so the claims officer can review the remaining ₹20,500.",
+   "reply": "**If the room had been ₹5,000/day and you’d taken Protect Benefit, your estimated payment would be ₹1,72,500**, with **₹1,52,000** counted so far.  \n\nThis is because no room-limit reduction would apply and the Protect Benefit would cover the ₹12,500 of non-medical extras; ₹20,500 remains held until we get the doctor’s prescription for the pharmacy bills, and the late document submission is flagged for a claims officer to review.  \n\nPlease upload the pharmacy bills with the prescribing doctor’s signature and date—drop them anywhere on this page.",
    "status": "ok",
-   "latency_s": 15.47,
-   "model_calls": 5,
+   "latency_s": 11.41,
+   "model_calls": 4,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'This rises because the room is now within your plan limit so the proportional re' (not found: proportional). Search the policy wording first, or leave them out, or say the wording does not say."
+    "format: The reply is 116 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -800,15 +782,37 @@
    "rep": 1,
    "cat": "what-if",
    "q": "what if my plan allowed 8000 a day for the room?",
-   "reply": "A claims officer will still review the late documents. \n\n> You can drop the doctor's prescription for the pharmacy bills anywhere on this page.",
+   "reply": "If your plan allowed ₹8,000/day, your estimated payment would rise to **₹1,72,000**, with **₹1,51,500** counted so far.  \n\nThat happens because the room-limit reduction (₹49,875) would disappear; only ₹12,500 of non-medical extras remains excluded and ₹20,500 is held until you provide the pharmacy prescription.  \n\nPlease upload the pharmacy bills with the prescribing doctor’s signature — you can drop them anywhere on this page.",
    "status": "ok",
-   "latency_s": 16.38,
-   "model_calls": 5,
+   "latency_s": 13.84,
+   "model_calls": 4,
+   "rewritten": true,
+   "fixed": false,
+   "problems": [
+    "format: The reply is 114 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+   ],
+   "gates": {
+    "unsupported numbers": [],
+    "verdict contradictions": [],
+    "internal terms": [],
+    "decision words": [],
+    "unsupported policy statements": []
+   },
+   "expected": []
+  },
+  {
+   "i": 36,
+   "rep": 1,
+   "cat": "what-if",
+   "q": "what if I had the Protect Benefit?",
+   "reply": "The Protect Benefit would likely make the **₹12,500** of non-medical extras payable. \n\nThat means your current estimated payment once documents arrive (which is **₹1,22,125**) would rise, and the amount counted so far (currently **₹1,01,625**) would also rise; the pharmacy amount of ₹20,500 remains waiting for the doctor's prescription. your claim shows 12 non-medical items totalling ₹12,500 are taken off because Protect Benefit was not opted.\n\nPlease upload the policy schedule or payment proof that shows you had the Protect Benefit so a claims officer can review this.",
+   "status": "ok",
+   "latency_s": 10.35,
+   "model_calls": 3,
    "rewritten": true,
    "fixed": true,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'It appears your estimated payment would rise to **₹1,72,000** and the amount cou' (not found: allowed); 'With the higher room limit there’s no room-related proportional reduction, so th' (not found: higher, proportional). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 96 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+    "numbers: These numbers are not in this turn's tool results or the claim data: ['₹1,34,625', '₹1,14,125']. State only figures the tools returned, exactly, and never calculate or round."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -818,17 +822,41 @@
     "unsupported policy statements": []
    },
    "expected": [
-    "missing (?:1,72,000|172000|172,000)(?![\\d,])"
+    "missing (?:1,34,625|134625|134,625)(?![\\d,])",
+    "missing (?:1,14,125|114125|114,125)(?![\\d,])"
    ]
   },
   {
-   "i": 36,
+   "i": 37,
    "rep": 1,
    "cat": "what-if",
-   "q": "what if I had the Protect Benefit?",
-   "reply": "If you had taken the Protect Benefit, the estimated payment would be **₹1,34,625** once the missing prescription arrives.  \n\nThat’s because the ₹12,500 of non‑medical extras (attendant food, gloves, service charges, etc.) would be payable under Protect Benefit, so the counted amount so far would rise from **₹1,01,625** to **₹1,14,125**; ₹20,500 is still held until you provide the doctor’s prescription for the pharmacy bills.  \n\n> Please drop the pharmacy bills with the prescribing doctor’s signature anywhere on this page so the claims officer can review.",
+   "q": "what if I had the surgery on 20 April 2026?",
+   "reply": "**Likely not payable — ₹0** would be payable for surgery on 20 Apr 2026.  \n\nThat date is after your policy period (15 Mar 2025–14 Mar 2026), so the policy was not in force for that treatment and renewing after treatment does not create cover.  \n\nIf you have a renewal schedule or payment proof that shows continuous cover including 20 Apr 2026, please upload it and a claims officer will recheck.",
    "status": "ok",
-   "latency_s": 9.46,
+   "latency_s": 12.57,
+   "model_calls": 4,
+   "rewritten": true,
+   "fixed": false,
+   "problems": [
+    "format: The reply is 102 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+   ],
+   "gates": {
+    "unsupported numbers": [],
+    "verdict contradictions": [],
+    "internal terms": [],
+    "decision words": [],
+    "unsupported policy statements": []
+   },
+   "expected": []
+  },
+  {
+   "i": 38,
+   "rep": 1,
+   "cat": "what-if",
+   "q": "what if I had cataract surgery in December 2025?",
+   "reply": "It appears **cataract surgery in December 2025 would likely not be covered** because cataract is a specified-procedure with a 24‑month waiting period from your first policy inception (15 Mar 2024), so coverage begins on or after **15 Mar 2026**.  \n\nThat rule doesn’t apply to accidents (which are excluded here), and renewing later won’t make treatment before 15 Mar 2026 covered. If you want, I can check coverage for a specific treatment date on or after 15 Mar 2026.",
+   "status": "ok",
+   "latency_s": 12.34,
    "model_calls": 3,
    "rewritten": false,
    "fixed": false,
@@ -843,62 +871,13 @@
    "expected": []
   },
   {
-   "i": 37,
-   "rep": 1,
-   "cat": "what-if",
-   "q": "what if I had the surgery on 20 April 2026?",
-   "reply": "**Likely covered if your policy is renewed before 20 Apr 2026 and you can show continuous renewal.** The policy says waiting periods only end after the required continuous coverage and that renewal must be in place before treatment to carry waiting‑period credit. A claims officer will review continuity.",
-   "status": "ok",
-   "latency_s": 18.19,
-   "model_calls": 5,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'The waiting‑period check shows the usual waiting periods (30‑day and specified‑p' (not found: inside). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 91 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
-   ],
-   "gates": {
-    "unsupported numbers": [],
-    "verdict contradictions": [],
-    "internal terms": [],
-    "decision words": [],
-    "unsupported policy statements": []
-   },
-   "expected": [
-    "none of likely not|not (?:be )?(?:payable|paid|covered)|un..."
-   ]
-  },
-  {
-   "i": 38,
-   "rep": 1,
-   "cat": "what-if",
-   "q": "what if I had cataract surgery in December 2025?",
-   "reply": "**Cataract is listed under the specified disease/procedure waiting period, which is 24 months from your first policy inception, so it would be covered on or after 15 Mar 2026.**\n\nThe policy wording lists \"Cataract and other disorders of lens and retina\" under the 24‑month specified-disease waiting period that starts from your first policy inception (15 Mar 2024). \n\nIf you think the surgery resulted from an accident, tell me the admission/procedure details and I’ll check how that affects coverage.",
-   "status": "ok",
-   "latency_s": 20.71,
-   "model_calls": 5,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Likely not payable: cataract has a **24-month waiting period**, and that complet' (not found: december). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
-   "gates": {
-    "unsupported numbers": [],
-    "verdict contradictions": [],
-    "internal terms": [],
-    "decision words": [],
-    "unsupported policy statements": []
-   },
-   "expected": []
-  },
-  {
    "i": 39,
    "rep": 1,
    "cat": "waiting",
    "q": "is cataract surgery covered?",
-   "reply": "**Cataract surgery is covered but only after a 24‑month waiting period from when your cover first began.** Your first policy inception is 15 Mar 2024, so cataract treatment would be covered for dates on or after **15 Mar 2026**; treatment before that is within the 24‑month waiting period and would likely not be payable unless it arose from an accident. A claims officer makes the final decision.",
+   "reply": "Cataract surgery appears covered after a 24‑month waiting period — **on or after 15 Mar 2026**.  \n\nThat rule means treatment for cataract (listed under specified diseases/procedures) is excluded until 24 months of continuous cover from your first policy start (15 Mar 2024); claims due to an accident are exempt from this waiting period. Show continuous renewals if you rely on prior cover to reduce the waiting period.  \n\nIf you want, I can check whether any earlier renewal or prior coverage you have changes the effective date.",
    "status": "ok",
-   "latency_s": 8.9,
+   "latency_s": 8.42,
    "model_calls": 3,
    "rewritten": false,
    "fixed": false,
@@ -917,15 +896,13 @@
    "rep": 1,
    "cat": "waiting",
    "q": "what is the waiting period for a condition I had before the policy?",
-   "reply": "**Pre-existing conditions have a 36-month waiting period**, counted from your first policy inception (15 Mar 2024), so that waiting period completes on **15 Mar 2027**.  \n\nThe policy wording states expenses for pre-existing diseases are excluded until 36 months of continuous coverage from the first policy inception.  \n\nIf you want me to check your documents for any declared pre-existing condition, tell me the condition name and I’ll look for it.",
+   "reply": "**36 months**.  \n\nThe pre-existing condition waiting period runs from your first policy inception (15 Mar 2024), so it would be served on **15 Mar 2027**; your admission on 10 Sep 2025 is only 17 months after inception, so the 36‑month wait is not yet met. Accidents are exempt from this waiting period, but your claim is for an illness. If you think the condition wasn’t pre-existing or you have prior-continuity documents, share them and a claims officer will review.",
    "status": "ok",
-   "latency_s": 17.67,
-   "model_calls": 5,
-   "rewritten": true,
+   "latency_s": 9.65,
+   "model_calls": 3,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Your admission (10 Sep 2025) is 17 months after inception, so the 36-month waiti' (not found: 17 months); 'Accidents are an exception — accidental injuries don’t need this waiting period.' (not found: exception, injuries); 'If you had a specific pre-existing condition, confirm it and I’ll check what doc' (not found: confirm, future, support). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -940,9 +917,9 @@
    "rep": 1,
    "cat": "waiting",
    "q": "is there a 30 day waiting period?",
-   "reply": "**No — a 30-day waiting period does not apply** to this treatment. \n\nYour policy began on **15 Mar 2024** and the admission was on **10 Sep 2025**, which is well past 30 days, so the 30‑day rule does not apply. \n\nIf you want, I can also check the specified‑disease and pre‑existing waiting periods for this procedure.",
+   "reply": "**No — the 30‑day waiting period does not apply to this claim.**\n\nYour admission (10 Sep 2025) was 544 days after your policy began (15 Mar 2024), so the 30‑day waiting period is already served. Your policy was in force on the admission date and this was an illness (not an accident), so no accident exception is needed.\n\nYou don’t need to do anything about waiting periods for this claim; the remaining hold is the missing pharmacy prescription.",
    "status": "ok",
-   "latency_s": 8.47,
+   "latency_s": 10.26,
    "model_calls": 3,
    "rewritten": false,
    "fixed": false,
@@ -954,23 +931,21 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "none of accident..."
-   ]
+   "expected": []
   },
   {
    "i": 42,
    "rep": 1,
    "cat": "waiting",
    "q": "is my appendectomy subject to a waiting period?",
-   "reply": "**The policy says specified diseases/procedures carry a 24‑month waiting period and pre‑existing conditions 36 months, but the list of specified procedures in the policy does not show “appendectomy.”**\n\nYour documents show waiting‑period rules (30‑day, specified‑procedure and pre‑existing) were checked and flagged as not applicable for this claim. If you want, I can ask a claims officer to confirm whether laparoscopic appendectomy is treated as a listed procedure under your policy.",
+   "reply": "**No — your appendectomy is not subject to a waiting period.**\n\nYour policy was active on the admission date (10 Sep 2025), and this was an emergency treatment for acute appendicitis. The short initial waiting rule (first 30 days after cover began) isn’t relevant, the specified‑disease/procedure waiting condition doesn’t apply to this surgery, and it isn’t a pre‑existing condition.  \n\nIf you’d like, I can check other treatment dates or explain which procedures would have waiting periods.",
    "status": "ok",
-   "latency_s": 23.12,
-   "model_calls": 6,
+   "latency_s": 9.82,
+   "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: '**No — your appendectomy appears not to be subject to a waiting period.**' (not found: subject); 'The policy was in force on the admission date, so your treatment on 11 Sep 2025 ' (not found: awaited, eligible, subject). Search the policy wording first, or leave them out, or say the wording does not say."
+    "internal: Remove internal terms (['the assessment']): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -979,26 +954,20 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "none of \\bno\\b|not subject|does not apply|doesn't apply|is..."
-   ]
+   "expected": []
   },
   {
    "i": 43,
    "rep": 1,
    "cat": "waiting",
    "q": "what is the PED waiting period on my schedule?",
-   "reply": "**36-month** waiting period for pre-existing diseases.  \nIt is served from your first policy inception, **15 Mar 2024**, as shown on your schedule.  \nIf you want the exact policy wording for this PED waiting period, I can fetch that for you.",
+   "reply": "Your PED waiting period is **36 months**. It counts from your first policy inception date, 15 Mar 2024.  \n\nIf you want me to check whether it's served for a specific treatment date, tell me the date and I’ll check it.",
    "status": "ok",
-   "latency_s": 10.15,
-   "model_calls": 3,
-   "rewritten": true,
+   "latency_s": 6.79,
+   "model_calls": 2,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "numbers: These numbers are not in this turn's tool results or the claim data: ['15 Mar 2027']. State only figures the tools returned, exactly, and never calculate or round.",
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'This means any condition you had before 15 Mar 2024 would be covered only for tr' (not found: exception, subject, unless); 'If you think a condition was disclosed earlier or you have prior-continuity proo' (not found: disclosed). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 92 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -1013,15 +982,14 @@
    "rep": 1,
    "cat": "cover-left",
    "q": "how much cover will I have left after this claim?",
-   "reply": "This is the available cover (₹5,50,000) minus the estimated payment once the missing pharmacy prescription arrives (₹1,22,125). ₹1,01,625 is counted so far. \n\nPlease upload the doctor's prescription for the pharmacy bills so the estimate can be finalised and reviewed by a claims officer.",
+   "reply": "**You would have ₹4,27,875 left** after this claim: **₹1,22,125** is the estimated payment once your missing documents arrive and **₹1,01,625** is counted so far. \n\nThis is ₹5,50,000 (your available cover) minus the estimated payment ₹1,22,125. The final balance will change if the payable amount changes after the doctor’s prescription arrives and a claims officer completes review. \n\n> Please drop the pharmacy prescription anywhere on this page so the claim can be updated.",
    "status": "ok",
-   "latency_s": 11.87,
+   "latency_s": 11.24,
    "model_calls": 4,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "decision: You never approve, reject, deny or settle a claim and never tell anyone to. Say what appears likely and that a claims officer decides.",
-    "format: Use at most 3 bold spans: bold only the key figure or fact."
+    "figures: Give both figures when something is waiting for a document: ₹1,22,125 once your documents arrive and ₹1,01,625 counted so far."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1030,24 +998,20 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "missing (?:4,27,875|427875|427,875)(?![\\d,])"
-   ]
+   "expected": []
   },
   {
    "i": 45,
    "rep": 1,
    "cat": "cover-left",
    "q": "I already claimed 3 lakh earlier this policy year. How much cover do I have left after this claim?",
-   "reply": "**₹1,27,875** would be left as your cover after this claim.\n\nIf the earlier ₹3,00,000 wasn’t fully paid, tell me the actual paid amount and I’ll recalc.\n\nAbout ₹1,22,125 once your documents arrive; ₹1,01,625 is counted so far.",
+   "reply": "**You would have ₹1,27,875 of cover left** after this claim (assuming the earlier ₹3,00,000 you mentioned was paid in full).  \n\nThis uses your total available cover of **₹5,50,000** and subtracts the ₹3,00,000 you said you already claimed and the current claim's estimated payment of **₹1,22,125** (₹1,01,625 counted so far, ₹20,500 held until the doctor's prescription arrives). The other-claims amount you gave is assumed paid in full and unverified.  \n\nPlease drop the missing doctor's prescription for the pharmacy bills anywhere on this page so the remaining ₹20,500 can be considered.",
    "status": "ok",
-   "latency_s": 19.45,
-   "model_calls": 5,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: '**You’d have ₹1,27,875 of cover left** after this claim, assuming the earlier ₹3' (not found: assuming). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "latency_s": 9.56,
+   "model_calls": 3,
+   "rewritten": false,
+   "fixed": false,
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -1055,23 +1019,21 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "missing assum|unverified|can't verify|cannot verify|you (?:said|ment"
-   ]
+   "expected": []
   },
   {
    "i": 46,
    "rep": 1,
    "cat": "cover-left",
    "q": "if I made two other claims of 3 lakh and 2 lakh, how much cover would be left?",
-   "reply": "**₹0** would likely be left of your cover.  \n\nYou told me about two earlier claims (₹3,00,000 and ₹2,00,000) and your current claim's estimated payment is **₹1,22,125**; together these totals more than the cover shown in your documents, so nothing remains.  \n\nIf you want this checked, please upload proof or status of the two earlier claims so a claims officer can verify and give the final balance.",
+   "reply": "**₹0** would remain of your ₹5,50,000 cover if the two other claims of ₹3,00,000 and ₹2,00,000 are treated as paid in full.  \n\nThis uses your sum insured plus bonus (₹5,50,000) and your estimated payment for this claim (₹1,22,125); together they exceed ₹5,50,000, so nothing is left.  \n\nAssumption: the two earlier claims are treated as paid in full and unverified. Tell me the actual paid amounts or upload those claim summaries if you want a recalculation.",
    "status": "ok",
-   "latency_s": 16.19,
+   "latency_s": 13.19,
    "model_calls": 4,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: \"That's because your available cover is **₹5,50,000** (₹5,00,000 base + ₹50,000 b\" (not found: assuming, exceeds). Search the policy wording first, or leave them out, or say the wording does not say."
+    "format: The reply is 94 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1087,9 +1049,9 @@
    "rep": 1,
    "cat": "documents",
    "q": "what documents are missing?",
-   "reply": "**Doctor's prescription for the pharmacy bills** is missing. It’s needed to support the pharmacy bills of ₹20,500 shown on your claim. \n\nPlease drop the prescription anywhere on this page so the claims officer can clear the ₹20,500 that’s currently held until that document arrives.",
+   "reply": "**Doctor's prescription for the pharmacy bills** is missing.  \n\nThis is the only document outstanding; ₹20,500 of pharmacy charges is being held until that prescription arrives.  \n\nYou can drop the prescription anywhere on this page for the claims team to review.",
    "status": "ok",
-   "latency_s": 5.44,
+   "latency_s": 4.12,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1108,15 +1070,13 @@
    "rep": 1,
    "cat": "documents",
    "q": "which documents have I sent?",
-   "reply": "**You have sent 9 documents.**\n\nThey are: Policy schedule; Claim form; Photo ID and age proof; Discharge summary; Final hospital bill with receipts; Lab and imaging reports; Consultation papers; KYC form (claims above ₹1 lakh); NEFT form with cancelled cheque.\n\nThe doctor's prescription for the pharmacy bills is still missing from what you sent; ₹20,500 is held until that prescription arrives.  \n> You can drop the prescription anywhere on this page.",
+   "reply": "**You've sent these documents:** Policy schedule; Claim form; Photo ID and age proof; Discharge summary; Final hospital bill with receipts; Lab and imaging reports; Consultation papers; KYC form (claims above ₹1 lakh); NEFT form with cancelled cheque. \n\nThese are the documents listed as received in your claim. The doctor's prescription for the pharmacy bills is still missing — you can drop that prescription anywhere on this page for the claims officer to review.",
    "status": "ok",
-   "latency_s": 12.01,
-   "model_calls": 3,
-   "rewritten": true,
+   "latency_s": 4.47,
+   "model_calls": 2,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: \"These match what's needed except the doctor's prescription for the pharmacy bill\" (not found: anywhere, except). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -1131,16 +1091,13 @@
    "rep": 1,
    "cat": "documents",
    "q": "how do I add the prescription?",
-   "reply": "**Drop the doctor's prescription for the pharmacy bills anywhere on this page.**\n\nThis document is the only missing item holding back ₹20,500; the prescription should clearly show the doctor's name, signature, date and the medicines. Once uploaded, the claim will move from \"on hold\" to claims officer review.",
+   "reply": "You can add the doctor's prescription by uploading or dropping a clear scan/photo of it on this claim page — once received the held amount of **₹20,500** can be considered. \n\nThe prescription must show the doctor's name, stamp, signature, date and the medicine names that match your pharmacy bills (PDF, JPG or PNG are fine). Your documents are late and flagged for review, but a delay can be accepted; a claims officer will look after that once the prescription arrives.\n\n> Drop the prescription anywhere on this page.",
    "status": "ok",
-   "latency_s": 11.85,
-   "model_calls": 3,
-   "rewritten": true,
+   "latency_s": 5.01,
+   "model_calls": 2,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Include the claim number CLM-20250910-0001 and your name (Rohan Verma) in the up' (not found: upload). Search the policy wording first, or leave them out, or say the wording does not say.",
-    "format: The reply is 93 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -1155,14 +1112,14 @@
    "rep": 1,
    "cat": "documents",
    "q": "do I need a KYC form?",
-   "reply": "**Your KYC is required for claims above ₹1,00,000 and the KYC form is already received.** The policy wording requires KYC documents for all claims above Rs.1 lakh, and your claim documents list the KYC form as submitted. If you want, I can tell you which other documents are still awaited (the pharmacy prescription is the one missing).",
+   "reply": "**No — you already provided the KYC form.**\n\nYour documents list shows the \"KYC form (claims above ₹1 lakh)\" was received along with ID, discharge summary and bills. A claims officer may still ask to see originals or additional proofs later; if that happens you can drop them anywhere on this page.",
    "status": "ok",
-   "latency_s": 14.49,
-   "model_calls": 4,
+   "latency_s": 8.95,
+   "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: \"**No — you don't need to send a KYC form; it's already received.** The claim doc\" (not found: submitted). Search the policy wording first, or leave them out, or say the wording does not say."
+    "numbers: These numbers are not in this turn's tool results or the claim data: ['₹1,00,000']. State only figures the tools returned, exactly, and never calculate or round."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1178,14 +1135,14 @@
    "rep": 1,
    "cat": "renewal",
    "q": "can I renew my policy after the surgery to get it covered?",
-   "reply": "If you want proof of continuous renewals for future claims, drop your renewal schedule or payment receipts here and I’ll check.",
+   "reply": "**No — renewing after your surgery won't make that surgery covered.** Your renewal only covers treatment from the renewal start date onward, and you can't gain cover for treatment already done by renewing later. Your policy was already in force on 10 Sep 2025, so this claim sits under the current policy and will be reviewed despite the late documents. Renew before 15 Mar 2026 and keep the renewal receipt to preserve waiting-period credit and continuity for future claims.",
    "status": "ok",
-   "latency_s": 11.06,
+   "latency_s": 9.0,
    "model_calls": 3,
    "rewritten": true,
-   "fixed": true,
+   "fixed": false,
    "problems": [
-    "format: The reply is 94 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+    "format: The reply is 93 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1194,24 +1151,20 @@
     "decision words": [],
     "unsupported policy statements": []
    },
-   "expected": [
-    "none of \\bno\\b|cannot|can't|not (?:be )?covered|only cover..."
-   ]
+   "expected": []
   },
   {
    "i": 52,
    "rep": 1,
    "cat": "renewal",
    "q": "does renewing keep my waiting period credit?",
-   "reply": "**Yes — continuous renewal keeps your waiting-period credit.** The policy wording says waiting periods are retained only if the policy has been continuously renewed without any break.  \n\nPlease upload your renewal schedule or payment proof for each year to show continuity.",
+   "reply": "**Yes — a continuous renewal keeps your waiting‑period credit.** The policy says to keep the waiting‑period benefit you must renew without a break and be able to show continuity (provide the renewal schedule or payment proof for every year). Renewing after the treatment won't gain cover for a past treatment; a renewal only covers treatment on or after its start date.  \n\nKeep a copy of each year's renewal schedule or payment proof and you can produce it if a claims officer asks.",
    "status": "ok",
-   "latency_s": 15.31,
-   "model_calls": 4,
-   "rewritten": true,
+   "latency_s": 5.43,
+   "model_calls": 2,
+   "rewritten": false,
    "fixed": false,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'Renewal only covers treatment on or after the renewal start date; renewing after' (not found: retroactively). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -1226,9 +1179,9 @@
    "rep": 1,
    "cat": "renewal",
    "q": "what would I need to show to prove my cover was continuous?",
-   "reply": "**You need to show your renewal schedule or premium payment proof for every year** to prove continuity of cover.  \n\nThis rule means providing the renewal document(s) or receipts that show you renewed or paid the premium each year up to the treatment date (15 Mar 2026 would be the next renewal). If any year was paid late, give the payment receipt or bank statement for that year so a claims officer can review continuity.  \n\n> You can drop those renewal documents or payment proofs anywhere on this page.",
+   "reply": "**Show the renewal schedule or the payment proof for every year** to prove your cover was continuous. \n\nThe policy says continuity is shown by the renewal schedule or payment proof for each year so waiting‑period credit is kept; provide the renewal notice, premium receipts, bank/UPI transaction proof or insurer payment confirmation for each renewal (including the one that began 15 Mar 2025). \n\n> You can drop those documents anywhere on this page.",
    "status": "ok",
-   "latency_s": 5.55,
+   "latency_s": 5.83,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1247,9 +1200,9 @@
    "rep": 1,
    "cat": "filing",
    "q": "is my claim late?",
-   "reply": "Yes — your documents were sent **372 days after discharge**; the policy asks for them within 30 days (by 14 Oct 2025).  \n\nBecause of that delay the file is flagged for a claims officer to review (not immediately rejected); a late submission can be accepted if the delay was beyond your control and the officer agrees.  \n\nPlease upload a short explanation and any supporting proof of the delay (for example travel, hospital/official correspondence) anywhere on this page so the officer can review.",
+   "reply": "**Yes — your documents were sent 372 days after discharge,** while the policy asks for them within **30 days**. This lateness is flagged for a claims officer to review (not an automatic rejection); a delay can be accepted if it was beyond your control.  \n\nThe claim is under review because of the late submission and the missing doctor's prescription for the pharmacy bills; providing that prescription may help the officer decide. You can drop the prescription anywhere on this page.",
    "status": "ok",
-   "latency_s": 5.95,
+   "latency_s": 4.77,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1268,13 +1221,15 @@
    "rep": 1,
    "cat": "filing",
    "q": "what is the time limit for sending documents?",
-   "reply": "**30 days from discharge — by 14 Oct 2025.** Your documents were sent 372 days after discharge, so this late submission is flagged for a claims officer to review (it’s not an automatic rejection). You can drop the missing doctor's prescription for the pharmacy bills anywhere on this page for the officer to consider.",
+   "reply": "**You must send documents within 30 days of discharge — by 14 Oct 2025.**\n\nYour documents were submitted 372 days after discharge, so this late submission is flagged for a claims officer to review; it’s not an automatic rejection, because a delay can be accepted if it was beyond your control. The doctor's prescription for the pharmacy bills is still needed.\n\n> You can drop the prescription anywhere on this page so the officer can finish the review.",
    "status": "ok",
-   "latency_s": 4.17,
-   "model_calls": 2,
-   "rewritten": false,
+   "latency_s": 8.37,
+   "model_calls": 3,
+   "rewritten": true,
    "fixed": false,
-   "problems": [],
+   "problems": [
+    "internal: Remove internal terms (['the assessment']): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id."
+   ],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],
@@ -1289,14 +1244,15 @@
    "rep": 1,
    "cat": "filing",
    "q": "will a late claim be rejected?",
-   "reply": "**It appears your late submission will be flagged for a claims officer to review, not automatically rejected.** Documents arrived 372 days after discharge while the policy asks for them within 30 days, so the delay is noted and needs human discretion. The officer will also need the missing doctor's prescription for the pharmacy bills. Drop the prescription anywhere on this page so the officer can finish their assessment.",
+   "reply": "**Sent 372 days after discharge** and **not automatically rejected** — your late submission is flagged for a claims officer to review.  \n\nThe policy asks for documents within 30 days (by 14 Oct 2025); late claims can be accepted if the delay was beyond your control, so a human reviewer will decide.  \n\nPlease upload the missing pharmacy prescriptions and a short note explaining the delay (travel, illness, etc.) — you can drop them anywhere on this page for the reviewer.",
    "status": "ok",
-   "latency_s": 11.62,
+   "latency_s": 9.43,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 99 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
+    "internal: Remove internal terms (['the assessment']): say what a rule is about in plain words, never its code, clause number, annexure letter, tool name or id.",
+    "format: The reply is 94 words: for this kind of question the limit is 90. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1312,9 +1268,9 @@
    "rep": 1,
    "cat": "out-of-scope",
    "q": "what's the weather like?",
-   "reply": "I can only help with your claim and your policy; I can't provide weather information. Ask me anything about your claim, the estimate, or the documents.",
+   "reply": "**I can only help with your claim and your policy.**  \nAsk me anything about Rohan Verma's claim CLM-20250910-0001 or your Optima Lite policy.",
    "status": "ok",
-   "latency_s": 3.81,
+   "latency_s": 4.24,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1333,9 +1289,9 @@
    "rep": 1,
    "cat": "out-of-scope",
    "q": "tell me a joke",
-   "reply": "**I can only help with your claim and your policy.** I can't do jokes or unrelated chat here — I stick to explaining your claim, documents, waiting periods and payments. If you want, I can instead give a light, claim-related one-liner about hospitals or explain any part of your claim.",
+   "reply": "**I can only help with your claim and your policy.**  \nIf you want, I can explain your claim estimate, tell you which documents are missing, or—if you prefer—share a short, claim-themed joke. Which would you like?",
    "status": "ok",
-   "latency_s": 4.78,
+   "latency_s": 4.92,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1354,14 +1310,14 @@
    "rep": 1,
    "cat": "out-of-scope",
    "q": "what is my address?",
-   "reply": "**I can't find an address in your claim documents.** Please upload or type the address you want us to use.",
+   "reply": "**Your address is not shown** in the documents we have.",
    "status": "ok",
-   "latency_s": 9.74,
+   "latency_s": 6.48,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 42 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 41 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1440,9 +1396,9 @@
    "rep": 1,
    "cat": "multi-part",
    "q": "What is my policy number and when does my policy expire?",
-   "reply": "**Policy number: SYN-2805-0000-0001.**  \n**Policy expiry (end of current policy period): 14 Mar 2026.**\n\nYour next renewal would start on 15 Mar 2026 if renewed.",
+   "reply": "**Policy number: SYN-2805-0000-0001. Policy expiry (end of current policy period): 14 Mar 2026.**\n\nYour next renewal would start on 15 Mar 2026.",
    "status": "ok",
-   "latency_s": 4.13,
+   "latency_s": 3.71,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1461,9 +1417,9 @@
    "rep": 1,
    "cat": "multi-part",
    "q": "How much will be paid and which documents are missing?",
-   "reply": "About **₹1,22,125** looks likely to be paid once the missing document arrives; **₹1,01,625** is counted so far.  \nThis is after a reduction for the room-limit (so room and associated doctor/theatre/nursing charges were reduced) and non-medical extras of ₹12,500; **₹20,500** is held back because a document is missing.  \nPlease upload the doctor's prescription for the pharmacy bills — you can drop it anywhere on this page; your late submission is flagged for a claims officer to review.",
+   "reply": "**About ₹1,22,125** would likely be payable once the missing document arrives; **₹1,01,625** is counted so far. \n\nThis is because ₹20,500 (your pharmacy bills) is being held until you submit the treating doctor's prescription, and earlier reductions for room-limit and non-medical items have already been applied. Your documents were submitted 372 days after discharge and are flagged for a claims officer to review (not auto-rejected).\n\nPlease upload the treating doctor's prescription for the pharmacy bills — you can drop it anywhere on this page.",
    "status": "ok",
-   "latency_s": 7.29,
+   "latency_s": 4.43,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1482,9 +1438,9 @@
    "rep": 1,
    "cat": "multi-part",
    "q": "When did my policy start, when does it end, and what is my sum insured?",
-   "reply": "Your policy started on **15 Mar 2025**, ends on **14 Mar 2026**, and your available sum insured is **₹5,50,000** (₹5,00,000 base + ₹50,000 cumulative bonus).  \n\nThese come from your policy schedule. If you want, I can explain how renewals keep waiting-period credit or how much cover is left after this claim.",
+   "reply": "**Policy start: 15 Mar 2025**, **Policy end: 14 Mar 2026**, **Sum insured available: ₹5,50,000** (base ₹5,00,000 plus cumulative bonus ₹50,000).  \n\nThese come from your current policy period and the schedule you submitted. If you want, I can explain how renewals or waiting-period credit would affect cover from 15 Mar 2026.",
    "status": "ok",
-   "latency_s": 6.48,
+   "latency_s": 6.36,
    "model_calls": 2,
    "rewritten": false,
    "fixed": false,
@@ -1503,14 +1459,14 @@
    "rep": 1,
    "cat": "multi-part",
    "q": "What was my diagnosis and how many days was I in hospital?",
-   "reply": "Your diagnosis was **Acute appendicitis** and you stayed **4 days** in hospital.",
+   "reply": "Your diagnosis was **Acute appendicitis** and your hospital stay was **4 days**.",
    "status": "ok",
-   "latency_s": 8.7,
+   "latency_s": 7.01,
    "model_calls": 3,
    "rewritten": true,
    "fixed": false,
    "problems": [
-    "format: The reply is 33 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
+    "format: The reply is 48 words: for this kind of question the limit is 30. Lead with the answer and cut the rest."
    ],
    "gates": {
     "unsupported numbers": [],
@@ -1526,15 +1482,13 @@
    "rep": 1,
    "cat": "multi-part",
    "q": "Was my policy active on 10 Sep 2025 and what is my room rent limit?",
-   "reply": "The claim papers state the policy was in force on the admission date (10 Sep 2025) and the plan’s room limit is 1% of the ₹5,00,000 base sum insured per day = ₹5,000. \n\nIf you’d like, I can explain how the hospital’s ₹8,000/day charge affected the estimated payment and which charges were reduced.",
+   "reply": "Yes — **your policy was in force on 10 Sep 2025**, and your room rent limit is **₹5,000 per day**.  \n\nThe admission (10 Sep 2025) falls inside your policy period (15 Mar 2025 to 14 Mar 2026). The room limit is 1% of your base sum insured (1% of ₹5,00,000 = ₹5,000/day), and the same proportion was applied to associated doctor, OT and nursing charges.  \n\nIf you want, I can show how that room limit reduced your payment.",
    "status": "ok",
-   "latency_s": 11.35,
-   "model_calls": 3,
-   "rewritten": true,
-   "fixed": true,
-   "problems": [
-    "policy: These statements about the policy are not supported by the policy passages or the customer's documents you were given this turn: 'The admission (10 Sep 2025) falls inside your policy period (15 Mar 2025–14 Mar ' (not found: inside). Search the policy wording first, or leave them out, or say the wording does not say."
-   ],
+   "latency_s": 5.12,
+   "model_calls": 2,
+   "rewritten": false,
+   "fixed": false,
+   "problems": [],
    "gates": {
     "unsupported numbers": [],
     "verdict contradictions": [],

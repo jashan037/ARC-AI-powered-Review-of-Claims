@@ -16,7 +16,7 @@ import json
 import re
 
 from . import claims_engine as E
-from .number_guard import split_sentences
+from .number_guard import scan, split_sentences
 
 CANNOT_CONFIRM = "I can't confirm that from your policy wording."
 
@@ -89,14 +89,34 @@ def _rules(ctx):
     return out
 
 
+def _date_truth(sentence: str, ctx):
+    """The policy-in-force verdict for a DIFFERENT date named in the sentence (not the admission date): (truth, sentence built in code), or None when the sentence names no other full date."""
+    res = _assessment(ctx)
+    if not res or not res.get("policy_in_force"):
+        return None
+    r = res["policy_in_force"]
+    skip = {tuple(int(x) for x in r[k].split("-")) for k in ("admission_date", "period_start", "period_end")}     # the admission date and the period's own ends are not "another date"
+    for (y, m, d), _raw in scan(sentence)["dates"]:
+        if y and (y, m, d) not in skip and 1990 < y < 2100:
+            try:
+                other = E.policy_in_force(dict(policy_period=[r["period_start"], r["period_end"]], admission_datetime=f"{y:04d}-{m:02d}-{d:02d}T00:00"))
+            except ValueError:
+                return None
+            return other["in_force"], E.policy_in_force_text(other).replace("on the admission date", "on that date").replace("the admission date", "that date")
+    return None
+
+
 def verdict_problems(text: str, ctx) -> list[tuple[str, str, str]]:
     """(rule, the offending sentence, the sentence built in code) for each sentence that contradicts a tool result."""
     found = []
-    for name, truth, says_true, says_false, correct in _rules(ctx):
-        if not correct:
+    for name, truth0, says_true, says_false, correct0 in _rules(ctx):
+        if not correct0:
             continue
-        wrong = says_false if truth else says_true
         for s in sentences(text):
+            truth, correct = truth0, correct0
+            if name == "policy_in_force" and (other := _date_truth(s, ctx)):     # a sentence about another date is judged against that date
+                truth, correct = other
+            wrong = says_false if truth else says_true
             wm = wrong.search(s)
             if wm and not _HYPO.search(s):
                 right = (says_true if truth else says_false).search(s)
