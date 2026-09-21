@@ -61,15 +61,16 @@ Live settings: `RETRIEVER=azure`, `AGENT_MODE=foundry`. Embeddings use the deplo
 | POST | `/sessions` | new session, body optional `{"audience": "customer"}` |
 | POST | `/sessions/{id}/documents` , `/documents/sample` | upload PDFs / load the sample documents |
 | POST | `/sessions/{id}/intake` | build the claim: `ready` or `needs_attention` with plain reasons |
-| POST | `/sessions/{id}/claim` | `{"sample_id": "TC07"}` or `{"claim": {...}}` |
-| POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `summary_markdown`, `sections`, `citations`, `suggestions` (plus `trace_summary`, `tool_trace` and citation `chunk_key`s only when the server runs with `DEBUG_TRACE=1`) |
-| POST | `/assess` | stateless deterministic assessment, no LLM |
-| GET | `/samples` | sample claims |
+| POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `{status, reply, sources}` (Markdown reply; plus `tool_trace`, `guards` only when the server runs with `DEBUG_TRACE=1`) |
+| DELETE | `/sessions/{id}` | delete everything held for the session |
+| GET | `/health` | `{"status":"ok"}` |
+
+Developer routes, only with `DEBUG=1`: `/docs`, `/openapi.json`, `/samples`, `POST /assess`, `POST /sessions/{id}/claim`. Sessions expire after 30 idle minutes; limits and the rate limit are in `docs/SECURITY.md`.
 
 ## Status and known limits
 
-- Tested: 708 offline tests and, on the real Azure agent, 38 evaluation cases (`docs/evidence/eval_report.md`) and the 8-step demo (`scripts/eval/demo_check.py`).
+- Tested: 366 offline tests and, on the real Azure agent, the accuracy suite (68 questions x 3 runs, `docs/evidence/accuracy_report.md`) and the format suite (`docs/evidence/format_before_after.md`). Older eval scripts (`eval_agent.py`, `quality_suite.py`, `demo_check.py`) target a removed answer format and no longer run.
 - Intake reads text PDFs in the layout of `demo/documents/` only; scans and other layouts are refused, not guessed. Azure Content Understanding is not built.
-- Sessions are in memory, there is no authentication or rate limiting, and dependencies are pinned but not locked: see `docs/SYSTEM_REPORT.md` (P0 and P1 lists) before any deployment.
+- Sessions are in memory (expiry, caps and a per-IP rate limit exist, see `docs/SECURITY.md`), there is no authentication, and dependencies are pinned but not locked: see `docs/SYSTEM_REPORT.md` (P0 and P1 lists) before any deployment.
 - Only wording HDFHLIP25041V062425 is indexed. Non-medical items use HDFC's Annexure B (68 items), not IRDAI's longer list.
 - All data is synthetic. Never load a real person's documents.

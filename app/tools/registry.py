@@ -46,7 +46,7 @@ SCHEMAS = [
          parameters=_obj({})),
     dict(name="cover_left", description="How much of the customer's cover amount would be left after this claim and after any other claims the customer says they made or will make this policy year. "
          "Use it for questions like 'how much cover do I have left' or 'if I already claimed 3 lakh'. Amounts the customer states are assumed paid in full and unverified.",
-         parameters=_obj({"extra_claims": {"type": "array", "items": _N, "description": "Amounts (rupees) of other claims the customer stated, each as a plain number, e.g. [300000]."}})),
+         parameters=_obj({"extra_claims": {"type": "array", "items": _N, "description": "Amounts (rupees) of OTHER claims the customer stated, e.g. [300000]. Never this claim's own estimate or bill: the tool already subtracts this claim."}})),
     dict(name="assess_claim", description="The assessment of the customer's claim: what is likely to be paid, what was taken off and why, the room-rent limit, the non-medical items, missing documents and waiting periods. "
          "It has already been run for this turn; call it again only to test a change (a what-if), for example {'room_rate_per_day': 5000}.",
          parameters=_obj({"what_if": {"type": "object", "description": "Changes to test. Allowed keys: first_policy_inception, admission_datetime, plan, base_si_lakh, room_rate_per_day, protect_benefit_opted, "
@@ -206,7 +206,13 @@ def cover_left(ctx: TurnContext, extra: list[float]) -> dict:
     bonus = sched.get("bonus")
     if bonus is None:
         bonus = max(0.0, (claim.get("sum_insured_available") or base) - base)
+    est0 = ctx.results.get("assessment") or E.assess(claim)
+    own = {round(v, 2) for v in (est0["amounts"]["estimated_payable_if_docs_supplied"], est0["amounts"]["payable_confirmed_now"], est0["amounts"]["gross_billed"], est0["amounts"]["held_pending"]) if v}
+    ignored = [x for x in extra if round(x, 2) in own]
+    extra = [x for x in extra if round(x, 2) not in own]                # this claim's own figures are subtracted by this tool: passing them again would count the claim twice
     assumptions = ["The other claims you mention are assumed to be paid in full; I can't verify them."] if extra else []
+    if ignored:
+        assumptions.append("An amount you gave matches this claim's own figures, so it was not counted a second time.")
     plus_note = None
     if sched.get("plus_benefit_opted"):
         plus_note = "Your schedule shows the Plus Benefit as opted, but I can't read its amount, so it is not included in the cover amount."

@@ -226,3 +226,9 @@ def test_cover_left_is_worked_out_in_code_with_the_stated_claims_marked_unverifi
     assert two["cover_left"] == 127875 and two["other_claims_you_mentioned"] == [{"amount": 300000.0, "status": "stated by you, unverified"}] and "assumed to be paid in full" in two["assumptions"][0]
     over = call_tool("cover_left", {"extra_claims": [600000]}, ctx_for())
     assert over["cover_left"] == 0 and "nothing would be left" in over["assumptions"][-1]
+
+
+def test_cover_left_does_not_count_this_claim_twice():
+    twice = call_tool("cover_left", {"extra_claims": [122125, 300000]}, ctx_for())          # the model passed this claim's own estimate as another claim
+    assert twice["cover_left"] == 127875 and [x["amount"] for x in twice["other_claims_you_mentioned"]] == [300000.0]
+    assert any("not counted a second time" in a for a in twice["assumptions"])
