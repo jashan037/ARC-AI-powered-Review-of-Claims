@@ -21,7 +21,6 @@ import hashlib
 import math
 import io
 import json
-from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT

@@ -7,10 +7,8 @@ the secret scanner and log redaction in tests/test_secrets.py.
 import dataclasses
 import json
 import logging
-import os
 import stat
 import sys
-import time
 
 import pytest
 from fastapi.testclient import TestClient

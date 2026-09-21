@@ -4,7 +4,6 @@ Offline: the app with a stand-in agent that returns fixed plain replies, so noth
 the accessibility pass (axe-core), the keyboard flow, the colours, the geometry, the report download and the responsive checks.
 """
 import colorsys
-import json
 import re
 
 import pytest

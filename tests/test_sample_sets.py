@@ -11,7 +11,7 @@ from pypdf import PdfReader
 from app import intake as I
 from app.config import ROOT
 from app.tools import claims_engine as E
-from app.tools.registry import TurnContext, call_tool, cover_left, precompute
+from app.tools.registry import TurnContext, cover_left, precompute
 from app.retrieval.azure_search import get_retriever
 from app.tools.totals import derived_totals
 
