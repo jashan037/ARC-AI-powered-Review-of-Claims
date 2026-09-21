@@ -258,3 +258,21 @@ def test_the_exception_is_found_even_when_the_turn_only_retrieved_the_list_under
     res = agent(model).ask(customer_session(), "Is cataract surgery covered?")
     assert model.outputs[1]["problems"][0].startswith("Exception:") and "ccident" in model.outputs[1]["problems"][0]
     assert "makes an exception" in res.summary_markdown + "".join(s["markdown"] for s in res.sections)      # asked once, still missing: the rule's own words are added
+
+
+def test_general_answer_after_a_policy_search_is_sent_back_once_to_get_a_cited_type():
+    officer = dict(customer_session(), audience="officer", claim=None)
+    general = {"answer_type": "general_answer", "headline": "Documents must be sent within 30 days."}
+    good = lambda m: {"answer_type": "coverage_answer", "headline": "Send the documents within 30 days of discharge.", "verdict": "covered",   # noqa: E731
+                      "points": [dict(label="Time limit", status="info", detail="30 days from discharge.", citations=[m.outputs[0]["results"][0]["chunk_key"]])],
+                      "citations": [m.outputs[0]["results"][0]["chunk_key"]]}
+    model = Script([[("search_policy", {"query": "time limit for documents"})], [("final_answer", general)], [("final_answer", good)]])
+    res = agent(model).ask(officer, "How many days do we have to send the reimbursement documents?")
+    assert res.answer_type == "coverage_answer" and model.outputs[1]["problems"][0].startswith("You searched the policy wording")
+    again = Script([[("search_policy", {"query": "x"})], [("final_answer", general)], [("final_answer", general)]])
+    assert agent(again).ask(officer, "How many days do we have to send the reimbursement documents?").answer_type == "general_answer"     # once, then the model's choice stands
+
+
+def test_general_answer_without_a_policy_search_is_untouched():
+    res = agent(Script([[("final_answer", {"answer_type": "general_answer", "headline": "I can only help with claims."})]])).ask(dict(customer_session(), audience="officer"), "tell me a joke about cats")
+    assert res.answer_type == "general_answer" and [t["ok"] for t in res.trace] == [True]

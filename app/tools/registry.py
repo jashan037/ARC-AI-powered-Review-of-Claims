@@ -55,6 +55,7 @@ class TurnContext:
     type_rejected: bool = False             # a customer's documents_answer or deduction_explanation is sent back once, to become a direct_answer
     figures_rejected: bool = False          # a payment answer with no figure in it is sent back once
     policy_rejected: bool = False           # a policy question answered as a direct_answer is sent back once
+    general_rejected: bool = False          # a general_answer after the policy was searched is sent back once: a question about the wording gets a cited answer type
     exception_rejected: bool = False        # a coverage or waiting-period answer that leaves out the exception its own cited passage states is sent back once
     reason_rejected: bool = False           # an amount without the reason behind it is sent back once; after that the reason is added in code
     prerun: str = ""                        # "assess" or "search": what the code ran before the model's first call (see runner.py)
@@ -445,6 +446,9 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
                     "waiting_period_answer or definition_answer, using the policy passages and their chunk_keys, not with direct_answer.")
     if ctx.session.get("audience") == "customer" and t in ("coverage_answer", "waiting_period_answer") and not ctx.exception_rejected and (exc := missing_exception(a, ctx)):
         errs.append(f"Exception: the passage you cite says \"{exc}\". A customer must not be told the rule without its exception. Say it in the headline or in a point, in plain words.")
+    if t == "general_answer" and not ctx.plain and not ctx.general_rejected and any(x["tool"] in ("search_policy", "get_clause") and x["ok"] for x in ctx.trace):
+        errs.append("You searched the policy wording for this question, so general_answer (for greetings, thanks and unrelated questions) is the wrong answer type. Answer with coverage_answer, "
+                    "definition_answer, waiting_period_answer or documents_answer, with points and citations from the passages you retrieved.")
     if ctx.plain and t not in ("general_answer", "direct_answer") and not ctx.plain_rejected:
         errs.append("This is a plain question (a detail of the claim, a greeting or small talk), not about payment, deductions, eligibility, waiting periods or documents. "
                     "Do not assess the claim and do not use a longer answer type. Answer with answer_type general_answer: one short sentence, no points, no citations. "
@@ -565,6 +569,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
         ctx.length_caps_rejected = True         # once: the officer's view shows the top three points either way
     if any(e.startswith("This is a plain question") for e in errs):
         ctx.plain_rejected = True               # once; a persistent fact question is then answered from the claim itself (see the top of this function)
+    if any(e.startswith("You searched the policy wording") for e in errs):
+        ctx.general_rejected = True
     if any(e.startswith("Exception:") for e in errs):
         ctx.exception_rejected = True
     if any(e.startswith("Policy question:") for e in errs):

@@ -153,9 +153,10 @@ def common_checks(res, retriever, fails: list[str], notes: list[str]):
     if not res.summary_markdown.strip():
         fails.append("no summary_markdown")
     else:
-        if res.final["answer_type"] != "general_answer" and "The officer decides." not in res.summary_markdown:
+        customer_format = res.final["answer_type"] in ("general_answer", "direct_answer")   # a customer's direct answer is the reply itself: no officer line, and it is its own summary
+        if not customer_format and "The officer decides." not in res.summary_markdown:
             fails.append("summary lacks the 'The officer decides' line")
-        if len(res.summary_markdown) >= len(res.markdown) and res.final["answer_type"] not in ("general_answer", "insufficient_information"):
+        if len(res.summary_markdown) >= len(res.markdown) and res.final["answer_type"] not in ("general_answer", "direct_answer", "insufficient_information"):
             fails.append("summary is not shorter than the full answer")
     # length caps on the accepted answer (the validator only asks once, so the harness checks what actually got through)
     f = res.final
