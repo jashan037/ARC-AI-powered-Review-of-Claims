@@ -33,7 +33,7 @@ def test_root_serves_the_page_with_the_security_headers():
 def test_the_old_ui_is_gone():
     for name in ("customer.js", "customer.css", "dev.js", "dev.css"):
         assert client.get(f"/static/{name}").status_code == 404 and not (STATIC / name).exists()
-    assert client.get("/officer").status_code == 404 and client.get("/health").status_code == 404
+    assert client.get("/officer").status_code == 404
 
 
 def test_the_page_is_csp_clean_and_uses_no_outside_resources():

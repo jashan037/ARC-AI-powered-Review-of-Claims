@@ -7,3 +7,6 @@ import os
 os.environ["RETRIEVER"] = "local"
 os.environ["AGENT_MODE"] = "offline"
 os.environ["CORS_ORIGINS"] = ""
+os.environ["DEBUG"] = "1"                    # the developer routes are on for the tests that use them; test_surface.py switches them off
+os.environ["RATE_LIMIT_PER_MIN"] = "100000"
+os.environ["CHAT_RATE_LIMIT_PER_MIN"] = "100000"

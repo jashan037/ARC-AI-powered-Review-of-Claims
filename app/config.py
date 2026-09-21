@@ -20,6 +20,7 @@ class Settings:
     data_dir: Path = ROOT / "data"
 
     # Azure AI Search
+    auth_mode: str = os.getenv("AUTH_MODE", "key").strip().lower()   # key (default) | entra: see app/auth.py
     search_endpoint: str = os.getenv("AZURE_SEARCH_ENDPOINT", "")
     search_key: str = os.getenv("AZURE_SEARCH_KEY", "")
     search_index: str = os.getenv("AZURE_SEARCH_INDEX", "claims-kb-v2")
@@ -58,6 +59,12 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     # Developer detail in API responses (tool names, tool arguments, chunk keys). Off unless the SERVER sets DEBUG_TRACE=1; no client parameter can turn it on.
     debug_trace: bool = os.getenv("DEBUG_TRACE", "0") == "1"
+    # DEBUG=1 turns on the developer routes (/docs, /openapi.json, /samples, /assess, /sessions/{id}/claim). Off by default: a deployed server exposes none of them.
+    debug: bool = os.getenv("DEBUG", "0") == "1"
+    session_ttl_s: float = float(os.getenv("SESSION_TTL_S", "1800"))                   # a session idle this long is deleted with everything in it
+    max_messages_per_session: int = int(os.getenv("MAX_MESSAGES_PER_SESSION", "200"))   # chat turns one session may use (every turn costs a model call)
+    rate_limit_per_min: int = int(os.getenv("RATE_LIMIT_PER_MIN", "120"))              # requests per IP per minute, all routes
+    chat_rate_limit_per_min: int = int(os.getenv("CHAT_RATE_LIMIT_PER_MIN", "20"))     # chat turns per IP per minute
 
 
 settings = Settings()

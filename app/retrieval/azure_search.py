@@ -23,8 +23,8 @@ def embed(texts: list[str], timeout: float | None = None) -> list[list[float]]:
     from openai import AzureOpenAI
 
     # max_retries=0: the SDK default (2 silent retries, 10 minute timeout) is replaced by call_with_retry, which knows the turn deadline
-    client = AzureOpenAI(azure_endpoint=settings.openai_endpoint, api_key=settings.openai_key,
-                         api_version=settings.openai_api_version, max_retries=0)
+    from ..auth import openai_client_args
+    client = AzureOpenAI(azure_endpoint=settings.openai_endpoint, api_version=settings.openai_api_version, max_retries=0, **openai_client_args())
     out = call_with_retry(
         lambda t: client.embeddings.create(model=settings.embedding_deployment, input=texts, dimensions=settings.embedding_dimensions, timeout=t),
         label="embeddings", timeout=timeout or settings.embed_timeout_s)
@@ -33,12 +33,12 @@ def embed(texts: list[str], timeout: float | None = None) -> list[list[float]]:
 
 class AzureSearchRetriever(Retriever):
     def __init__(self):
-        from azure.core.credentials import AzureKeyCredential
         from azure.search.documents import SearchClient
 
+        from ..auth import search_credential
+
         # retry_total=0 turns off azure-core's own retries (default 10); call_with_retry does them within the turn deadline
-        self.client = SearchClient(settings.search_endpoint, settings.search_index,
-                                   AzureKeyCredential(settings.search_key), retry_total=0)
+        self.client = SearchClient(settings.search_endpoint, settings.search_index, search_credential(), retry_total=0)
         self._cache: OrderedDict = OrderedDict()   # (chunk_id, uin) -> Chunk; the same clauses are fetched by a tool and again by the renderer, 11 to 25 requests per answer before this
         self._lock = threading.Lock()
 

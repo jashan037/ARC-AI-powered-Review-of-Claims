@@ -36,7 +36,7 @@
     else if (body) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
     return fetch(path, opts).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
-        if (!r.ok) throw new Error((j && j.error && j.error.message) || "request failed");
+        if (!r.ok) { var err = new Error((j && j.error && j.error.message) || "request failed"); err.status = r.status; throw err; }
         return j;
       });
     }).finally(function () { if (timer) clearTimeout(timer); });
@@ -212,8 +212,8 @@
     el.ask.focus();
     api("POST", "/sessions/" + state.sid + "/chat", { message: q }, CHAT_TIMEOUT_MS).then(function (out) {
       fillCard(wait, typeof out.reply === "string" && out.reply ? out.reply : SLOW);
-    }).catch(function () {
-      fillCard(wait, SLOW);
+    }).catch(function (e) {
+      fillCard(wait, e && (e.status === 404 || e.status === 429) ? e.message : SLOW);   // a session that ended, or too many requests: the server's own plain sentence
     }).finally(function () {
       state.pending = false;
       refresh();

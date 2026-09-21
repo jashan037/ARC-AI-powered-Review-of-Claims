@@ -1,0 +1,25 @@
+#!/bin/sh
+# Blocks a commit whose staged files hold a key-shaped string or the value of a secret in .env. Prints file names only, never a value.
+ROOT="$(git rev-parse --show-toplevel)"
+PY="$ROOT/.venv/bin/python"; [ -x "$PY" ] || PY=python3
+"$PY" - "$ROOT" <<'PYEOF'
+import subprocess, sys
+sys.path.insert(0, sys.argv[1] + "/scripts/security")
+import scan_secrets as S
+names = subprocess.run(["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"], capture_output=True, text=True, cwd=sys.argv[1]).stdout.split()
+secrets = S.env_secrets()
+bad = []
+for n in names:
+    p = S.ROOT / n
+    if n == ".env" or p.name == ".env":
+        bad.append(n + " (the .env file must never be committed)"); continue
+    try:
+        t = p.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        continue
+    if S.shape_hits(t) or any(v in t for v in secrets.values()):
+        bad.append(n)
+if bad:
+    print("Commit blocked: a secret may be in " + ", ".join(bad) + ". Remove it (and rotate it if it was real).")
+    sys.exit(1)
+PYEOF

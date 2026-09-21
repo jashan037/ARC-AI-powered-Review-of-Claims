@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 import time
 import uuid
@@ -17,12 +18,28 @@ from .config import settings
 log = logging.getLogger("claims")
 
 
+_SECRET_SHAPES = [re.compile(p, re.I) for p in (
+    r"(?:api[-_ ]?key|subscription[-_ ]?key|secret|password|token)['\"]?\s*[:=]\s*['\"]?[A-Za-z0-9+/_\-.]{8,}", r"Bearer\s+[A-Za-z0-9+/_\-.=]{8,}", r"Authorization['\"]?\s*[:=]\s*\S+",
+    r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-.]{8,}", r"\b[A-Za-z0-9+/_\-]{32,}={0,2}(?=\b)")]
+
+
+def redact(text) -> str:
+    """Text with anything key-shaped, any bearer token or auth header and the configured keys replaced by [redacted]. Applied to every log line."""
+    s = str(text)
+    for v in (settings.search_key, settings.openai_key):
+        if v and len(v) >= 8:
+            s = s.replace(v, "[redacted]")
+    for rx in _SECRET_SHAPES:
+        s = rx.sub("[redacted]", s)
+    return s
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         out = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(record.created)) + "Z", "level": record.levelname,
                "logger": record.name, "event": record.getMessage()}
         out.update(getattr(record, "fields", {}))
-        return json.dumps(out, ensure_ascii=False, default=str)
+        return redact(json.dumps(out, ensure_ascii=False, default=str))
 
 
 def configure_logging() -> None:

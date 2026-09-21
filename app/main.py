@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 import uuid
+from collections import defaultdict, deque
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -26,7 +28,7 @@ from .tools.registry import assessment_view
 configure_logging()
 log = logging.getLogger("claims.api")
 
-app = FastAPI(title="Claims Adjudication Assistant API", version="0.1.0")
+app = FastAPI(title="Claims Adjudication Assistant API", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)   # docs are served only with DEBUG=1 (below)
 
 
 class BodyLimitMiddleware:
@@ -106,6 +108,68 @@ async def unexpected_error(request: Request, exc: Exception):
     return JSONResponse(_error_body("internal_error", "Something went wrong on our side. Please try again; if it keeps happening, contact your administrator."), status_code=500)
 
 SESSIONS: dict[str, dict] = {}
+
+
+def _debug_only() -> None:
+    """The developer routes do not exist unless the server was started with DEBUG=1 (read at request time)."""
+    if not settings.debug:
+        raise HTTPException(404, "Not found.")
+
+
+def _sweep() -> None:
+    """Delete every session idle longer than the TTL, with everything in it (documents, claim, chat history)."""
+    cutoff = time.monotonic() - settings.session_ttl_s
+    for sid in [k for k, v in SESSIONS.items() if v.get("last_seen", 0) < cutoff]:
+        del SESSIONS[sid]
+
+
+_HITS: dict[tuple, deque] = defaultdict(deque)
+
+
+def _limited(ip: str, bucket: str, limit: int) -> bool:
+    now, q = time.monotonic(), _HITS[(ip, bucket)]
+    while q and q[0] < now - 60:
+        q.popleft()
+    if len(q) >= limit:
+        return True
+    q.append(now)
+    return False
+
+
+API_HEADERS = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "Cache-Control": "no-store",
+               "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'", "Cross-Origin-Resource-Policy": "same-origin"}
+
+
+@app.middleware("http")
+async def guard_every_request(request: Request, call_next):
+    """A per-IP rate limit on every route (a tighter one on chat, which costs a model call) and the security headers on every response."""
+    ip = request.client.host if request.client else "unknown"
+    path = request.url.path
+    if _limited(ip, "all", settings.rate_limit_per_min) or (path.endswith("/chat") and _limited(ip, "chat", settings.chat_rate_limit_per_min)):
+        resp = JSONResponse(_error_body("rate_limited", "That is too many requests in a minute. Please wait a moment and try again."), status_code=429, headers={"Retry-After": "30"})
+    else:
+        resp = await call_next(request)
+    for k, v in API_HEADERS.items():
+        resp.headers.setdefault(k, v)
+    return resp
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/openapi.json", include_in_schema=False)
+def openapi_json():
+    _debug_only()
+    return JSONResponse(app.openapi())
+
+
+@app.get("/docs", include_in_schema=False)
+def docs():
+    _debug_only()
+    from fastapi.openapi.docs import get_swagger_ui_html
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="ARC API (debug)")
 SAMPLES = json.load(open(settings.data_dir / "sample_claims.json", encoding="utf-8"))
 
 
@@ -123,8 +187,10 @@ class ChatIn(BaseModel):
 
 
 def _session(sid: str) -> dict:
+    _sweep()
     if sid not in SESSIONS:
-        raise HTTPException(404, "Unknown session. Create one with POST /sessions.")
+        raise HTTPException(404, "Unknown session. It may have ended after 30 minutes without activity. Create one with POST /sessions.")
+    SESSIONS[sid]["last_seen"] = time.monotonic()
     return SESSIONS[sid]
 
 
@@ -165,15 +231,24 @@ class _NoCacheStatic(StaticFiles):
 app.mount("/static", _NoCacheStatic(directory=STATIC_DIR), name="static")
 
 
+@app.delete("/sessions/{sid}")
+def delete_session(sid: str):
+    """Deletes everything held for the session (documents, claim, chat). Safe to call twice."""
+    existed = SESSIONS.pop(sid, None) is not None
+    return {"deleted": existed}
+
+
 @app.get("/samples")
 def samples():
+    _debug_only()
     return [dict(id=k, title=v["title"], purpose=v["purpose"]) for k, v in SAMPLES.items()]
 
 
 @app.post("/sessions")
 def create_session(body: SessionIn | None = None):
+    _sweep()
     sid = uuid.uuid4().hex[:12]
-    SESSIONS[sid] = dict(id=sid, uin=settings.default_uin, claim=None, history=[], audience="customer")
+    SESSIONS[sid] = dict(id=sid, uin=settings.default_uin, claim=None, history=[], audience="customer", last_seen=time.monotonic())
     return dict(session_id=sid, intake=True)     # lets the page notice a server that predates document intake
 
 
@@ -227,6 +302,7 @@ def run_intake(sid: str):
 
 @app.post("/sessions/{sid}/claim")
 def load_claim(sid: str, body: ClaimIn):
+    _debug_only()
     s = _session(sid)
     if body.sample_id:
         if body.sample_id not in SAMPLES:
@@ -247,6 +323,9 @@ def chat(sid: str, body: ChatIn):
     s = _session(sid)
     if not s.get("claim"):   # no upload yet, or the documents need attention: a fixed answer, no model call
         return dict(status="ok", reply=NOT_READY, sources=[])
+    if s.get("turns", 0) >= settings.max_messages_per_session:
+        raise HTTPException(429, "This conversation has reached its limit. Please start again with a new upload.")
+    s["turns"] = s.get("turns", 0) + 1
     result = get_agent().ask(s, body.message)
     if result.status == "ok":   # a timed-out or unavailable turn is not part of the conversation: the customer will simply ask again
         s["history"].append(dict(user=body.message, reply=result.reply))
@@ -258,7 +337,8 @@ def chat(sid: str, body: ChatIn):
 
 @app.post("/assess")
 def assess_stateless(body: ClaimIn):
-    """Deterministic assessment as JSON. No model involved."""
+    """Deterministic assessment as JSON. No model involved. Developer route (DEBUG=1)."""
+    _debug_only()
     if body.sample_id:
         if body.sample_id not in SAMPLES:
             raise HTTPException(404, f"Unknown sample {body.sample_id}")
