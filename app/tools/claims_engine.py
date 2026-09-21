@@ -11,6 +11,8 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import json
+import os
+import re
 from difflib import SequenceMatcher
 
 from ..config import settings
@@ -183,6 +185,60 @@ def policy_in_force_text(r: dict) -> str:
     return f"Your policy was not in force on the admission date ({f(r['admission_date'])}): it is {side} {period}."
 
 
+# ------------------------------------------------------------------ filing time (E.1.6) and the patient (E.1.7 Note i)
+FILING_DAYS = 30
+
+
+def today() -> dt.date:
+    """Today's date. ARC_TODAY (YYYY-MM-DD) overrides it, for tests only."""
+    return dt.date.fromisoformat(os.environ["ARC_TODAY"]) if os.environ.get("ARC_TODAY") else dt.date.today()
+
+
+def filing_status(c):
+    """Hospitalization documents are due within 30 days of the discharge date (E.1.6). Late is a REVIEW FLAG, not a rejection: a delay may be condoned on merit when it was
+    beyond the insured person's control (E.1.7 Note iv). Counted as of today, the day the documents are being sent."""
+    if not c.get("discharge_datetime"):
+        return None
+    discharge = _d(c["discharge_datetime"])
+    due = discharge + dt.timedelta(days=FILING_DAYS)
+    days = (today() - discharge).days
+    return dict(discharge_date=discharge.isoformat(), due_by=due.isoformat(), days_since_discharge=max(days, 0), late=days > FILING_DAYS, limit_days=FILING_DAYS, today=today().isoformat())
+
+
+def filing_text(r: dict) -> str:
+    f = lambda iso: dt.date.fromisoformat(iso).strftime("%d %b %Y").lstrip("0")   # noqa: E731
+    if not r["late"]:
+        return f"Your documents are being sent {r['days_since_discharge']} days after discharge, inside the {r['limit_days']} days the policy asks for (by {f(r['due_by'])})."
+    return (f"Your documents are being sent {r['days_since_discharge']} days after discharge; the policy asks for them within {r['limit_days']} days (by {f(r['due_by'])}). "
+            "This is flagged for a claims officer to review, not rejected: a delay can be accepted when it was beyond your control.")
+
+
+def check_filing_time(c):
+    r = filing_status(c)
+    if r is None:
+        return []
+    return [dict(code="FILING", name="Time limit for sending documents", clause="E.1.6", evidence=["E.1.6", "E.1.7"], status="needs_review" if r["late"] else "satisfied",
+                 required=f"within {r['limit_days']} days of discharge", detail=filing_text(r))]
+
+
+def _norm_name(s):
+    s = re.sub(r"\(.*?\)", "", s or "")
+    s = re.split(r",|\bage\b|\d", s, flags=re.I)[0]
+    return re.sub(r"\s+", " ", re.sub(r"\b(mr|mrs|ms|shri|smt|dr)\b\.?", "", s, flags=re.I)).strip().lower()
+
+
+def check_patient_is_insured(c):
+    """The bills and papers must be in the name of the insured person the claim is for (E.1.7 Note i)."""
+    patient, insured = c.get("patient_name"), c.get("insured_name")
+    if not patient or not insured:
+        return []
+    same = _norm_name(patient) == _norm_name(insured)
+    from .sanitize import clean
+    patient, insured = clean(patient), clean(insured)                 # text from the customer's documents: one line, capped
+    return [dict(code="PATIENT", name="Patient is the insured person", clause="E.1.7 Note i", evidence=["E.1.7"], status="satisfied" if same else "needs_review", required="the patient named on the papers is the insured person",
+                 detail="The patient named in your documents is the insured person." if same else f"The patient named in your documents ({patient}) is not the insured person on the schedule ({insured}).")]
+
+
 # ------------------------------------------------------------------ admissibility and exclusions
 def check_hospitalization(c):
     a, b = dt.datetime.fromisoformat(c["admission_datetime"]), dt.datetime.fromisoformat(c["discharge_datetime"])
@@ -325,7 +381,7 @@ def calculate_claim_amount(c, payable_total):
 
 # ------------------------------------------------------------------ orchestrator
 def assess(c: dict) -> dict:
-    checks = check_policy_in_force(c) + check_waiting_period(c) + check_hospitalization(c) + check_exclusions(c)
+    checks = check_policy_in_force(c) + check_filing_time(c) + check_patient_is_insured(c) + check_waiting_period(c) + check_hospitalization(c) + check_exclusions(c)
     bill, docs, conflicts = analyze_bill(c), check_required_documents(c), check_consistency(c)
     lines = bill["lines"]
     gross = sum(l["billed"] for l in lines)
@@ -372,7 +428,7 @@ def assess(c: dict) -> dict:
                    diagnosis=c.get("diagnosis"), procedure=c.get("procedure"), hospital=c.get("hospital"),
                    admission=c["admission_datetime"], discharge=c["discharge_datetime"], claimed_amount=c.get("claimed_amount")),
         coverage=cov, waiting=dict(context=waiting_context(c), checks=[k for k in checks if k["code"].startswith("Excl0") and k["code"] in ("Excl01", "Excl02", "Excl03")]),
-        policy_in_force=policy_in_force(c), checks=checks, bill=bill, documents=docs, inconsistencies=conflicts,
+        policy_in_force=policy_in_force(c), filing=filing_status(c), checks=checks, bill=bill, documents=docs, inconsistencies=conflicts,
         amounts=dict(gross_billed=round(gross, 2), deductions={k: round(v, 2) for k, v in ded.items()}, held_pending=round(held, 2),
                      admissible_total=round(payable_all, 2), calc=amt_est,
                      estimated_payable_if_docs_supplied=est, payable_confirmed_now=now),

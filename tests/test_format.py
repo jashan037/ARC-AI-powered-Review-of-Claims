@@ -151,7 +151,7 @@ def test_the_guard_rejects_once_then_repairs_in_code():
 
 def test_confirmed_is_never_used_for_an_estimate():
     assert "decision" in kinds("₹1,01,625 is confirmed.", "how much will be paid")
-    assert fix_reply("₹1,01,625 is confirmed today.", ctx_for("how much will be paid")) == "₹1,01,625 is counted so far."
+    assert fix_reply("₹1,01,625 is confirmed today.", ctx_for("which items are not payable")) == "₹1,01,625 is counted so far."
 
 
 # ---------------------------------------------------------------- the prompt's own examples pass every guard

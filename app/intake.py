@@ -368,6 +368,7 @@ def build(session: dict) -> dict:
         documents["pharmacy_bills_prescription"] = dict(present=True, complete=False, missing_parts=["prescription"])
     category = _categorise(bill["lines"])
     claim = dict(
+        patient_name=form.get("patient_name") or ds.get("patient_name"),
         claim_id=_claim_id(sched.get("policy_number", ""), adm), insured_name=sched.get("insured_name") or form.get("patient_name"), plan=sched["plan"],
         base_si_lakh=sched["base_si"] / 100000, sum_insured_available=sched["base_si"] + sched.get("bonus", 0), first_policy_inception=sched["first_inception"],
         policy_period=sched.get("policy_period"), admission_datetime=adm, discharge_datetime=dis, is_accident=bool(form.get("is_accident")), is_day_care_procedure=False,
@@ -441,4 +442,7 @@ def first_message(claim: dict, missing: list[str], first: bool = True) -> str:
         text += f"\n\n**{len(names)} documents are still missing:** {', '.join(names[:-1])} and {names[-1]}. You can drop them anywhere on this page."
     else:
         text += "\n\nYour documents look complete."
+    late = E.filing_status(claim)
+    if late and late["late"]:
+        text += f"\n\n**About timing:** {E.filing_text(late)}"
     return text + "\n\nAsk me anything about your claim." + (f" {ESTIMATE_NOTE}" if first else "")

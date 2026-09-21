@@ -8,7 +8,7 @@ A field intake could not read is listed under "Not found in the documents", neve
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from . import claims_engine as E
 from .fmt import inr
@@ -16,6 +16,8 @@ from .plain_questions import stay_days
 from .sanitize import clean
 from .totals import derived_totals
 
+RENEWAL = ("A renewal only covers treatment on or after the day it starts. A continuous renewal keeps the waiting-period credit. Cover cannot be gained by renewing after the treatment. "
+           "To show continuity, the customer provides the renewal schedule or payment proof for every year.")
 EXPIRY = "Policy expiry (end of current policy period)"
 START = "Policy start (current policy period)"
 FIRST = "First policy inception (the customer's cover began here; waiting periods count from it)"
@@ -29,6 +31,13 @@ def _d(iso: str | None) -> str | None:
     except ValueError:
         return None
     return d.strftime("%d %b %Y").lstrip("0")
+
+
+def _next_day(iso: str | None) -> str | None:
+    try:
+        return (date.fromisoformat(iso[:10]) + timedelta(days=1)).isoformat() if iso else None
+    except ValueError:
+        return None
 
 
 def _dt(iso: str | None) -> str | None:
@@ -70,6 +79,8 @@ def build(session: dict) -> dict:
         (FIRST, need("First policy inception date", _d(claim.get("first_policy_inception") or sched.get("first_inception")))),
         (START, need("Policy start (current policy period)", _d(period[0]))),
         (EXPIRY, need("Policy expiry (end of current policy period)", _d(period[1]))),
+        ("Next renewal would start on", _d(_next_day(period[1]))),
+        ("Renewal (how it works)", RENEWAL if period[1] else None),
         ("Premium tier", need("Premium tier", _t(sched.get("premium_tier")))),
         ("Base sum insured", need("Sum insured", inr(base * 100000) if base else None)),
         ("Cumulative bonus", need("Cumulative bonus", inr(sched["bonus"]) if sched.get("bonus") is not None else None)),
@@ -96,6 +107,8 @@ def build(session: dict) -> dict:
     inforce = E.policy_in_force(claim) if claim.get("admission_datetime") and claim.get("policy_period") else None
     stay = [
         ("Policy in force on the admission date", E.policy_in_force_text(inforce) if inforce else None),
+        ("Time limit for sending documents", E.filing_text(E.filing_status(claim)) if claim.get("discharge_datetime") else None),
+        ("Patient is the insured person", next((k["detail"] for k in E.check_patient_is_insured(claim)), None) if claim else None),
         ("Hospital", need("Hospital", _t(claim.get("hospital") or form.get("hospital") or bill.get("hospital")))),
         ("Network hospital", None if "hospital_network" not in form else ("Yes" if form["hospital_network"] else "No")),
         ("Admission", need("Admission date", _dt(adm))),

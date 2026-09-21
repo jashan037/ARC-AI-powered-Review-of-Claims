@@ -85,7 +85,10 @@ def assessment_view(res: dict) -> dict:
     """The engine's result in plain-language fields: the amounts, why each amount was taken off, and what is missing. Only values the engine produced."""
     bill, claim, a = res["bill"], res["claim"], res["amounts"]
     lines = bill["lines"]
+    pat = [k for k in res["checks"] if k["code"] == "PATIENT"]
     out = {"policy_in_force_on_the_admission_date": E.policy_in_force_text(res["policy_in_force"]) if res.get("policy_in_force") else "The policy period is not in the documents, so this could not be checked.",
+           **({"time_limit_for_sending_documents": E.filing_text(res["filing"])} if res.get("filing") else {}),
+           **({"patient_is_the_insured_person": pat[0]["detail"]} if pat else {}),
            "likely_outcome": _REC.get(res["recommendation"], res["recommendation"]), "hospital_bill_total": a["gross_billed"],
            "estimated_payment_once_documents_arrive": a["estimated_payable_if_docs_supplied"], "payment_counted_so_far": a["payable_confirmed_now"],
            "held_until_documents_arrive": a["held_pending"],

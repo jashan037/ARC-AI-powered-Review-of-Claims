@@ -103,7 +103,7 @@ def test_a_long_reply_is_a_problem_unless_the_customer_asked_for_detail():
 def test_the_repair_drops_the_sentence_with_an_unverified_number_and_keeps_the_rest():
     ctx = ctx_for()
     fixed = fix_reply("Your estimated payment is ₹1,22,125. The bill was ₹9,999 in total. Please send the prescription.", ctx)
-    assert fixed == "Your estimated payment is ₹1,22,125. Please send the prescription."
+    assert fixed == "Your estimated payment is ₹1,22,125. Please send the prescription.\n\nAbout ₹1,22,125 once your documents arrive; ₹1,01,625 is counted so far."   # and both figures, as ₹20,500 is waiting
     assert fix_reply("It is ₹9,999.", ctx) == "Your estimated payment is ₹1,22,125, of which ₹1,01,625 is counted so far."    # nothing left: a sentence built from the assessment
 
 

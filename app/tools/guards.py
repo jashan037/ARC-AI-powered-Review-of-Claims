@@ -19,6 +19,7 @@ from ..rendering.scrub import find as find_internal, scrub
 from . import format_guard
 from .number_guard import allowed_from, drop_blocks, offenders, split_sentences
 from .facts import facts_text
+from .fmt import inr
 from .registry import TurnContext, fallback_reply
 
 _CODE = re.compile(r"\bExcl\d{2}\b|Annexure\s*[A-D]\b|(?<![\w.])[A-E]\.\d+|(?<![\w.])[A-E]\d+(?:\.\d+)*\s+(?:Def|Note)\b|\bDef\.\s*\d+", re.I)
@@ -40,6 +41,22 @@ def allowed_numbers(ctx: TurnContext) -> dict:
     args = [t.get("args") for t in ctx.trace if t["tool"] in ("assess_claim", "check_waiting_period") and t.get("args")]
     claim = ctx.claim
     return allowed_from(ctx.tool_outputs + [ctx.question] + args + ([claim, facts_text(ctx.session)] if claim else []))
+
+
+_PAYMENT_Q = re.compile(r"\bhow much\b.*\b(?:paid|pay|get|receive|payment|claim)\b|\bwill (?:i|it|this|my|the)\b.*\b(?:paid|get|receive)\b|\bpayment\b|\bestimate\w*\b|\bwhat (?:will|would) i (?:get|receive)\b", re.I)
+
+
+def _both_figures(ctx: TurnContext):
+    """When something is held for a document, a payment answer states BOTH figures: the estimate once the documents arrive and what is counted so far. Returns (estimate, counted) or None."""
+    res = ctx.results.get("assessment")
+    if not res or not _PAYMENT_Q.search(ctx.question) or not res["amounts"]["held_pending"]:
+        return None
+    return res["amounts"]["estimated_payable_if_docs_supplied"], res["amounts"]["payable_confirmed_now"]
+
+
+def _has_number(text: str, value: float) -> bool:
+    from .number_guard import scan
+    return any(abs(v - value) < 1 for v, _ in scan(text)["nums"])
 
 
 def _bad_sentences(text: str, pattern: re.Pattern) -> list[str]:
@@ -67,6 +84,9 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
         problems.append(("decision", "Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say a claims officer decides."))
     if _VOICE.search(text):
         problems.append(("voice", "Speak to the customer: 'you' and 'your claim', never 'the insured', 'the claimant' or 'the customer'."))
+    both = _both_figures(ctx)
+    if both and not all(_has_number(text, v) for v in both):
+        problems.append(("figures", f"Give both figures when something is waiting for a document: {inr(both[0])} once your documents arrive and {inr(both[1])} counted so far."))
     problems += [("format", m) for m in format_guard.problems(text, ctx.question, ctx.session.get("history", []))]
     return problems
 
@@ -87,6 +107,9 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
     for pattern in (_DECISION, _VOICE):
         for s in _bad_sentences(text, pattern):
             text = text.replace(s, "")
+    both = _both_figures(ctx)
+    if both and not all(_has_number(text, v) for v in both):
+        text = f"{text}\n\nAbout {inr(both[0])} once your documents arrive; {inr(both[1])} is counted so far.".strip()
     text = format_guard.repair(text, ctx.question, ctx.session.get("history", []))
     text = re.sub(r"[ \t]{2,}", " ", re.sub(r"\n{3,}", "\n\n", text)).strip()
     return text or fallback_reply(ctx)
