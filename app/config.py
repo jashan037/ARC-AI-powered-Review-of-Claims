@@ -52,7 +52,8 @@ class Settings:
 
     # API
     max_request_bytes: int = int(os.getenv("MAX_REQUEST_BYTES", "262144"))
-    max_upload_bytes: int = int(os.getenv("MAX_UPLOAD_BYTES", str(15 * 1024 * 1024)))   # the whole body of one document upload (up to 15 files of up to 5 MB each are checked separately)
+    max_upload_bytes: int = int(os.getenv("MAX_UPLOAD_BYTES", str(26 * 1024 * 1024)))   # the whole body of one document upload: the page sends batches of 5 files of up to 5 MB each (files are checked separately)
+    max_docs_per_session: int = int(os.getenv("MAX_DOCS_PER_SESSION", "100"))            # files one session may upload in total
     cors_origins: tuple = tuple(o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip())   # empty = no cross-origin access
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     # Developer detail in API responses (tool names, tool arguments, chunk keys). Off unless the SERVER sets DEBUG_TRACE=1; no client parameter can turn it on.

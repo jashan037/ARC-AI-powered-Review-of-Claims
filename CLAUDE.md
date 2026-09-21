@@ -6,7 +6,7 @@ Read this whole file before doing anything. Facts below are as of 20 Sep 2026 (a
 
 A customer uploads health-insurance claim documents (PDF), ARC reads them, builds the claim and answers questions about it, for the public **HDFC ERGO my:Optima Secure** wording (UIN HDFHLIP25041V062425). It uses Azure AI Search (RAG), a Foundry agent with function tools, and grounded, cited answers. **A claims officer always decides**: the wording is "likely", "appears", "flagged for review", never a decision.
 
-Served by FastAPI: **`/` is the customer page** (screen 1 upload and document check, screen 2 chat; short summaries with "Show more"; `?dev=1` adds a live/offline badge from `dev.js`; the trace panel needs the server to run with `DEBUG_TRACE=1`). Static files in `app/static`, no build step, no CDN. The earlier officer console was removed; the **officer wording mode stays in the renderers** (19 golden files in `tests/golden` lock it).
+Served by FastAPI: **`/` is the customer page**: a quiet, minimal UI. View 1 is one drop section (upload, batches of 5 files, `?sample=1` adds a sample link), view 2 is plain chat cards (md.js) with a fixed bar. No header, footer, sources, chips or trace UI. Static files in `app/static` (`index.html`, `app.css` with the design tokens at the top, `app.js`, `md.js`), no build step, no CDN, CSP-clean (classes only). Screenshots: `python scripts/dev/ui_screenshots.py` -> `docs/screenshots/ui_final/`. Browser tests: `tests/test_ui.py`.
 
 ## 2. The user and how to work with them
 

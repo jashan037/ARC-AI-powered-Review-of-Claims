@@ -21,47 +21,51 @@ def text(name):
 
 
 # ---------------------------------------------------------------- the page
-def test_root_serves_the_customer_page():
+def test_root_serves_the_page_with_the_security_headers():
     r = client.get("/")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
-    assert "<title>ARC: AI-powered Review of Claims</title>" in r.text and "Upload your claim documents" in r.text and "/static/customer.js" in r.text
-    assert "<svg" in r.text and 'class="mark"' in r.text                             # the arc mark, drawn in SVG next to the word ARC
-    assert client.get("/officer").status_code == 404                                 # the earlier officer console has been removed
+    assert "/static/app.js" in r.text and "/static/app.css" in r.text and "/static/md.js" in r.text
+    csp = r.headers["content-security-policy"]
+    assert "default-src 'none'" in csp and "script-src 'self'" in csp and "style-src 'self'" in csp and "connect-src 'self'" in csp and "frame-ancestors 'none'" in csp
+    assert "unsafe-inline" not in csp and "unsafe-eval" not in csp and r.headers["x-content-type-options"] == "nosniff" and r.headers["referrer-policy"] == "no-referrer"
 
 
-def test_the_page_sets_a_strict_content_security_policy():
-    h = client.get("/").headers
-    csp = h["content-security-policy"]
-    assert "default-src 'none'" in csp and "script-src 'self'" in csp and "connect-src 'self'" in csp and "frame-ancestors 'none'" in csp
-    assert "unsafe-inline" not in csp and "unsafe-eval" not in csp and h["x-content-type-options"] == "nosniff"
+def test_the_old_ui_is_gone():
+    for name in ("customer.js", "customer.css", "dev.js", "dev.css"):
+        assert client.get(f"/static/{name}").status_code == 404 and not (STATIC / name).exists()
+    assert client.get("/officer").status_code == 404 and client.get("/health").status_code == 404
 
 
 def test_the_page_is_csp_clean_and_uses_no_outside_resources():
     html = text("index.html")
     assert not re.search(r"<script(?![^>]*\bsrc=)", html)                           # no inline scripts
     assert not re.search(r"\sstyle\s*=", html) and not re.search(r"\son[a-z]+\s*=", html)   # no inline styles or handlers
-    for name in ("index.html", "customer.css", "customer.js", "dev.js", "dev.css", "md.js"):
+    assert "<style" not in html
+    js = text("app.js")
+    assert "setAttribute(\"style\"" not in js and "cssText" not in js and "eval(" not in js and "new Function" not in js
+    for name in ("index.html", "app.css", "app.js", "md.js"):
         urls = [u for u in re.findall(r"https?://[^\s\"')]+", text(name)) if u != "http://www.w3.org/2000/svg"]
         assert urls == [], (name, urls)                                              # nothing from a CDN, nothing external at all
+    assert "@import" not in text("app.css") and "url(" not in text("app.css")
 
 
 def test_the_static_assets_are_served_with_the_right_types():
-    for name, kind in (("md.js", "javascript"), ("customer.css", "text/css"), ("customer.js", "javascript"), ("dev.js", "javascript"), ("dev.css", "text/css")):
+    for name, kind in (("md.js", "javascript"), ("app.css", "text/css"), ("app.js", "javascript")):
         r = client.get(f"/static/{name}")
         assert r.status_code == 200 and kind in r.headers["content-type"] and r.text == text(name)
     assert client.get("/static/nope.js").status_code == 404
     assert client.get("/static/%2e%2e/main.py").status_code == 404                   # no path traversal out of the static folder
 
 
-def test_the_brand_colours_are_used():
-    css = text("customer.css").lower()
-    for colour in ("#0b2545", "#0fa3b1", "#f2a541"):
-        assert colour in css, colour
-    assert "#0fa3b1" in text("index.html").lower() and "#f2a541" in text("index.html").lower()
+def test_the_design_tokens_are_defined_once_at_the_top_of_the_stylesheet():
+    css = text("app.css")
+    root = css[css.index(":root"):css.index("}", css.index(":root"))]
+    for token, value in (("--bg", "#F7F7F5"), ("--card", "#FFFFFF"), ("--line", "#E7E7E3"), ("--text", "#1F2933"), ("--muted", "#6B7580"), ("--tint", "#EEF3F6")):
+        assert f"{token}: {value};" in root
+    assert "linear-gradient" not in css.replace("linear-gradient(to bottom, transparent, var(--bg) 24px)", "")   # the only gradient is the fade above the bar
 
 
 def test_the_api_still_answers_json_errors_next_to_the_page():
-    assert client.get("/health").json()["status"] == "ok"
     assert client.get("/nope").json()["error"]["code"] == "http_404"
 
 
@@ -78,7 +82,7 @@ def render_all(cases):
 
 @needs_node
 def test_the_javascript_files_have_no_syntax_errors():
-    for name in ("customer.js", "dev.js", "md.js"):
+    for name in ("app.js", "md.js"):
         p = subprocess.run([NODE, "--check", str(STATIC / name)], capture_output=True, text=True, timeout=30)
         assert p.returncode == 0, p.stderr
 
@@ -129,12 +133,3 @@ def test_markdown_cannot_inject_markup():
     escaped = render_all(["<script>alert(1)</script>"])[0]
     assert escaped == "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"             # shown to the reader as text
     assert render_all(["&lt;b&gt;"])[0] == "<p>&amp;lt;b&amp;gt;</p>"             # already-escaped input is escaped again, never decoded
-
-
-def test_health_says_whether_the_real_agent_is_answering(monkeypatch):
-    import dataclasses
-    assert client.get("/health").json()["live"] is False                             # the test environment is offline on purpose
-    for retriever, mode, live in (("azure", "foundry", True), ("azure", "offline", False), ("local", "foundry", False), ("local", "offline", False)):
-        monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, retriever=retriever, agent_mode=mode))
-        body = client.get("/health").json()
-        assert body["live"] is live and body["retriever"] == retriever and body["agent_mode"] == mode and body["status"] == "ok"

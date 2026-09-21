@@ -64,7 +64,7 @@ Live settings: `RETRIEVER=azure`, `AGENT_MODE=foundry`. Embeddings use the deplo
 | POST | `/sessions/{id}/claim` | `{"sample_id": "TC07"}` or `{"claim": {...}}` |
 | POST | `/sessions/{id}/chat` | `{"message": "..."}` -> `summary_markdown`, `sections`, `citations`, `suggestions` (plus `trace_summary`, `tool_trace` and citation `chunk_key`s only when the server runs with `DEBUG_TRACE=1`) |
 | POST | `/assess` | stateless deterministic assessment, no LLM |
-| GET | `/samples`, `/health` | sample claims; settings and whether the live agent is on |
+| GET | `/samples` | sample claims |
 
 ## Status and known limits
 

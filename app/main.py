@@ -154,13 +154,15 @@ def index():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html", headers=PAGE_HEADERS)
 
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+class _NoCacheStatic(StaticFiles):
+    """The page and its scripts change together with the API, so the browser must always revalidate (a stale customer.js showed empty replies)."""
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
 
 
-@app.get("/health")
-def health():
-    live = settings.retriever == "azure" and settings.agent_mode == "foundry"   # the real Azure agent and index, not the offline stand-in
-    return dict(status="ok", live=live, retriever=settings.retriever, agent_mode=settings.agent_mode, default_uin=settings.default_uin)
+app.mount("/static", _NoCacheStatic(directory=STATIC_DIR), name="static")
 
 
 @app.get("/samples")
@@ -180,8 +182,17 @@ def _shown_name(name: str | None) -> str:
     return re.sub(r"[\x00-\x1f<>]", "", (name or "file").replace("\\", "/").split("/")[-1])[:100] or "file"
 
 
+LIMIT_MESSAGE = "You have reached the limit of {n} documents for one claim, so this one was not added."
+
+
 async def _read_all(s: dict, named: list[tuple[str, bytes]]) -> dict:
-    results = [intake.store(s, name, await run_in_threadpool(intake.process_file, name, data)) for name, data in named]
+    results = []
+    for name, data in named:
+        if s.get("doc_count", 0) >= settings.max_docs_per_session:
+            results.append(dict(filename=name, status="limit", message=LIMIT_MESSAGE.format(n=settings.max_docs_per_session)))
+            continue
+        s["doc_count"] = s.get("doc_count", 0) + 1
+        results.append(intake.store(s, name, await run_in_threadpool(intake.process_file, name, data)))
     log.info("documents", extra={"fields": dict(session=s["id"], files=len(results), recognised=sum(r["status"] == "recognised" for r in results))})   # counts only: never names or contents
     return dict(files=results, checklist=intake.checklist(s.get("documents", {})))
 
@@ -209,7 +220,8 @@ def run_intake(sid: str):
     if out["status"] == "ready":
         claim = out.pop("claim")
         out["claim"] = _summary(claim)
-        out["first_message"] = intake.first_message(claim, out["missing"])
+        out["first_message"] = intake.first_message(claim, out["missing"], first=not s.get("intro_sent"))
+        s["intro_sent"] = True
     return out
 
 

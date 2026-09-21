@@ -114,10 +114,10 @@ def test_a_file_over_5mb_is_refused_by_name_but_the_request_is_accepted():
 def test_a_whole_upload_over_the_limit_gets_413_and_other_routes_keep_the_small_limit():
     sid = new_session()
     r = client.post(f"/sessions/{sid}/documents", files=[("files", ("a.pdf", b"%PDF" + b"0" * (settings.max_upload_bytes + 1024), "application/pdf"))])
-    assert r.status_code == 413 and r.json()["error"]["code"] == "request_too_large" and "15 MB" in r.json()["error"]["message"]
+    assert r.status_code == 413 and r.json()["error"]["code"] == "request_too_large" and "26 MB" in r.json()["error"]["message"]
     r = client.post(f"/sessions/{sid}/chat", json={"message": "x" * 100, "pad": "y" * (settings.max_request_bytes + 10)})
     assert r.status_code == 413 and "256 KB" in r.json()["error"]["message"]                     # chat is still limited to a few hundred KB
-    r = client.post(f"/sessions/{sid}/documents", content=iter([b"a" * 1_000_000] * 16), headers={"content-type": "multipart/form-data; boundary=x"})
+    r = client.post(f"/sessions/{sid}/documents", content=iter([b"a" * 1_000_000] * 28), headers={"content-type": "multipart/form-data; boundary=x"})
     assert r.status_code == 413                                                                  # chunked, no Content-Length: the limit still applies
 
 
@@ -172,3 +172,22 @@ def test_only_counts_are_logged_never_file_names_or_contents():
     blob = " ".join(records)
     for private in ("Rohan_Verma_secret_bill", "notes.txt", "Rohan Verma", "SYN-2805", "private text", "1,84,500", "184500"):
         assert private not in blob, private
+
+
+def test_a_session_refuses_documents_beyond_the_cap_with_a_plain_message(monkeypatch):
+    import dataclasses
+    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, max_docs_per_session=3))
+    sid = new_session()
+    r = upload(sid, [(f"f{i}.pdf", FILES["kyc_form.pdf"]) for i in range(5)])
+    got = r.json()["files"]
+    assert r.status_code == 200 and [f["status"] for f in got] == ["recognised"] * 3 + ["limit"] * 2
+    assert got[3]["message"] == "You have reached the limit of 3 documents for one claim, so this one was not added."
+    assert upload(sid, [("again.pdf", FILES["kyc_form.pdf"])]).json()["files"][0]["status"] == "limit"
+
+
+def test_only_the_first_intake_message_carries_the_estimate_sentence():
+    sid = new_session()
+    client.post(f"/sessions/{sid}/documents/sample")
+    first = client.post(f"/sessions/{sid}/intake").json()["first_message"]
+    later = client.post(f"/sessions/{sid}/intake").json()["first_message"]
+    assert first.endswith("Amounts I give are estimates; your insurer's team makes the final decision.") and "estimates" not in later
