@@ -14,6 +14,7 @@ from . import claims_engine as E
 from .fmt import inr
 from .plain_questions import stay_days
 from .sanitize import clean
+from .totals import derived_totals
 
 EXPIRY = "Policy expiry (end of current policy period)"
 START = "Policy start (current policy period)"
@@ -130,7 +131,17 @@ def build(session: dict) -> dict:
                  ("Documents the claim form says are not enclosed", _t(form.get("not_enclosed")))]
     else:
         files = []
-    sections = [("Policy", policy), ("Hospital stay and claim", stay), ("Amounts", money), ("Documents", files)]
+    est = []
+    if claim.get("bill_lines"):
+        t = derived_totals(E.assess(claim))
+        est = [("Hospital bill", inr(t["bill_total"])), ("Reduced because of the room limit (room plus doctor, theatre and nursing charges)", inr(t["room_related_reduction"])),
+               ("Extras not payable (non-medical items)", f"{t['non_medical_count']} items, {inr(t['non_medical_total'])}"),
+               ("Largest extras", "; ".join(f"{x['item']} {inr(x['amount'])}" for x in t["largest_non_medical_items"])),
+               ("Other extras", f"{t['other_non_medical_count']} items, {inr(t['other_non_medical_total'])}" if t["other_non_medical_count"] else None),
+               ("Waiting for a document", inr(t["waiting_for_a_document_total"])), ("Estimated payment", inr(t["estimate_total"])), ("Counted so far", inr(t["counted_so_far"])),
+               ("Plan room limit per day", inr(t["room_limit_per_day"]) if "room_limit_per_day" in t else None), ("Room billed per day", inr(t["billed_room_rate_per_day"]) if "billed_room_rate_per_day" in t else None),
+               ("Share of the room charges paid", f"{t['share_paid_percent']:g}%" if "share_paid_percent" in t else None)]
+    sections = [("Policy", policy), ("Hospital stay and claim", stay), ("Amounts", money), ("Payment estimate, worked out in code", est), ("Documents", files)]
     sections = [(t, [(k, v) for k, v in rows if v is not None and v != ""]) for t, rows in sections]
     return dict(sections=[(t, rows) for t, rows in sections if rows], not_found=missing)
 

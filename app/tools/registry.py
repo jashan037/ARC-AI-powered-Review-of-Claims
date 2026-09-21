@@ -16,6 +16,7 @@ from . import claims_engine as E
 from .evidence import resolve
 from .fmt import DOC_SHORT, inr, rule_text, sum_lines
 from . import facts
+from .totals import derived_totals
 
 _S, _N, _B = {"type": "string"}, {"type": "number"}, {"type": "boolean"}
 
@@ -81,7 +82,7 @@ def assessment_view(res: dict) -> dict:
     lines = bill["lines"]
     out = {"policy_in_force_on_the_admission_date": E.policy_in_force_text(res["policy_in_force"]) if res.get("policy_in_force") else "The policy period is not in the documents, so this could not be checked.",
            "likely_outcome": _REC.get(res["recommendation"], res["recommendation"]), "hospital_bill_total": a["gross_billed"],
-           "estimated_payment_once_documents_arrive": a["estimated_payable_if_docs_supplied"], "payment_confirmed_today": a["payable_confirmed_now"],
+           "estimated_payment_once_documents_arrive": a["estimated_payable_if_docs_supplied"], "payment_counted_so_far": a["payable_confirmed_now"],
            "held_until_documents_arrive": a["held_pending"],
            "taken_off": {"room_rent": a["deductions"]["room"], "doctor_and_other_associated_fees": a["deductions"]["associated"], "non_medical_items": a["deductions"]["non_medical"]},
            "issues": [customerize(x) for x in E.compact_summary(res).get("issues", [])], "plan": claim["plan"]}
@@ -92,11 +93,12 @@ def assessment_view(res: dict) -> dict:
     nm = [l for l in lines if l["category"] == "non_medical"]
     out["non_medical_items"] = dict(count=len(nm), total=sum_lines(lines, ("non_medical",), "billed"), examples=[l["description"] for l in nm[:5]], paid_under_protect_benefit=bool(bill["protect_benefit_in_force"]))
     out["associated_medical_expenses"] = dict(billed=sum_lines(lines, ("associated",), "billed"), payable=sum_lines(lines, ("associated",), "payable"))
+    out["totals_by_cause"] = derived_totals(res)
     out["documents_missing"] = [DOC_SHORT.get(d["id"], d["name"]) for d in res["documents"]["checklist"] if d["status"] != "ok"]
     out["waiting_periods"] = [dict(rule=k["name"], result=_STATUS.get(k["status"], k["status"])) for k in res["waiting"]["checks"]]
     if res.get("what_if"):
         out["what_if_changes"] = res["what_if"]
-        out["before_the_change"] = dict(estimated_payment=res["baseline"]["estimated"], confirmed_today=res["baseline"]["confirmed"])
+        out["before_the_change"] = dict(estimated_payment=res["baseline"]["estimated"], counted_so_far=res["baseline"]["confirmed"])
     return out
 
 
@@ -193,5 +195,5 @@ def fallback_reply(ctx: TurnContext) -> str:
     res = ctx.results.get("assessment")
     if res:
         a = res["amounts"]
-        return f"Your estimated payment is {inr(a['estimated_payable_if_docs_supplied'])}, of which {inr(a['payable_confirmed_now'])} is confirmed today."
+        return f"Your estimated payment is {inr(a['estimated_payable_if_docs_supplied'])}, of which {inr(a['payable_confirmed_now'])} is counted so far."
     return "I couldn't confirm that from your documents."

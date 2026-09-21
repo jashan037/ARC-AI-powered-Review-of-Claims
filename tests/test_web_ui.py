@@ -103,7 +103,7 @@ def test_markdown_blocks_and_inline_formatting():
     assert out[9] == "<p>🟢 <strong>Satisfied</strong> ✅ ⚠️ 🔴</p>" and out[10] == "<ul><li>star bullet</li><li>second</li></ul>"
 
 
-ALLOWED_TAGS = {"p", "br", "strong", "em", "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "table", "thead", "tbody", "tr", "th", "td", "div",
+ALLOWED_TAGS = {"a", "p", "br", "strong", "em", "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "table", "thead", "tbody", "tr", "th", "td", "div",
                 "blockquote", "hr"}
 
 
@@ -128,7 +128,9 @@ def test_markdown_cannot_inject_markup():
         audit = _Audit()
         audit.feed(html)
         assert set(audit.tags) <= ALLOWED_TAGS, (src, audit.tags)                 # only elements we generate ourselves
-        assert all(name == "class" and value.startswith("md-") for name, value in audit.attrs), (src, audit.attrs)   # and no attribute but our own classes
+        for name, value in audit.attrs:                                            # and no attribute but our own classes and, for a real http(s) link, href, rel and target
+            assert (name == "class" and value.startswith("md-")) or (name == "href" and re.match(r"https?://", value)) or (name, value) in (("rel", "noopener noreferrer"), ("target", "_blank")), (src, audit.attrs)
+        assert "img" not in audit.tags and "javascript:" not in " ".join(v for _, v in audit.attrs)
         assert "\u0000" not in html
     escaped = render_all(["<script>alert(1)</script>"])[0]
     assert escaped == "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"             # shown to the reader as text

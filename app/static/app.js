@@ -173,7 +173,11 @@
   function fillCard(card, markdown) {
     card.textContent = "";
     var text = String(markdown == null ? "" : markdown);
-    try { card.innerHTML = ARCMarkdown.render(text); } catch (e) { card.textContent = text; }
+    try {   // the renderer escapes first; the result is parsed into nodes (no innerHTML), and a failure falls back to the plain text
+      var doc = new DOMParser().parseFromString(ARCMarkdown.render(text), "text/html");
+      while (doc.body.firstChild) card.appendChild(document.adoptNode(doc.body.firstChild));
+    } catch (e) { card.textContent = text; }
+    if (!reduced) { card.classList.remove("fresh"); void card.offsetWidth; card.classList.add("fresh"); }
   }
 
   function waitingCard() {

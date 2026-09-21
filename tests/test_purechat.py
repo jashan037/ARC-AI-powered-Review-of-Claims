@@ -8,12 +8,13 @@ from fastapi.testclient import TestClient
 from app import main
 from app.agent.runner import FoundryAgent, sources_for
 from app.retrieval.azure_search import get_retriever
-from app.tools.guards import MAX_WORDS, check_reply, fix_reply
+from app.tools.format_guard import HARD_CAP
+from app.tools.guards import check_reply, fix_reply
 from app.tools.registry import SCHEMAS, TOOL_NAMES, TurnContext, call_tool, precompute
 from tests.test_hardening_stage4 import customer_session
 
 client = TestClient(main.app, raise_server_exceptions=False)
-GOOD = "Your claim looks likely to be paid ₹1,22,125 once your documents are complete. ₹1,01,625 is confirmed today and ₹20,500 is held until you send the prescription."
+GOOD = "Your claim looks likely to be paid ₹1,22,125 once your documents are complete. ₹1,01,625 is counted so far and ₹20,500 is held until you send the prescription."
 
 
 class Chat:
@@ -50,7 +51,7 @@ def kinds(text, question="How much will be paid?"):
 
 
 # ---------------------------------------------------------------- guard a: numbers
-@pytest.mark.parametrize("text", ["Your estimated payment is ₹1,22,125 and ₹1,01,625 is confirmed today.", "Your room pays at 62.5% of the room charges.", "You were admitted on 10 September 2025 at 14:30.",
+@pytest.mark.parametrize("text", ["Your estimated payment is ₹1,22,125 and ₹1,01,625 is counted so far.", "Your room pays at 62.5% of the room charges.", "You were admitted on 10 September 2025 at 14:30.",
                                   "12 items are not payable, together ₹12,500.", "You stayed 4 days.", "Admitted on 10/09/2025.", "Room limit is ₹5,000 a day; you were billed ₹8,000 a day.",
                                   "If it had been 5000 a day you would get more.", "Nothing numeric here."])
 def test_numbers_from_the_tools_or_the_claim_pass_in_any_format(text):
@@ -93,9 +94,9 @@ def test_you_and_your_claim_are_fine():
 
 # ---------------------------------------------------------------- guard e: soft length
 def test_a_long_reply_is_a_problem_unless_the_customer_asked_for_detail():
-    long = " ".join(["word"] * (MAX_WORDS + 20))
-    assert "length" in kinds(long) and "length" not in kinds(long, "Explain in detail why it was reduced") and "length" not in kinds(long, "Give me the full list of items")
-    assert "length" not in kinds(" ".join(["word"] * 100))
+    long = " ".join(["word"] * (HARD_CAP + 20))
+    assert "format" in kinds(long) and "format" in kinds(long, "Explain in detail why it was reduced")    # over the hard cap for every kind of question
+    assert "format" not in kinds(" ".join(["word"] * 100), "Explain why my payment is lower") and "format" in kinds(" ".join(["word"] * 100))
 
 
 # ---------------------------------------------------------------- the repairs in code
@@ -103,7 +104,7 @@ def test_the_repair_drops_the_sentence_with_an_unverified_number_and_keeps_the_r
     ctx = ctx_for()
     fixed = fix_reply("Your estimated payment is ₹1,22,125. The bill was ₹9,999 in total. Please send the prescription.", ctx)
     assert fixed == "Your estimated payment is ₹1,22,125. Please send the prescription."
-    assert fix_reply("It is ₹9,999.", ctx) == "Your estimated payment is ₹1,22,125, of which ₹1,01,625 is confirmed today."    # nothing left: a sentence built from the assessment
+    assert fix_reply("It is ₹9,999.", ctx) == "Your estimated payment is ₹1,22,125, of which ₹1,01,625 is counted so far."    # nothing left: a sentence built from the assessment
 
 
 def test_the_repair_writes_internal_terms_in_plain_words_and_drops_decisions_and_third_person():
@@ -181,7 +182,7 @@ def test_the_tools_are_the_six_and_there_is_no_final_answer():
 
 def test_the_assessment_is_plain_json_with_the_reasons_behind_the_amounts():
     out = call_tool("assess_claim", {}, ctx_for())
-    assert out["estimated_payment_once_documents_arrive"] == 122125 and out["payment_confirmed_today"] == 101625 and out["held_until_documents_arrive"] == 20500
+    assert out["estimated_payment_once_documents_arrive"] == 122125 and out["payment_counted_so_far"] == 101625 and out["held_until_documents_arrive"] == 20500
     assert out["taken_off"] == {"room_rent": 12000, "doctor_and_other_associated_fees": 37875, "non_medical_items": 12500}
     assert out["room_rent"]["plan_limit_per_day"] == 5000 and out["room_rent"]["billed_per_day"] == 8000 and out["room_rent"]["share_paid_percent"] == 62.5
     assert out["non_medical_items"]["count"] == 12 and out["documents_missing"] and out["waiting_periods"] and "result_id" not in out and "evidence" not in out

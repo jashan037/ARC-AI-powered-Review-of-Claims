@@ -238,7 +238,7 @@ class ScriptedOpenAI:
         if self.failures:
             raise self.failures.pop(0)
         self.step += 1
-        text = "Your claim looks likely to be paid ₹1,22,125, of which ₹1,01,625 is confirmed today."
+        text = "Your claim looks likely to be paid ₹1,22,125, of which ₹1,01,625 is counted so far."
         return NS(output=[NS(type="message", content=[NS(text=text)])], output_text=text)
 
 

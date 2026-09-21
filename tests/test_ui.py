@@ -191,7 +191,7 @@ def test_cards_have_no_labels_and_the_customer_card_is_tinted(page):
     cards = page.locator(".card")
     assert cards.count() == 3
     first, me, reply = cards.nth(0), cards.nth(1), cards.nth(2)
-    assert first.inner_text().startswith("Thanks, I've read your documents.") and reply.inner_text().startswith("Your claim looks likely")
+    assert first.inner_text().startswith("Rohan Verma, here's what I've read") and reply.inner_text().startswith("Your claim looks likely")
     for c in (first, reply):
         assert c.locator(".who, .label, .avatar, button, time").count() == 0
         assert c.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(255, 255, 255)"
@@ -282,5 +282,5 @@ def test_dropping_on_the_chat_view_adds_documents_with_an_overlay(page):
     page.dispatch_event("body", "drop", {"dataTransfer": dt})
     expect(overlay).to_be_hidden()
     expect(page.locator(".card")).to_have_count(2, timeout=15000)
-    assert page.locator(".card").last.inner_text().startswith("Thanks, I've read your documents.")
+    assert page.locator(".card").last.inner_text().startswith("Rohan Verma, here's what I've read")
     assert "estimates; your insurer's team" not in page.locator(".card").last.inner_text()

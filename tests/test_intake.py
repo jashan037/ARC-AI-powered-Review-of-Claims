@@ -274,8 +274,14 @@ def test_helpers():
 def test_the_first_message_is_short_plain_text_with_no_table():
     out = I.build(session())
     md = I.first_message(out["claim"], out["missing"])
-    assert "Rohan Verma" in md and "Optima Lite" in md and "Laparoscopic appendectomy for Acute appendicitis" in md and "10 Sep 2025 to 14 Sep 2025" in md and "₹1,84,500" in md
-    assert "Still needed: The doctor's prescription for your pharmacy bills." in md and "Ask me anything about your claim." in md
-    assert "|" not in md and "\n" not in md and len(md.split()) < 70 and not any(w in md.lower() for w in ("annexure", "e.1.7", "engine", "json"))
-    complete = I.first_message(out["claim"], [])
-    assert "All the documents we asked for are here." in complete and "Still needed" not in complete
+    assert md.startswith("**Rohan Verma**, here's what I've read: laparoscopic appendectomy for acute appendicitis at Riverside Multispeciality Hospital (DEMO), 10 Sep 2025 to 14 Sep 2025, bill ₹1,84,500.")
+    assert "Your policy runs from 15 Mar 2025 to 14 Mar 2026." in md
+    assert "**One document is still missing:** the doctor's prescription for your pharmacy bills. You can drop it anywhere on this page." in md
+    assert md.endswith("Ask me anything about your claim. Amounts I give are estimates; your insurer's team makes the final decision.")
+    assert "|" not in md and len(md.split()) < 90 and not any(w in md.lower() for w in ("annexure", "e.1.7", "engine", "json", "needed"))
+    complete = I.first_message(out["claim"], [], first=False)
+    assert "Your documents look complete." in complete and "missing" not in complete and "estimates" not in complete
+    several = I.first_message(out["claim"], ["Policy schedule", "KYC form (claims above ₹1 lakh)"])
+    assert "**2 documents are still missing:** policy schedule and KYC form." in several
+    no_dates = dict(out["claim"], policy_period=None)
+    assert "Your policy runs" not in I.first_message(no_dates, [])

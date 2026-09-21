@@ -112,7 +112,7 @@ class FoundryAgent:
         if reply := canned_reply(message):
             return _canned_result("canned", session, message, reply, t0)
         ctx = TurnContext(session=session, retriever=get_retriever(), question=message)
-        conv, status, error, reply, rewritten, fixed = None, "ok", None, None, False, False
+        conv, status, error, reply, rewritten, fixed, first_problems = None, "ok", None, None, False, False, []
         with turn_scope() as scope:
             try:
                 pre = precompute(ctx)     # assess_claim in code: most questions then need one model call
@@ -134,7 +134,7 @@ class FoundryAgent:
                         continue
                     problems = check_reply(text, ctx)
                     if problems and not rewritten:     # each guard rejects once
-                        rewritten = True
+                        rewritten, first_problems = True, [f"{k}: {m}" for k, m in problems]
                         input_ = "Your reply has problems. Write it again as a plain reply to the customer:\n- " + "\n- ".join(m for _, m in problems)
                         continue
                     if problems:                        # and then the text is repaired in code
@@ -159,7 +159,7 @@ class FoundryAgent:
                 status = "incomplete"
             latency = round((time.perf_counter() - t0) * 1000)
             log_turn(agent="foundry", session=session, message=message, status=status, answer_type="chat", trace=ctx.trace, scope=scope, latency_ms=latency, error=error)
-        guards = dict(model_calls=scope.model_calls, retries=sum(scope.retries.values()), rewritten=rewritten, fixed=fixed, prerun=ctx.prerun)
+        guards = dict(model_calls=scope.model_calls, retries=sum(scope.retries.values()), rewritten=rewritten, fixed=fixed, prerun=ctx.prerun, problems=first_problems)
         if reply is None:
             return AgentResult(_ABORT_ANSWERS[status], [], ctx.trace, status, latency, guards)
         return AgentResult(reply, sources_for(ctx), ctx.trace, "ok", latency, guards)

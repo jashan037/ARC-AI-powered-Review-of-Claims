@@ -36,7 +36,7 @@ def test_sample_documents_then_intake_then_chat():
     out = client.post(f"/sessions/{sid}/intake").json()
     assert out["status"] == "ready" and out["reasons"] == [] and out["missing"] == ["The doctor's prescription for your pharmacy bills"]
     assert out["claim"]["insured"] == "Rohan Verma" and out["claim"]["plan"] == "Optima Lite" and "claim_id" in out["claim"]
-    assert "Still needed" in out["first_message"] and "suggestions" not in out and "summary_markdown" not in out
+    assert "One document is still missing" in out["first_message"] and "suggestions" not in out and "summary_markdown" not in out
     assert "bill_lines" not in json.dumps(out) and "documents_data" not in json.dumps(out)              # the customer never gets the raw claim back
 
     chat = client.post(f"/sessions/{sid}/chat", json={"message": "How much will be paid?"}).json()      # the intake loaded the claim into the session
@@ -58,7 +58,7 @@ def test_adding_the_prescription_updates_the_claim_and_the_chat_uses_it():
     added = upload(sid, [("prescription.pdf", rx)]).json()
     assert added["files"][0]["type"] == "prescription" and all(c["state"] == "received" for c in added["checklist"])
     out = client.post(f"/sessions/{sid}/intake").json()
-    assert out["status"] == "ready" and out["missing"] == [] and "All the documents we asked for are here." in out["first_message"]
+    assert out["status"] == "ready" and out["missing"] == [] and "Your documents look complete." in out["first_message"]
     chat = client.post(f"/sessions/{sid}/chat", json={"message": "How much will be paid?"}).json()
     assert "₹1,22,125" in chat["reply"]
 

@@ -138,7 +138,7 @@ def reformat_amounts(text: str) -> str:
 
 def split_sentences(line: str) -> list[str]:
     parts, start = [], 0
-    for m in re.finditer(r"([A-Za-z.]*)([.!?])\s+(?=[A-Z0-9₹\"“'(])", line):
+    for m in re.finditer(r"([A-Za-z.]*)([.!?])\s+(?=\**[A-Z0-9₹\"“'(])", line):
         if m.group(2) == "." and (m.group(1).lower().rstrip(".") in _ABBR or (len(m.group(1)) == 1 and m.group(1).isupper())):
             continue
         parts.append(line[start:m.end()].strip())
@@ -157,3 +157,48 @@ def drop_sentences(text: str, allowed: dict) -> str:
             continue
         kept.append(" ".join(s for s in split_sentences(line) if not offenders(s, allowed)))
     return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
+
+
+# ---------------------------------------------------------------- Markdown-aware repair: blocks, not raw sentences
+_QUOTE = re.compile(r"^\s*>\s?")
+_SEP_ROW = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$")
+
+
+def _balanced(line: str) -> str:
+    """Never leave broken Markdown: an odd number of ** markers in a line means a cut span, so the markers go (the words stay)."""
+    return line.replace("**", "") if line.count("**") % 2 else line
+
+
+def _is_table_line(line: str, nxt: str | None) -> bool:
+    return "|" in line and (line.strip().startswith("|") or (nxt is not None and _SEP_ROW.match(nxt) is not None))
+
+
+def drop_blocks(text: str, allowed: dict, table_fallback: str = "") -> str:
+    """text without the blocks that hold a number no tool returned: a list item, a table row, a quoted line or a sentence goes on its own.
+    A table with fewer than two data rows left is replaced by table_fallback (a sentence built in code); the header and separator never stay alone. May be empty."""
+    lines = text.split("\n")
+    out, i = [], 0
+    while i < len(lines):
+        line = lines[i]
+        nxt = lines[i + 1] if i + 1 < len(lines) else None
+        if _is_table_line(line, nxt):
+            j = i
+            while j < len(lines) and "|" in lines[j] and lines[j].strip():
+                j += 1
+            block = lines[i:j]
+            head = block[:2] if len(block) > 1 and _SEP_ROW.match(block[1]) else block[:1]
+            rows = block[len(head):]
+            kept = [r for r in rows if not offenders(r, allowed)]
+            if offenders("\n".join(head), allowed) or (len(kept) < len(rows) and len(kept) < 2):
+                out.append(table_fallback)   # the table lost what made it a table: a sentence built in code takes its place (may be empty)
+            else:
+                out += [_balanced(x) for x in head + kept]
+            i = j
+            continue
+        if _LIST_MARK.match(line) or _QUOTE.match(line):
+            if not offenders(line, allowed):
+                out.append(_balanced(line))
+        else:
+            out.append(_balanced(" ".join(s for s in split_sentences(line) if not offenders(s, allowed))))
+        i += 1
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()

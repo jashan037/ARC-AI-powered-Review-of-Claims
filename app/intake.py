@@ -416,11 +416,29 @@ def _categorise(lines: list[dict]) -> list[dict]:
 ESTIMATE_NOTE = "Amounts I give are estimates; your insurer's team makes the final decision."
 
 
+def _plain(label: str) -> str:
+    """A document's name inside a sentence: 'the doctor's prescription for your pharmacy bills', 'policy schedule'."""
+    label = re.sub(r"\s*\(.*?\)", "", label).strip()
+    return label if label[:2].isupper() else label[:1].lower() + label[1:]
+
+
 def first_message(claim: dict, missing: list[str], first: bool = True) -> str:
-    """The first chat message after the documents are read: short plain text built in code, no table. Which claim it is, what is still missing, an invitation to ask."""
-    stay = f"{nice_date(claim['admission_datetime'])} to {nice_date(claim['discharge_datetime'])}"
-    what = (claim["procedure"] or "a hospital stay") + (f" for {claim['diagnosis']}" if claim.get("diagnosis") else "")
+    """The first chat message after the documents are read: plain sentences built in code from the claim's facts, no table."""
+    what = claim.get("procedure") or "a hospital stay"
+    what = what[:1].lower() + what[1:] if what[:2] != what[:2].upper() else what
+    if claim.get("diagnosis"):
+        what += f" for {claim['diagnosis'].lower()}"
     where = f" at {claim['hospital']}" if claim.get("hospital") else ""
-    todo = f"Still needed: {'; '.join(missing)}." if missing else "All the documents we asked for are here."
-    return (f"Thanks, I've read your documents. This is the claim for **{claim['insured_name']}** ({claim['plan']}): {what}{where}, {stay}, with a hospital bill of {inr(claim['claimed_amount'])}. "
-            f"{todo} Ask me anything about your claim." + (f" {ESTIMATE_NOTE}" if first else ""))
+    text = (f"**{claim['insured_name']}**, here's what I've read: {what}{where}, {nice_date(claim['admission_datetime'])} to {nice_date(claim['discharge_datetime'])}, "
+            f"bill {inr(claim['claimed_amount'])}.")
+    period = claim.get("policy_period")
+    if period and all(period):
+        text += f" Your policy runs from {nice_date(period[0])} to {nice_date(period[1])}."
+    names = [_plain(m) for m in missing]
+    if len(names) == 1:
+        text += f"\n\n**One document is still missing:** {names[0]}. You can drop it anywhere on this page."
+    elif names:
+        text += f"\n\n**{len(names)} documents are still missing:** {', '.join(names[:-1])} and {names[-1]}. You can drop them anywhere on this page."
+    else:
+        text += "\n\nYour documents look complete."
+    return text + "\n\nAsk me anything about your claim." + (f" {ESTIMATE_NOTE}" if first else "")

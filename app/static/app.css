@@ -41,23 +41,33 @@ body { position: relative; margin: 0; background: var(--bg); color: var(--text);
 /* ---------------------------------------------------------------- chat */
 .chat { max-width: 720px; margin: 0 auto; padding: 72px 16px 120px; }
 .thread { display: flex; flex-direction: column; gap: 12px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; font-size: 16px; line-height: 1.65; box-shadow: 0 1px 2px rgba(0, 0, 0, .04); scroll-margin: 16px 0 110px; overflow-wrap: anywhere; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; font-size: 16.5px; line-height: 1.65; box-shadow: 0 1px 2px rgba(0, 0, 0, .04); scroll-margin: 16px 0 110px; overflow-wrap: anywhere; }
 .card.me { align-self: flex-end; max-width: 85%; background: var(--tint); border: 0; box-shadow: none; white-space: pre-wrap; }
 .card > :first-child { margin-top: 0; }
 .card > :last-child { margin-bottom: 0; }
-.card p { margin: .6em 0; }
-.card ul, .card ol { margin: .6em 0; padding-left: 1.4em; }
-.card li { margin: .2em 0; }
+.card p { margin: .65em 0; }
+.card ul, .card ol { margin: .65em 0; padding-left: 1.2em; }
+.card li { margin: .3em 0; }
+.card li:first-child { margin-top: 0; }
+.card li:last-child { margin-bottom: 0; }
 .card strong { font-weight: 600; }
 .card a { color: inherit; text-decoration: underline; }
-.card .md-table { overflow-x: auto; margin: .6em 0; }
-.card table { border-collapse: collapse; width: 100%; font-size: 15px; }
-.card th, .card td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
-.card th { font-weight: 600; }
+.card .md-table { overflow-x: auto; margin: .75em 0; -webkit-overflow-scrolling: touch; }
+.card table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+.card th, .card td { padding: 8px 12px; text-align: left; vertical-align: top; border: 0; border-bottom: 1px solid var(--line); }
+.card th { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: .02em; border-bottom-color: var(--line); white-space: nowrap; }
+.card th.md-right, .card td.md-right { text-align: right; white-space: nowrap; }
+.card th.md-center, .card td.md-center { text-align: center; }
+.card tbody tr:last-child td { border-bottom: 0; }
+.card tr.md-total td { font-weight: 600; border-top: 1px solid #DADDE0; }
 .card code, .card pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em; }
 .card pre { overflow-x: auto; margin: .6em 0; }
 .card h1, .card h2, .card h3 { font-size: 1em; font-weight: 600; margin: .8em 0 .3em; }
-.card blockquote { margin: .6em 0; padding-left: 1em; border-left: 2px solid var(--line); color: var(--muted); }
+.card blockquote { margin: .75em 0; padding: 10px 14px; border-left: 3px solid var(--line); border-radius: 8px; background: var(--tint); color: var(--text); }
+.card blockquote p { margin: 0; }
+.card.fresh { animation: settle 150ms ease-out; }
+@keyframes settle { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .card.fresh { animation: none; } }
 
 .dots { display: inline-flex; gap: 6px; align-items: center; height: 26px; }
 .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: .5; animation: pulse 1.2s infinite ease-in-out; }
