@@ -70,3 +70,17 @@ def test_an_officer_still_gets_documents_and_deduction_answers():
     model = Script([[("assess_claim", {})], [("final_answer", lambda m: {"answer_type": "deduction_explanation", "headline": "x", "result_id": m.rid, "focus": "room"})]])
     res = agent(model).ask(s, "Why was the room rent deducted?")
     assert res.answer_type == "deduction_explanation" and [t["ok"] for t in res.trace if t["tool"] == "final_answer"] == [True]
+
+
+def test_officer_voice_that_survives_the_one_rewrite_is_removed_not_shown():
+    bad = {"answer_type": "coverage_answer", "headline": "Your policy has a waiting period. Confirm whether it was an accident.", "verdict": "depends",
+           "points": [dict(label="Rule", status="info", detail="24 months applies."), dict(label="Check", status="warning", detail="Verify the inception date.")],
+           "next_steps": ["Please check your policy schedule.", "Confirm whether the claim is an accident."], "caveats": ["The insured should confirm whether cover applies.", "This explains the wording."]}
+
+    def final(m):
+        return dict(bad, citations=[m.outputs[0]["results"][0]["chunk_key"]], points=[dict(p, citations=[m.outputs[0]["results"][0]["chunk_key"]]) for p in bad["points"]])
+    model = Script([[("search_policy", {"query": "waiting period"})], [("final_answer", final)], [("final_answer", final)]])
+    res = agent(model).ask(customer_session(), "Is there a waiting period?")
+    shown = res.markdown + res.summary_markdown + "".join(s["markdown"] for s in res.sections)
+    assert res.status == "ok" and "Confirm whether" not in shown and "Verify" not in shown and "the insured" not in shown.lower()
+    assert "Your policy has a waiting period." in res.summary_markdown and "Please check your policy schedule." in shown and "This explains the wording." in shown and "24 months applies." in shown

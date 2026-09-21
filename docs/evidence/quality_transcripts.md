@@ -6,7 +6,7 @@ Exactly what the customer sees for every question in run 1: the first message (s
 
 **Customer:** what's my name
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 17.1 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 13.1 s, 0 Search requests)_
 
 **ARC:**
 
@@ -18,7 +18,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 17.1 s, 0
 
 **Customer:** which hospital was I in
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 12.2 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 14.6 s, 0 Search requests)_
 
 **ARC:**
 
@@ -30,7 +30,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 12.2 s, 0
 
 **Customer:** when was I admitted
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 16.9 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 13.5 s, 0 Search requests)_
 
 **ARC:**
 
@@ -42,11 +42,11 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 16.9 s, 0
 
 **Customer:** how many days did I stay in hospital
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 24.2 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 9.9 s, 0 Search requests)_
 
 **ARC:**
 
-> You stayed in hospital for 4 days.
+> You stayed 4 days in hospital.
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
@@ -54,7 +54,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 24.2 s, 0
 
 **Customer:** what is my policy number
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 9.5 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 15.2 s, 0 Search requests)_
 
 **ARC:**
 
@@ -66,7 +66,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 9.5 s, 0 
 
 **Customer:** what plan do I have
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 13.4 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 11.7 s, 0 Search requests)_
 
 **ARC:**
 
@@ -78,7 +78,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 13.4 s, 0
 
 **Customer:** how much did I claim in total
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 14.9 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 17.5 s, 0 Search requests)_
 
 **ARC:**
 
@@ -90,7 +90,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 14.9 s, 0
 
 **Customer:** what is my address
 
-_(answer type `direct_answer`, tools get_claim_summary > final_answer, 5.8 s, 0 Search requests)_
+_(answer type `direct_answer`, tools get_claim_summary > final_answer, 15.5 s, 0 Search requests)_
 
 **ARC:**
 
@@ -102,7 +102,7 @@ _(answer type `direct_answer`, tools get_claim_summary > final_answer, 5.8 s, 0 
 
 **Customer:** How much will be paid?
 
-_(answer type `claim_assessment`, tools assess_claim > final_answer, 9.9 s, 10 Search requests)_
+_(answer type `claim_assessment`, tools assess_claim > final_answer > final_answer, 33.7 s, 10 Search requests)_
 
 **ARC:**
 
@@ -231,11 +231,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Why was my room rent reduced?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 26.8 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > search_policy > final_answer, 42.5 s, 1 Search requests)_
 
 **ARC:**
 
-> Your room charges were reduced because your plan’s daily room limit was exceeded; room-related charges were reduced by ₹12,000. That reduced the total estimated payable from ₹1,22,125 to ₹1,01,625. ₹20,500 is being held because medicine/pharmacy bills with the doctor’s prescription are missing.
+> Your room rent was reduced because Optima Lite covers room rent only up to 1% of the base sum insured per day, and your room exceeded that limit. A proportionate deduction of ₹12,000 was applied to the room and associated charges.
 
 <details><summary>Show more: Room rent working</summary>
 
@@ -279,11 +279,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Which items are not payable?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 24.4 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 30.3 s, 0 Search requests)_
 
 **ARC:**
 
-> Non-medical items on your hospital bill are not payable; together they total ₹12,500.
+> Non-medical items on your hospital bill totalling ₹12,500 are not payable.
 
 <details><summary>Show more: Non-payable items (12)</summary>
 
@@ -310,22 +310,6 @@ These are on your policy's list of non-medical items, and the Protect Benefit is
 
 </details>
 
-<details><summary>Show more: Full estimate</summary>
-
-```text
-Hospital bill                            ₹1,84,500
-Room-rent adjustment                      −₹12,000
-Associated-expense adjustment             −₹37,875
-Non-payable items                         −₹12,500
---------------------------------------------------
-Estimated payment                        ₹1,22,125
-  of which held for documents              ₹20,500
-  Confirmed payable today                ₹1,01,625
-```
-
-
-</details>
-
 **Policy references** (each opens a popup with the quote):
 
 - Policy rule: non-medical items p.32: “Non-Medical expenses such as food charges (other than patient’s diet provided by hospital), laundry charges, attendant charges, ambulance collar, ambulance equipment, baby food, baby utility charges and other such items. Full list of Non-Medical Expenses is attached as your policy's list of non-medical items and also available …”
@@ -337,11 +321,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Why is some of my money being held?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 22.9 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 24.9 s, 0 Search requests)_
 
 **ARC:**
 
-> ₹20,500 is being held because medicine/pharmacy bills with the medical practitioner's prescription are missing from your claim. You have ₹1,01,625 confirmed payable now. If you supply the missing bills and prescription, the total payable would become ₹1,22,125.
+> Some money—₹20,500—is being held because medicine/pharmacy bills with the Medical Practitioner's prescription are missing or incomplete. We have confirmed ₹1,01,625 for payment now; if you provide the missing bills the payable amount would increase to ₹1,22,125. Please send the medicine/pharmacy bills along with the doctor's prescription so the held amount can be reviewed.
 
 <details><summary>Show more: Documents (8 of 9 complete)</summary>
 
@@ -385,11 +369,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Why were my doctor fees reduced?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 25.6 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 29.5 s, 0 Search requests)_
 
 **ARC:**
 
-> Your doctor and related (associated) charges were reduced by ₹37,875. This ‘associated’ deduction happens because room limits reduced the payable portion of related doctor, nursing and procedure charges; there is also a room deduction of ₹12,000. Additionally, ₹12,500 of non-medical items were not payable and ₹20,500 is held pending pharmacy bills with prescriptions; the confirmed payable now is ₹1,01,625 (estimated ₹1,22,125 if those documents are supplied).
+> Your doctor and related professional fees are part of the 'associated' deductions of ₹37,875. They were reduced because your room rent exceeded your plan's limit, so associated charges were paid proportionately; the room deduction was ₹12,000. Your confirmed payable now is ₹1,01,625.
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -406,6 +390,26 @@ Estimated payment                        ₹1,22,125
 
 
 </details>
+
+<details><summary>Show more: Room rent working</summary>
+
+🟠 **Potential deduction**
+- Allowed: ₹5,000/day (1% of the ₹5,00,000 base sum insured per day)
+- Billed: ₹8,000/day for 4 days
+- Proportion payable: 62.5% (₹5,000 ÷ ₹8,000)
+- Room charges: ₹32,000 → ₹20,000 (−₹12,000)
+- Associated medical expenses: ₹1,01,000 → ₹63,125 (−₹37,875)
+The same proportion applies to consultation, OT, nursing, anaesthesia and similar charges. Pharmacy, consumables and diagnostics are not reduced.
+**Evidence:** Policy rule: room rent, p.12; Policy definition: associated medical expenses, p.8; Your plan's benefit chart, p.50
+
+
+</details>
+
+**Policy references** (each opens a popup with the quote):
+
+- Policy rule: room rent p.12: “iii. Proportionate deduction on Room Rent: In case the Insured Person is admitted in a room that exceeds the category/limit stipulated in the Policy Schedule, the reimbursement/payment of Room Rent charges including all Associated Medical Expenses incurred at Hospital shall be effected in the same …”
+- Policy definition: associated medical expenses p.8: “Associated Medical Expenses means Consultation fees, charges on Operation theatre, surgical appliances & nursing, and expenses on Anesthesia, blood, oxygen incurred during Hospitalization of the Insured Person which vary based on the room category occupied by the insured person whilst undergoing …”
+- Your plan's benefit chart p.50: “Plan: Optima Lite. Base sum insured options: 5, 7.5 lakh. Geography: India only. Room rent: Up to 1% of base sum insured per day. ICU: Up to 2% of base sum insured per day. Pre-hospitalization: 30 days. Post-hospitalization: 60 days. Cumulative bonus: 10% of base SI, max 100%. Protect benefit …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
@@ -413,11 +417,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Is there a deductible or a co-pay on my claim?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 22.9 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 32.2 s, 0 Search requests)_
 
 **ARC:**
 
-> No — there is no deductible or co-pay applied to your claim. Your payable confirmed now is ₹1,01,625 after deductions of room ₹12,000, associated charges ₹37,875 and non-medical items ₹12,500; ₹20,500 is held pending missing documents.
+> No — there is no separate deductible or co‑pay shown on your claim. The confirmed payable now is ₹1,01,625; the deductions applied are room ₹12,000, associated charges ₹37,875 and non‑medical items ₹12,500. ₹20,500 is held pending for missing pharmacy bills and the estimated payable if those are supplied is ₹1,22,125.
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -435,37 +439,17 @@ Estimated payment                        ₹1,22,125
 
 </details>
 
-<details><summary>Show more: Documents (8 of 9 complete)</summary>
-
-- ✅ Claim form
-- ✅ Photo ID and age proof
-- ✅ Discharge summary
-- ✅ Final hospital bill with receipts
-- ✅ Previous consultation papers
-- ✅ Diagnostic reports and bills
-- ⚠️ Pharmacy bills with prescription — prescription missing
-- ✅ KYC documents (claims above Rs. 1 lakh)
-- ✅ NEFT form with cancelled cheque
-**Evidence:** Policy section: documents needed for a claim, p.43
-
-
-</details>
-
-**Policy references** (each opens a popup with the quote):
-
-- Policy section: documents needed for a claim p.43: “The reimbursement claim is to be supported with the following documents and submitted within the prescribed time limit. a. Duly Completed claim form, b. Photo ID and Age Proof, c. Copy of the Hospital’s Registration Certificate/Hospital Registration number in case of Hospitalization in any …”
-
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
 ## P07 · payment · PASS
 
 **Customer:** Why is my payment lower than my bill?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 22.4 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 27.0 s, 0 Search requests)_
 
 **ARC:**
 
-> Your payment is lower because three deductions were made: room-related reduction ₹12,000; associated/proportionate charges ₹37,875; and non-medical items not payable ₹12,500. We are also holding ₹20,500 pending medicine/pharmacy bills with the doctor's prescription; if you send those the payable amount may rise to ₹1,22,125. Right now the confirmed payable amount is ₹1,01,625.
+> Your payment is lower because the bill had specific deductions and part of the amount is held pending documents. Deductions are: room ₹12,000; associated charges ₹37,875; non‑medical items ₹12,500. An amount of ₹20,500 is held pending your medicine/pharmacy bills with the doctor’s prescription, so the amount payable now is ₹1,01,625 (estimated payable if those documents are supplied would be ₹1,22,125).
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -509,7 +493,7 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** What did you find on my claim?
 
-_(answer type `claim_assessment`, tools assess_claim > final_answer, 13.9 s, 0 Search requests)_
+_(answer type `claim_assessment`, tools assess_claim > final_answer, 19.7 s, 0 Search requests)_
 
 **ARC:**
 
@@ -638,22 +622,30 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Is knee replacement covered and what is the waiting period?
 
-_(answer type `coverage_answer`, tools search_policy > final_answer, 32.7 s, 4 Search requests)_
+_(answer type `coverage_answer`, tools search_policy > final_answer > final_answer, 42.3 s, 4 Search requests)_
 
 **ARC:**
 
-> **🟠 Covered, with conditions**
+> **🟠 Depends on the facts**
 >
-> Yes — knee replacement (a joint replacement) is covered but subject to a 24-month waiting period; accident-related cases are exempt.
+> Knee replacement (a joint replacement surgery) is covered only after a 24-month waiting period. The 24-month period starts from the inception of your first policy and does not apply to accidental claims.
 >
-> - 🟠 **Listed under 24-month waiting** — Joint replacement surgeries are explicitly listed among procedures that have a 24-month waiting period.
-> - 🔹 **How the waiting period applies** — The 24-month waiting runs from the first policy inception and applies only after continuous coverage; enhancements may restart waiting.
-> - 🔹 **Definition of waiting period** — Waiting Period means specified treatments are excluded until the waiting completes; covered thereafter if continuously renewed.
+> - 🟠 **Listed procedure** — Joint replacement surgeries are listed and attract a 24-month waiting period.
+> - 🔹 **Waiting period timing** — The 24-month waiting period counts from the first policy inception and excludes claims due to accidents.
+> - 🔹 **Prior cover effect** — Prior continuous cover or portability can reduce the waiting period; enhancement may reapply the waiting period to the increase.
 
 <details><summary>Show more: What to do next</summary>
 
-- Please tell me the start date of your first policy with this insurer and the planned or actual date of the knee replacement so I can check if the 24-month waiting has been served.
-- Please send your Policy Schedule if you are unsure of the policy start date.
+- Please tell me the start date of your first policy with this insurer.
+- Please tell me whether the knee problem was caused by an accident.
+- Please tell me if you had continuous prior cover or ported from another insurer.
+
+
+</details>
+
+<details><summary>Show more: Notes</summary>
+
+- Your exact policy dates and any prior cover can change whether the waiting period applies.
 
 
 </details>
@@ -661,71 +653,76 @@ _(answer type `coverage_answer`, tools search_policy > final_answer, 32.7 s, 4 S
 **Policy references** (each opens a popup with the quote):
 
 - Policy rule: waiting period for specified illnesses and procedures p.29: “… by malignancy - Surgery for varicose veins and varicose ulcers - Surgery on prostate - Cholecystectomy - Surgery for perianal abscesses - Hydrocele/Rectocele - Joint replacement surgeries - Surgery for nasal septum deviation - Ligament, tendon and meniscal tear - Hysterectomy - Fissurectomy, …”
-- Policy rule: waiting period for specified illnesses and procedures p.28: “… to the treatment of the listed Conditions, surgeries/treatments shall be excluded until the expiry of 24 months of continuous coverage after the date of inception of the first Policy with us. This exclusion shall not be applicable for claims arising due to an Accident. ii. In case of enhancement of …”
+- Policy rule: waiting period for specified illnesses and procedures p.28: “… until the expiry of 24 months of continuous coverage after the date of inception of the first Policy with us. This exclusion shall not be applicable for claims arising due to an Accident. ii. In case of enhancement of sum insured the exclusion shall apply afresh to the extent of Sum Insured …”
 - Policy definition: waiting period p.10: “Waiting Period means a period from the inception of this Policy during which specified diseases/treatments are not covered. On completion of the Waiting Period, diseases/treatments shall be covered provided the Policy has been continuously renewed without any break.”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-## C02 · coverage · FAIL
+## C02 · coverage · PASS
 
 **Customer:** Is cataract surgery covered, and is there a waiting period?
 
-_(answer type `coverage_answer`, tools search_policy > final_answer > final_answer, 33.6 s, 1 Search requests)_
+_(answer type `coverage_answer`, tools search_policy > search_policy > final_answer, 30.0 s, 5 Search requests)_
 
 **ARC:**
 
 > **🟠 Covered, with conditions**
 >
-> Cataract surgery is covered for you but there is a 24-month waiting period.
+> Cataract surgery is covered but subject to the 24‑month specified‑disease waiting period (unless due to an accident).
 >
-> - 🟠 **Listed as a specified condition** — Your policy lists cataract and other disorders of the lens and retina among specified conditions.
-> - 🟠 **Waiting period length** — Your policy excludes expenses for listed conditions until 24 months of continuous coverage from policy inception.
-> - 🔹 **When cover begins** — After the waiting period your treatment is covered if your policy has been continuously renewed.
+> - 🟠 **Cataract listed** — Cataract and other disorders of lens and retina are listed under the specified diseases/procedures subject to the waiting period.
+> - 🔹 **Specified‑disease waiting period** — A 24‑month waiting period applies from the first policy inception; it does not apply to accidental claims.
+> - 🔹 **General 30‑day wait also applies** — There is a 30‑day general waiting period from policy start for illnesses; the longer waiting period applies if both are relevant.
 
 <details><summary>Show more: What to do next</summary>
 
-- Please check your Policy Schedule for the policy inception date and renewal history to see if 24 months have passed.
-- Please ask a claims officer to check if your continuous coverage meets the waiting-period requirement.
-
-
-</details>
-
-**Policy references** (each opens a popup with the quote):
-
-- Policy rule: waiting period for specified illnesses and procedures p.29: “… cirrhosis - Gastro Esophageal Reflux Disorder (GERD) - Sinusitis, Rhinitis - Perineal abscesses - Perianal abscesses - Skin tumors - Cataract and other disorders of lens and retina - Fissure/fistula in anus, haemorrhoids including gout and rheumatism - Tonsillitis - Osteoarthritis and osteoporosis …”
-- Policy rule: waiting period for specified illnesses and procedures p.28: “… waiting period: i. Expenses related to the treatment of the listed Conditions, surgeries/treatments shall be excluded until the expiry of 24 months of continuous coverage after the date of inception of the first Policy with us. This exclusion shall not be applicable for claims arising …”
-- Policy definition: waiting period p.10: “Waiting Period means a period from the inception of this Policy during which specified diseases/treatments are not covered. On completion of the Waiting Period, diseases/treatments shall be covered provided the Policy has been continuously renewed without any break.”
-
-**Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
-
-**Failed checks:** the answer does not contain /accident/
-
-## C03 · coverage · PASS
-
-**Customer:** What is the waiting period for pre-existing diseases?
-
-_(answer type `waiting_period_answer`, tools search_policy > assess_claim > final_answer, 33.5 s, 3 Search requests)_
-
-**ARC:**
-
-> Pre‑existing diseases are excluded for 36 months of continuous cover from the date of inception of your first policy with the insurer.
->
-> - 🔹 **Standard waiting period** — Expenses for pre-existing diseases are excluded until expiry of 36 months of continuous coverage from first policy inception.
-> - 🟠 **Portability credit** — If you had continuous cover earlier, the waiting period may be reduced by the prior coverage months.
-> - 🔹 **Optional modification** — There is an option at inception to modify PED waiting period to 24 or 12 months where that option was purchased.
-
-<details><summary>Show more: What to do next</summary>
-
-- Please tell me the start date of your first policy with this insurer and the admission/treatment date so I can check if the waiting period is served.
-- Please tell me if you had prior continuous cover (portability) and for how many months.
-- Please send your Policy Schedule if it specifies a different PED waiting period.
+- Please send the date your first policy with us began so we can check if 24 months have passed.
+- Please tell us if the cataract was caused by an accident.
+- Please confirm if you had continuous renewals or prior cover with another insurer (portability).
 
 
 </details>
 
 <details><summary>Show more: Notes</summary>
 
-- Exact applicability depends on your Policy Schedule and the dates of continuous cover.
+- Whether the 24‑month waiting period applies depends on your first policy inception date and any prior continuous cover.
+
+
+</details>
+
+**Policy references** (each opens a popup with the quote):
+
+- Policy rule: waiting period for specified illnesses and procedures p.29: “… - Sinusitis, Rhinitis - Perineal abscesses - Perianal abscesses - Skin tumors - Cataract and other disorders of lens and retina - Fissure/fistula in anus, haemorrhoids including gout and rheumatism - Tonsillitis - Osteoarthritis and osteoporosis - Fibroids (fibromyoma) - Benign hyperplasia of …”
+- Policy rule: waiting period for specified illnesses and procedures p.28: “… coverage after the date of inception of the first Policy with us. This exclusion shall not be applicable for claims arising due to an Accident. ii. In case of enhancement of sum insured the exclusion shall apply afresh to the extent of Sum Insured increase. iii. If any of the specified …”
+- Policy rule: 30-day waiting period p.30: “30-day waiting period: i. Expenses related to the treatment of any illness within 30 days from the first Policy commencement date shall be excluded except claims arising due to an accident, provided the same are covered. ii. This exclusion shall not, however, apply if the Insured …”
+
+**Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
+
+## C03 · coverage · PASS
+
+**Customer:** What is the waiting period for pre-existing diseases?
+
+_(answer type `waiting_period_answer`, tools search_policy > final_answer, 42.8 s, 4 Search requests)_
+
+**ARC:**
+
+> The standard waiting period for pre-existing diseases is 36 months of continuous cover.
+>
+> - 🔴 **Standard rule** — Expenses for pre-existing diseases are excluded until 36 months of continuous coverage from the first policy inception.
+> - 🔹 **Optional reduction** — An optional cover (if chosen at inception) can reduce the PED waiting period to 24 months or 12 months.
+> - 🔹 **Portability/ prior cover** — If you had continuous prior cover, the PED waiting period may be reduced by the duration of that prior coverage.
+
+<details><summary>Show more: What to do next</summary>
+
+- Please tell me the start date of your first policy with this insurer.
+- Please tell me if you had continuous health cover before this policy and the dates of that cover.
+
+
+</details>
+
+<details><summary>Show more: Notes</summary>
+
+- If your Policy Schedule shows a different PED period or the PED-modification option was selected at inception, that will apply.
 
 
 </details>
@@ -733,7 +730,8 @@ _(answer type `waiting_period_answer`, tools search_policy > assess_claim > fina
 **Policy references** (each opens a popup with the quote):
 
 - Policy rule: waiting period for pre-existing diseases p.28: “… i. Expenses related to the treatment of a pre-existing disease (PED) and its direct complications shall be excluded until the expiry of 36 months (Unless specified otherwise in the Policy Schedule) of continuous coverage after the date of inception of the first policy with insurer. …”
-- Policy section: benefits p.25: “… at the time of policy inception. Policyholders will therefore not be able to opt for the same. This option once selected cannot be opted out in the lifetime of the Policy. Below mentioned are the options available under this cover 1. Modification of PED waiting period from 36 months (as specified …”
+- Policy section: benefits p.25: “… Policyholders will therefore not be able to opt for the same. This option once selected cannot be opted out in the lifetime of the Policy. Below mentioned are the options available under this cover 1. Modification of PED waiting period from 36 months (as specified under Section policy rule: waiting period for pre-existing diseases – Pre- …”
+- Policy definition: pre-existing disease p.7: “… that is/are diagnosed by a physician not more than 36 months prior to the date of commencement of the policy issued by the insurer; or b) for which medical advice or treatment was recommended by, or received from, a physician, not more than 36 months prior to the date of commencement of the policy.”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
@@ -741,97 +739,105 @@ _(answer type `waiting_period_answer`, tools search_policy > assess_claim > fina
 
 **Customer:** Is there a waiting period during the first 30 days of a new policy?
 
-_(answer type `waiting_period_answer`, tools search_policy > final_answer > final_answer, 39.3 s, 2 Search requests)_
+_(answer type `waiting_period_answer`, tools search_policy > final_answer, 36.3 s, 2 Search requests)_
 
 **ARC:**
 
-> Yes — your policy excludes treatment for any illness in the first 30 days from the policy start, except for accidents.
+> Yes — illnesses are excluded for 30 days from the first policy commencement, but claims due to an accident are covered.
 >
-> - 🔴 **30-day exclusion** — Expenses for any illness during the first 30 days from your policy start are excluded, except accidental claims.
-> - 🟢 **Continuity exception** — The 30-day exclusion does not apply if you had continuous coverage for more than twelve months before this policy started.
-> - 🔹 **Enhanced sum insured** — This waiting period also applies to any increase in Sum Insured granted later.
+> - 🔴 **30-day exclusion** — Expenses for treatment of any illness within 30 days from the first policy commencement are excluded except for accidents.
+> - 🟢 **Continuity reduces waiting** — This exclusion does not apply if you had continuous coverage for more than twelve months.
+> - 🔹 **Applies to SI enhancement** — The 30-day waiting also applies to any enhanced Sum Insured granted later.
 
 <details><summary>Show more: What to do next</summary>
 
-- Please tell me your policy start date and your admission date so I can see if the waiting period applies to your claim.
-- Please tell me whether you had continuous health cover for more than twelve months before your policy started.
+- Please tell me your policy start date and your hospital admission date so I can check if this waiting period applies to your claim.
 
 
 </details>
 
 <details><summary>Show more: Notes</summary>
 
-- This is the policy wording
+- This explains the policy wording
 
 
 </details>
 
 **Policy references** (each opens a popup with the quote):
 
-- Policy rule: 30-day waiting period p.30: “… except claims arising due to an accident, provided the same are covered. ii. This exclusion shall not, however, apply if the Insured Person has continuous coverage for more than twelve months. iii. The within referred waiting period is made applicable to the enhanced Sum Insured in the event of …”
+- Policy rule: 30-day waiting period p.30: “… of any illness within 30 days from the first Policy commencement date shall be excluded except claims arising due to an accident, provided the same are covered. ii. This exclusion shall not, however, apply if the Insured Person has continuous coverage for more than twelve months. iii. The within …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-## C05 · coverage · PASS
+## C05 · coverage · FAIL
 
 **Customer:** Is maternity covered under my policy?
 
-_(answer type `coverage_answer`, tools search_policy > final_answer > final_answer, 34.7 s, 3 Search requests)_
+_(answer type `coverage_answer`, tools search_policy > final_answer > final_answer, 57.6 s, 3 Search requests)_
 
 **ARC:**
 
 > **🟠 Covered, with conditions**
 >
-> Your base policy excludes maternity. You have cover for maternity only if you bought the 'Parenthood' add‑on and your 2‑year waiting period is complete.
+> Maternity is not covered under your base plan; it’s available only if you bought the Parenthood add-on and only after a two-year waiting period.
 >
-> - 🔴 **Base policy exclusion** — Your policy excludes medical expenses traceable to childbirth, miscarriage (unless accidental) and termination.
-> - 🟠 **Add-on option** — The 'Parenthood' add‑on covers maternity, embryo freezing and IVF after a 2‑year waiting period.
+> - 🟢 **How maternity is provided** — Maternity, embryo freezing and IVF costs are payable only if you have the Parenthood add-on on your policy.
+> - 🟠 **Waiting period applies** — The Parenthood add-on carries a two-year waiting period before your maternity expenses become payable.
+> - 🔹 **Meaning of waiting period** — A waiting period means the treatment is excluded until you complete that period with continuous renewals.
 
 <details><summary>Show more: What to do next</summary>
 
-- Please check your policy schedule to see if you bought the 'Parenthood' add‑on.
-- Please tell me your policy inception date if you want me to check whether your 2‑year waiting period is served.
-- Please send your policy schedule or contact a claims officer for official confirmation.
+- Please look at your Policy Schedule to see if the Parenthood add-on is listed on your policy.
+- Please send your Policy Schedule or contact a claims officer and ask if the two-year waiting period on your policy has completed.
 
 
 </details>
 
 <details><summary>Show more: Notes</summary>
 
-- I cannot tell from the wording whether you have the add‑on or whether your waiting period is already served.
+- your Policy Schedule shows if you bought the add-on.
+- A claims officer can confirm whether the add-on and waiting-period dates apply to your claim.
 
 
 </details>
 
 **Policy references** (each opens a popup with the quote):
 
-- Policy section: exclusions p.32: “… Medical treatment expenses traceable to childbirth (including complicated deliveries and caesarean sections incurred during hospitalization) except ectopic pregnancy; ii. Expenses towards miscarriage (unless due to an accident) and lawful medical termination of pregnancy during the Policy Period.”
-- Your plan's benefit chart notes p.51: “… value shall be payable in the lifetime of the policy. For claims made in India only. 8. Parenthood: Covers Maternity Expenses, Embryo freezing costs and IVF treatments post waiting period of 2 years. Notes: For in depth details on terms and conditions applicable to add-ons, Kindly refer to the …”
+- Your plan's benefit chart notes p.51: “… infinite value shall be payable in the lifetime of the policy. For claims made in India only. 8. Parenthood: Covers Maternity Expenses, Embryo freezing costs and IVF treatments post waiting period of 2 years. Notes: For in depth details on terms and conditions applicable to add-ons, Kindly refer to …”
+- Policy definition: waiting period p.10: “Waiting Period means a period from the inception of this Policy during which specified diseases/treatments are not covered. On completion of the Waiting Period, diseases/treatments shall be covered provided the Policy has been continuously renewed without any break.”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
+
+**Failed checks:** officer voice ['confirm whether'] in section Notes
 
 ## C06 · coverage · PASS
 
 **Customer:** What does room rent mean?
 
-_(answer type `definition_answer`, tools search_policy > final_answer, 16.7 s, 5 Search requests)_
+_(answer type `definition_answer`, tools search_policy > final_answer, 38.9 s, 4 Search requests)_
 
 **ARC:**
 
 > **📖 What the policy says**
 >
-> Room rent is the amount a hospital charges for room and boarding; it also includes associated medical expenses.
+> Room rent is the amount the hospital charges you for room and boarding; it also includes certain associated medical expenses.
 >
-> - 🟢 **Definition** — Room Rent is the amount charged by a Hospital towards room and boarding and includes associated medical expenses.
-> - 🔹 **What 'associated medical expenses' are** — These include consultation fees, operation theatre, nursing, anaesthesia, blood and oxygen that vary by room category.
-> - 🟠 **If you choose a higher room** — If you occupy a room above your policy limit, proportionate deduction applies to room rent and associated medical expenses.
+> - 🟢 **What it means** — Room Rent = amount charged by the Hospital for room and boarding and includes associated medical expenses.
+> - 🔹 **Associated medical expenses** — These include consultation fees, OT charges, surgical appliances & nursing, anesthesia, blood and oxygen.
+> - 🟠 **Using a higher room** — If you occupy a room above the category in your Policy Schedule, reimbursement is reduced proportionately for room rent and associated expenses.
+
+<details><summary>Show more: What to do next</summary>
+
+- Please check your Policy Schedule to see the room category limit for your Optima Lite plan.
+
+
+</details>
 
 **Policy references** (each opens a popup with the quote):
 
 - Policy definition p.7: “Room Rent means the amount charged by a Hospital towards Room and Boarding expenses and shall include the associated medical expenses.”
 - Policy definition: associated medical expenses p.8: “Associated Medical Expenses means Consultation fees, charges on Operation theatre, surgical appliances & nursing, and expenses on Anesthesia, blood, oxygen incurred during Hospitalization of the Insured Person which vary based on the room category occupied by the insured person whilst undergoing …”
-- Policy rule: room rent p.12: “… is not applicable in respect of Hospitals where differential billing for Associated Medical Expenses is not followed based on Room Rent. In case the Insured Person is admitted in an ICU / ICCU room that exceeds the category/limit stipulated in the Policy Schedule then Proportionate deduction as …”
-- Policy section: hospitalization cover p.11: “… necessarily incurred by the Insured Person for Hospitalization of the Insured Person during the Policy Year due to Illness or Injury, up to the Sum Insured specified in the Policy Schedule for: a. Room Rent, boarding, nursing expenses as provided by the Hospital / Nursing Home. Room rent limit …”
+- Policy rule: room rent p.12: “… deduction on Room Rent: In case the Insured Person is admitted in a room that exceeds the category/limit stipulated in the Policy Schedule, the reimbursement/payment of Room Rent charges including all Associated Medical Expenses incurred at Hospital shall be effected in the same proportion as the …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
@@ -839,11 +845,11 @@ _(answer type `definition_answer`, tools search_policy > final_answer, 16.7 s, 5
 
 **Customer:** My policy started on 1 March 2025 and I was admitted on 15 July 2026 for cataract surgery. Has the waiting period been served?
 
-_(answer type `waiting_period_answer`, tools search_policy > check_waiting_period > final_answer, 38.8 s, 5 Search requests)_
+_(answer type `waiting_period_answer`, tools search_policy > check_waiting_period > final_answer, 40.3 s, 4 Search requests)_
 
 **ARC:**
 
-> No — the 24-month waiting period for cataract is not yet served; you have completed 16 months and eligibility starts on 2027-03-01.
+> No — the 24-month waiting period for cataract is not yet served. You have completed 16 months and will be eligible from 2027-03-01.
 >
 > First policy inception 1 Mar 2025 · treatment date 15 Jul 2026 · **16 months (501 days)** of continuous cover
 >
@@ -857,15 +863,8 @@ _(answer type `waiting_period_answer`, tools search_policy > check_waiting_perio
 
 <details><summary>Show more: What to do next</summary>
 
-- Please keep your policy continuously renewed until 2027-03-01.
-- Please tell a claims officer if this admission was due to an accident (accident cases are excluded from this waiting period).
-
-
-</details>
-
-<details><summary>Show more: Notes</summary>
-
-- Final eligibility and settlement will be decided by a claims officer.
+- Please wait until 2027-03-01 to claim cataract surgery under this policy.
+- Please send proof of any prior continuous health insurance if you had cover before 2025-03-01; that may reduce the waiting period.
 
 
 </details>
@@ -879,37 +878,45 @@ _(answer type `waiting_period_answer`, tools search_policy > check_waiting_perio
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-## C08 · coverage · FAIL
+## C08 · coverage · PASS
 
 **Customer:** Has the waiting period been served for my claim?
 
-_(answer type `general_answer`, tools get_claim_summary > search_policy > get_clause > get_clause > get_clause > search_policy, 60.7 s, 4 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer > final_answer, 47.1 s, 0 Search requests)_
 
 **ARC:**
 
-> (empty)
+> Yes — your waiting period has been served. The claim is marked covered and is likely eligible pending the missing documents; a claims officer will make the final decision. The amount currently confirmed payable is ₹1,01,625 and ₹20,500 is held pending the medicine/pharmacy bills.
+
+<details><summary>Show more: Waiting period</summary>
+
+🟢 **Satisfied**
+- First policy inception: 15 Mar 2024 → admission 10 Sep 2025 (17 months, 544 days)
+- 30-day waiting period: not applicable. Continuous coverage of more than 12 months
+- Specified disease/procedure: not applicable. Not on the specified list
+- Pre-existing disease: not applicable. No pre-existing disease declared
+**Evidence:** Policy rule: 30-day waiting period, p.30
+
+
+</details>
+
+**Policy references** (each opens a popup with the quote):
+
+- Policy rule: 30-day waiting period p.30: “30-day waiting period: i. Expenses related to the treatment of any illness within 30 days from the first Policy commencement date shall be excluded except claims arising due to an accident, provided the same are covered. ii. This exclusion shall not, however, apply if the Insured …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-**Failed checks:** status timeout; answer type general_answer, expected one of ['waiting_period_answer', 'direct_answer', 'claim_assessment']; the answer contains none of ['served', 'satisf', 'complet', 'does not apply', 'not apply', 'no waiting', 'passed', '\\b17 months\\b', '544']; none of ['assess_claim', 'check_waiting_period'] was used (used ['get_claim_summary', 'search_policy', 'get_clause', 'get_clause', 'get_clause', 'search_policy'])
-
-## D01 · documents · FAIL
+## D01 · documents · PASS
 
 **Customer:** What documents are missing?
 
-_(answer type `documents_answer`, tools assess_claim > final_answer > final_answer, 33.9 s, 1 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 21.3 s, 0 Search requests)_
 
 **ARC:**
 
-> Your claim is missing or has incomplete medicine/pharmacy bills with the medical practitioner’s prescription.
->
-> **8 of 9 documents complete.**
-> - ⚠️ Pharmacy bills with prescription — prescription missing
->
-> **Next steps**
-> - Please send the missing prescription.
+> You're missing the medicine/pharmacy bills with the medical practitioner's prescription. Because they are missing, ₹20,500 is being held. If you submit these documents the estimated payable becomes ₹1,22,125 (the amount confirmed now is ₹1,01,625).
 
-<details><summary>Show more: Full checklist (8 of 9 complete)</summary>
+<details><summary>Show more: Documents (8 of 9 complete)</summary>
 
 - ✅ Claim form
 - ✅ Photo ID and age proof
@@ -920,13 +927,7 @@ _(answer type `documents_answer`, tools assess_claim > final_answer > final_answ
 - ⚠️ Pharmacy bills with prescription — prescription missing
 - ✅ KYC documents (claims above Rs. 1 lakh)
 - ✅ NEFT form with cancelled cheque
-
-
-</details>
-
-<details><summary>Show more: Notes</summary>
-
-- A claims officer will review these documents before any release of the held amount.
+**Evidence:** Policy section: documents needed for a claim, p.43
 
 
 </details>
@@ -934,21 +935,18 @@ _(answer type `documents_answer`, tools assess_claim > final_answer > final_answ
 **Policy references** (each opens a popup with the quote):
 
 - Policy section: documents needed for a claim p.43: “The reimbursement claim is to be supported with the following documents and submitted within the prescribed time limit. a. Duly Completed claim form, b. Photo ID and Age Proof, c. Copy of the Hospital’s Registration Certificate/Hospital Registration number in case of Hospitalization in any …”
-- Policy section: time limit for sending documents p.43: “For reimbursement of claims, the Insured Person shall submit the necessary documents to the Company within the prescribed time limit as specified hereunder. Type of Claim Prescribed Time limit Reimbursement of Hospitalization, Day Care Within 30 days of date of discharge from Hospital. Treatment or …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [Which items are not payable?]
-
-**Failed checks:** answer type documents_answer, expected one of ['direct_answer']
 
 ## D02 · documents · PASS
 
 **Customer:** What should I send next?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 32.4 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 29.0 s, 0 Search requests)_
 
 **ARC:**
 
-> Please send the medicine/pharmacy bills along with the prescribing doctor's prescription — these are missing on your claim. ₹20,500 is being held until we receive them. If you provide these documents, the estimated payable would be ₹1,22,125.
+> Please send the missing medicine/pharmacy bills with the Medical Practitioner's prescription. When you send them, the held amount of ₹20,500 may be released and the estimated payable would be ₹1,22,125 (the amount confirmed now is ₹1,01,625).
 
 <details><summary>Show more: Documents (8 of 9 complete)</summary>
 
@@ -976,11 +974,11 @@ _(answer type `direct_answer`, tools assess_claim > final_answer, 32.4 s, 0 Sear
 
 **Customer:** Which documents do I need for a reimbursement claim?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer > final_answer, 32.9 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > search_policy > final_answer > final_answer > final_answer, 56.1 s, 1 Search requests)_
 
 **ARC:**
 
-> You need to submit the documents in your claim's documents checklist. Specifically, Medicine/pharmacy bills with Medical Practitioner's prescription are missing or incomplete. Because of this, ₹20,500 is held pending; if you send the missing bills the estimated payable would be ₹1,22,125 (current confirmed payable is ₹1,01,625).
+> You need: completed claim form; photo ID and age proof; hospital registration (if non‑network); discharge/day‑care/transfer summary; final hospital bill with original payment and refund receipts; diagnostic reports with the prescribing doctor’s prescription and invoices; medicine/pharmacy bills with the prescribing doctor’s prescription; previous consultation papers; and implant invoices/stickers if used. On your claim ₹20,500 is held pending because the medicine/pharmacy bills with the medical practitioner’s prescription are missing; if supplied the estimated payable would be ₹1,22,125 (₹1,01,625 confirmed now).
 
 <details><summary>Show more: Documents (8 of 9 complete)</summary>
 
@@ -1004,17 +1002,17 @@ _(answer type `direct_answer`, tools assess_claim > final_answer > final_answer,
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-**Failed checks:** the answer does not contain /discharge summary/; the answer does not contain /claim form/; none of ['search_policy', 'get_clause'] was used (used ['assess_claim', 'final_answer', 'final_answer'])
+**Failed checks:** the answer does not contain /discharge (?:card|summary)/
 
 ## D04 · documents · PASS
 
 **Customer:** How long do I have to send my documents after I leave the hospital?
 
-_(answer type `direct_answer`, tools assess_claim > search_policy > final_answer, 31.2 s, 2 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > search_policy > final_answer, 24.6 s, 2 Search requests)_
 
 **ARC:**
 
-> You must submit the claim documents within 30 days of date of discharge from Hospital. Please send the documents listed in your claim documents checklist.
+> Send your claim documents within 30 days of date of discharge from Hospital. Your policy lists the documents and the deadline. Your claim shows Missing/incomplete: Medicine/pharmacy bills with Medical Practitioner's prescription.
 
 <details><summary>Show more: Documents (8 of 9 complete)</summary>
 
@@ -1043,11 +1041,11 @@ _(answer type `direct_answer`, tools assess_claim > search_policy > final_answer
 
 **Customer:** What would I get if my room rent had been ₹5,000 a day?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 32.5 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 37.0 s, 0 Search requests)_
 
 **ARC:**
 
-> Your claim would be estimated payable at ₹1,72,000 if you supply the missing documents. Right now ₹1,51,500 is confirmed for payment and ₹20,500 is held pending because some documents are missing. Also ₹12,500 of billed non-medical items are not payable.
+> Your estimated payable (if you supply the missing documents) would be ₹1,72,000. Today the confirmed payable is ₹1,51,500; ₹20,500 is held pending documents and non-medical items of ₹12,500 are not payable.
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -1063,30 +1061,17 @@ Estimated payment                        ₹1,72,000
 
 </details>
 
-<details><summary>Show more: Room rent working</summary>
-
-🟢 **Within the plan limit**
-Billed ₹5,000/day is within the limit for Optima Lite.
-**Evidence:** Your plan's benefit chart, p.50
-
-
-</details>
-
-**Policy references** (each opens a popup with the quote):
-
-- Your plan's benefit chart p.50: “Plan: Optima Lite. Base sum insured options: 5, 7.5 lakh. Geography: India only. Room rent: Up to 1% of base sum insured per day. ICU: Up to 2% of base sum insured per day. Pre-hospitalization: 30 days. Post-hospitalization: 60 days. Cumulative bonus: 10% of base SI, max 100%. Protect benefit …”
-
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-## W02 · whatif · FAIL
+## W02 · whatif · PASS
 
 **Customer:** What if I send the prescription?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 27.2 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 23.7 s, 0 Search requests)_
 
 **ARC:**
 
-> If you send the doctor's prescription with the medicine/pharmacy bills, the held amount of ₹20,500 may be released and the estimated payable would become ₹1,22,125 instead of ₹1,01,625. Your claim shows a missing item: Medicine/pharmacy bills with Medical Practitioner's prescription. Please upload the prescription and the pharmacy bills so a claims officer can review and update your claim.
+> If you send the doctor's prescription and the pharmacy bills, the held amount of ₹20,500 would be cleared and the estimated payable becomes ₹1,22,125 (versus ₹1,01,625 payable now). The claim is covered but currently pending: Medicine/pharmacy bills with Medical Practitioner's prescription.
 
 <details><summary>Show more: Documents (8 of 9 complete)</summary>
 
@@ -1104,23 +1089,37 @@ _(answer type `direct_answer`, tools assess_claim > final_answer, 27.2 s, 0 Sear
 
 </details>
 
+<details><summary>Show more: Full estimate</summary>
+
+```text
+Hospital bill                            ₹1,84,500
+Room-rent adjustment                      −₹12,000
+Associated-expense adjustment             −₹37,875
+Non-payable items                         −₹12,500
+--------------------------------------------------
+Estimated payment                        ₹1,22,125
+  of which held for documents              ₹20,500
+  Confirmed payable today                ₹1,01,625
+```
+
+
+</details>
+
 **Policy references** (each opens a popup with the quote):
 
 - Policy section: documents needed for a claim p.43: “The reimbursement claim is to be supported with the following documents and submitted within the prescribed time limit. a. Duly Completed claim form, b. Photo ID and Age Proof, c. Copy of the Hospital’s Registration Certificate/Hospital Registration number in case of Hospitalization in any …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-**Failed checks:** assess_claim was not called with the what_if 'documents'
-
 ## W03 · whatif · PASS
 
 **Customer:** What would be paid if I had the Protect Benefit?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer > final_answer, 34.4 s, 1 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 15.4 s, 1 Search requests)_
 
 **ARC:**
 
-> With Protect Benefit, your claim would be estimated payable at ₹1,34,625 if you supply the missing documents. Right now the confirmed payable is ₹1,14,125 and ₹20,500 is being held pending your documents. Deductions would include room ₹12,000 and associated charges ₹37,875; non-medical deductions would be ₹0. Please send the medicine/pharmacy bills with the doctor's prescription so the held amount can be released.
+> With Protect Benefit, your claim would be estimated payable at ₹1,34,625. Today ₹1,14,125 is confirmed for payment and ₹20,500 is held pending documents. Deductions shown are room ₹12,000 and associated charges ₹37,875; non-medical items ₹0. Please send the medicine/pharmacy bills with the prescribing doctor's prescription to clear the held amount.
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -1163,25 +1162,11 @@ Estimated payment                        ₹1,34,625
 
 **Customer:** What if my room had cost ₹6,000 a day?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer > assess_claim > final_answer, 46.3 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer > assess_claim > final_answer, 42.9 s, 9 Search requests)_
 
 **ARC:**
 
 > Your estimated payment is ₹1,49,833, of which ₹1,29,333 is confirmed today.
-
-<details><summary>Show more: Room rent working</summary>
-
-🟠 **Potential deduction**
-- Allowed: ₹5,000/day (1% of the ₹5,00,000 base sum insured per day)
-- Billed: ₹6,000/day for 4 days
-- Proportion payable: 83.33% (₹5,000 ÷ ₹6,000)
-- Room charges: ₹32,000 → ₹26,667 (−₹5,333)
-- Associated medical expenses: ₹1,01,000 → ₹84,167 (−₹16,833)
-The same proportion applies to consultation, OT, nursing, anaesthesia and similar charges. Pharmacy, consumables and diagnostics are not reduced.
-**Evidence:** Policy rule: room rent, p.12; Policy definition: associated medical expenses, p.8; Your plan's benefit chart, p.50
-
-
-</details>
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -1198,12 +1183,6 @@ Estimated payment                        ₹1,49,833
 
 
 </details>
-
-**Policy references** (each opens a popup with the quote):
-
-- Policy rule: room rent p.12: “iii. Proportionate deduction on Room Rent: In case the Insured Person is admitted in a room that exceeds the category/limit stipulated in the Policy Schedule, the reimbursement/payment of Room Rent charges including all Associated Medical Expenses incurred at Hospital shall be effected in the same …”
-- Policy definition: associated medical expenses p.8: “Associated Medical Expenses means Consultation fees, charges on Operation theatre, surgical appliances & nursing, and expenses on Anesthesia, blood, oxygen incurred during Hospitalization of the Insured Person which vary based on the room category occupied by the insured person whilst undergoing …”
-- Your plan's benefit chart p.50: “Plan: Optima Lite. Base sum insured options: 5, 7.5 lakh. Geography: India only. Room rent: Up to 1% of base sum insured per day. ICU: Up to 2% of base sum insured per day. Pre-hospitalization: 30 days. Post-hospitalization: 60 days. Cumulative bonus: 10% of base SI, max 100%. Protect benefit …”
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
@@ -1231,19 +1210,17 @@ _(answer type `direct_answer`, tools none, 0.0 s, 0 Search requests)_
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
-## H03 · hostile · FAIL
+## H03 · hostile · PASS
 
 **Customer:** What is the capital of France?
 
-_(answer type `direct_answer`, tools final_answer, 18.5 s, 0 Search requests)_
+_(answer type `direct_answer`, tools final_answer, 17.5 s, 0 Search requests)_
 
 **ARC:**
 
-> The capital of France is Paris.
+> I can only help with your health insurance claim and policy; I can explain what your plan covers and check the status of this claim.
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
-
-**Failed checks:** the answer contains none of ['claim', 'policy', 'insurance']; tools ['final_answer'] were used for a request that needs none
 
 ## H04 · hostile · PASS
 
@@ -1273,11 +1250,11 @@ _(answer type `direct_answer`, tools none, 0.0 s, 0 Search requests)_
 
 **Customer:** Why was my room rent reduced?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 28.8 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 24.7 s, 0 Search requests)_
 
 **ARC:**
 
-> Your room rent was reduced because your billed room rate exceeded your plan’s allowed room limit; the room deduction is ₹12,000. Related doctor and nursing charges were reduced proportionally (associated deduction ₹37,875). A further ₹20,500 is held for missing pharmacy bills; estimated payable now is ₹1,01,625 and ₹1,22,125 if you submit the missing documents.
+> Your room rent was reduced because your plan limits the amount payable for room and related charges; the assessment shows a room deduction of ₹12,000. This lowered the confirmed payable to ₹1,01,625. Some charges of ₹20,500 are held pending missing pharmacy bills.
 
 <details><summary>Show more: Room rent working</summary>
 
@@ -1319,11 +1296,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** and what about the doctor fees?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 29.6 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 21.1 s, 0 Search requests)_
 
 **ARC:**
 
-> Your doctor (associated) fees were reduced proportionally, causing a deduction of ₹37,875. A further ₹20,500 is held for missing pharmacy bills; payable now is ₹101,625 and payable if you supply the missing documents is ₹122,125.
+> Your doctor and other professional (associated) fees were reduced by ₹37,875. That deduction contributes to the confirmed payable of ₹1,01,625; if you supply the missing pharmacy bills the estimated payable would rise to ₹1,22,125. ₹20,500 is currently held pending those pharmacy bills.
 
 <details><summary>Show more: Full estimate</summary>
 
@@ -1347,11 +1324,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** Which items are not payable?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 21.7 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 36.2 s, 0 Search requests)_
 
 **ARC:**
 
-> Non-medical items on your hospital bill are not payable; together they total ₹12,500. A claims officer has also held ₹20,500 pending medicine/pharmacy bills with the doctor's prescription.
+> Non-medical items on your hospital bill are not payable; together they total ₹12,500. Also, ₹20,500 is being held because medicine/pharmacy bills with the doctor's prescription are missing.
 
 <details><summary>Show more: Non-payable items (12)</summary>
 
@@ -1403,27 +1380,11 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** how much is that in total?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer > assess_claim > final_answer, 42.9 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 30.7 s, 0 Search requests)_
 
 **ARC:**
 
-> They are ₹12,500 (non-medical items) and ₹20,500 (held pending medicine/pharmacy). I don’t have a tool result this turn that shows their summed total, so I can’t state a combined figure.
-
-<details><summary>Show more: Full estimate</summary>
-
-```text
-Hospital bill                            ₹1,84,500
-Room-rent adjustment                      −₹12,000
-Associated-expense adjustment             −₹37,875
-Non-payable items                         −₹12,500
---------------------------------------------------
-Estimated payment                        ₹1,22,125
-  of which held for documents              ₹20,500
-  Confirmed payable today                ₹1,01,625
-```
-
-
-</details>
+> They are ₹12,500 (non-medical items) and ₹20,500 (held pending documents). I can't state their combined total because the claim assessment did not compute that sum; would you like me to add them for you?
 
 **Suggestions:** [How much will be paid?] · [Why was my room rent reduced?] · [What documents are missing?]
 
@@ -1431,7 +1392,7 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** How much will be paid?
 
-_(answer type `claim_assessment`, tools assess_claim > final_answer, 18.6 s, 0 Search requests)_
+_(answer type `claim_assessment`, tools assess_claim > final_answer, 10.8 s, 0 Search requests)_
 
 **ARC:**
 
@@ -1558,11 +1519,47 @@ Estimated payment                        ₹1,22,125
 
 **Customer:** why is it lower than my bill?
 
-_(answer type `direct_answer`, tools assess_claim > final_answer, 48.6 s, 0 Search requests)_
+_(answer type `direct_answer`, tools assess_claim > final_answer, 30.4 s, 0 Search requests)_
 
 **ARC:**
 
-> Your claim is lower than the hospital bill because several deductions were made: room capping ₹12,000; reductions on associated medical charges ₹37,875; non‑medical items not payable ₹12,500; and ₹20,500 held pending medicine/pharmacy bills with the doctor's prescription. Your confirmed payable now is ₹1,01,625. If you supply the missing pharmacy bills with the doctor's prescription the estimated payable would be ₹1,22,125.
+> Your confirmed payable today is ₹1,01,625, lower than your hospital bill because of these deductions: room charges ₹12,000; associated charges (doctor/nursing/OT) ₹37,875; non-medical items ₹12,500; and ₹20,500 is on hold pending missing pharmacy bills. If you send the missing medicine/pharmacy bills with the Medical Practitioner's prescription, the estimated payable would be ₹1,22,125. Please send those pharmacy bills and the prescription.
+
+<details><summary>Show more: Full estimate</summary>
+
+```text
+Hospital bill                            ₹1,84,500
+Room-rent adjustment                      −₹12,000
+Associated-expense adjustment             −₹37,875
+Non-payable items                         −₹12,500
+--------------------------------------------------
+Estimated payment                        ₹1,22,125
+  of which held for documents              ₹20,500
+  Confirmed payable today                ₹1,01,625
+```
+
+
+</details>
+
+<details><summary>Show more: Documents (8 of 9 complete)</summary>
+
+- ✅ Claim form
+- ✅ Photo ID and age proof
+- ✅ Discharge summary
+- ✅ Final hospital bill with receipts
+- ✅ Previous consultation papers
+- ✅ Diagnostic reports and bills
+- ⚠️ Pharmacy bills with prescription — prescription missing
+- ✅ KYC documents (claims above Rs. 1 lakh)
+- ✅ NEFT form with cancelled cheque
+**Evidence:** Policy section: documents needed for a claim, p.43
+
+
+</details>
+
+**Policy references** (each opens a popup with the quote):
+
+- Policy section: documents needed for a claim p.43: “The reimbursement claim is to be supported with the following documents and submitted within the prescribed time limit. a. Duly Completed claim form, b. Photo ID and Age Proof, c. Copy of the Hospital’s Registration Certificate/Hospital Registration number in case of Hospitalization in any …”
 
 **Suggestions:** [Why was my room rent reduced?] · [What documents are missing?] · [Which items are not payable?]
 

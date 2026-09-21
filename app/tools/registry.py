@@ -19,7 +19,7 @@ from ..retrieval.base import Chunk, Retriever
 from . import claims_engine as E
 from .evidence import resolve
 from .focus import focus_for
-from .number_guard import allowed_from, drop_sentences, offenders, reformat_amounts
+from .number_guard import allowed_from, drop_sentences, offenders, reformat_amounts, split_sentences
 from .plain_questions import NOT_IN_DOCUMENTS, claim_facts, fact_answer, plain_kind
 
 ANSWER_TYPES = ["claim_assessment", "coverage_answer", "waiting_period_answer", "deduction_explanation",
@@ -271,6 +271,13 @@ def voice_problems(a: dict) -> list[tuple[str, str]]:
     return out
 
 
+def _allowed_numbers(ctx: TurnContext) -> dict:
+    """What a direct answer may state: the tool results of this turn, the customer's own figures (a what-if asks about ₹6,000 and the answer may say so),
+    and the numbers the model passed to the calculating tools, which the engine then used."""
+    args = [t.get("args") for t in ctx.trace if t["tool"] in ("assess_claim", "check_waiting_period") and t.get("args")]
+    return allowed_from(ctx.tool_outputs + [ctx.question] + args)
+
+
 def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
     """The rules of a direct_answer: short, a list only for three or more items, known details that have something to show, and only numbers the tools returned."""
     errs, reply = [], (a.get("reply") or "").strip()
@@ -300,7 +307,7 @@ def _direct_problems(a: dict, ctx: TurnContext) -> list[str]:
         errs.append("Answer with the figures: a payment answer states the actual amounts, percentages or counts from the assess_claim result, "
                     "for example what was deducted and why. Rewrite the reply with them.")
     if not ctx.number_rejected:
-        bad = offenders(reply, allowed_from(ctx.tool_outputs))
+        bad = offenders(reply, _allowed_numbers(ctx))
         if bad:
             hint = " No tool has been called this turn: call get_claim_summary, assess_claim or check_waiting_period first." if not ctx.tool_outputs else ""
             errs.append(f"Numbers in the reply that no tool returned this turn: {bad}. Every amount, percentage, date and count must be copied from a tool result of this turn; "
@@ -377,6 +384,23 @@ def validate_final(a: dict, ctx: TurnContext) -> list[str]:
     return errs
 
 
+def _strip_voice(a: dict) -> dict:
+    """The customer-voice guard has asked once. Whatever officer voice is still there is removed, so it never reaches the customer:
+    whole next steps, caveats and points, and the sentences of the headline or reply."""
+    bad = lambda text: bool(text) and bool(_VOICE.search(text) or _DECISION.search(text.strip()))   # noqa: E731
+    out = dict(a)
+    for key in ("next_steps", "caveats"):
+        if key in out:
+            out[key] = [x for x in out[key] or [] if not bad(x)]
+    if out.get("points"):
+        out["points"] = [p for p in out["points"] if not bad(p.get("label")) and not bad(p.get("detail"))]
+    for key in ("headline", "reply"):
+        if out.get(key) and bad(out[key]):
+            kept = " ".join(s for s in split_sentences(out[key]) if not bad(s))
+            out[key] = kept or ("" if key == "headline" else "I couldn't confirm that from your documents.")
+    return out
+
+
 def _fallback_reply(ctx: TurnContext) -> str:
     """A sentence built in code from a tool result, for a reply that had nothing verifiable left."""
     claim = ctx.session.get("claim")
@@ -391,7 +415,7 @@ def _fallback_reply(ctx: TurnContext) -> str:
 
 def _drop_unverified_numbers(a: dict, ctx: TurnContext) -> dict:
     """The second attempt still holds a number no tool returned: drop its sentence, or rebuild the reply in code when nothing is left."""
-    allowed, reply = allowed_from(ctx.tool_outputs), a.get("reply") or ""
+    allowed, reply = _allowed_numbers(ctx), a.get("reply") or ""
     bad = offenders(reply, allowed)
     if not bad:
         return a
@@ -407,6 +431,8 @@ def _final(a: dict, ctx: TurnContext) -> dict:
     if ctx.plain == "fact" and ctx.plain_rejected and a.get("answer_type") not in ("general_answer", "direct_answer") and ctx.session.get("claim"):
         # told once, and the model still wants a longer answer for a plain question: the claim's own fields answer it, not the model
         a = dict(answer_type="general_answer", headline=fact_answer(ctx.question, ctx.session["claim"]) or NOT_IN_DOCUMENTS)
+    if ctx.session.get("audience") == "customer" and ctx.voice_rejected and voice_problems(a):
+        a = _strip_voice(a)
     if a.get("answer_type") == "direct_answer":
         a = dict(a, reply=reformat_amounts(a.get("reply") or ""))   # ₹1,22,125, never 122125.0; the value is the same, so the number guard is unaffected
         if ctx.number_rejected:

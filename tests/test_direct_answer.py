@@ -188,3 +188,21 @@ def test_a_payment_answer_without_any_figure_is_sent_back_once_for_the_actual_am
 def test_the_figures_rule_does_not_apply_without_a_claim_result():
     res, _ = run([[("final_answer", direct("Hello, how can I help with your claim?"))]], "hello")
     assert res.status == "ok" and [t["ok"] for t in res.trace] == [True]
+
+
+# ---------------------------------------------------------------- found by the quality suite: the guard must accept what the assessment shows and what the customer asked
+def test_whole_rupees_shown_for_a_decimal_engine_amount_pass_the_guard():
+    A2 = allowed_from([{"amounts": {"confirmed": 129333.33, "room": 5333.33, "fees": 16833.34}}])
+    assert offenders("You would get ₹1,29,333; room ₹5,333 and fees ₹16,833.", A2) == [] and offenders("You would get ₹1,29,334.", A2) == ["₹1,29,334"]
+
+
+def test_the_customers_own_figure_and_the_what_if_arguments_may_be_stated():
+    res, _ = run([[("assess_claim", {"what_if": {"room_rate_per_day": 6000}})],
+                  [("final_answer", direct("If your room had cost ₹6,000 a day your estimated payment would be ₹1,49,833, of which ₹1,29,333 is confirmed today."))]],
+                 "What if my room had cost ₹6,000 a day?")
+    assert res.status == "ok" and [t["ok"] for t in res.trace] == [True, True] and "₹6,000 a day" in res.summary_markdown and "₹1,49,833" in res.summary_markdown
+
+
+def test_a_number_the_customer_did_not_give_and_no_tool_returned_is_still_rejected():
+    _, model = run([[("assess_claim", {})], [("final_answer", direct("Your payment is ₹7,777."))], [("final_answer", direct(GOOD))]], "How is my estimate made up?")
+    assert "₹7,777" in model.outputs[1]["problems"][0]

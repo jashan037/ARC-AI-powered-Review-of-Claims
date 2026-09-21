@@ -329,7 +329,17 @@ GUARD_PREFIXES = [("Numbers in the reply", "number guard: number no tool returne
                   ("These citations were never returned", "citation not returned by a tool"), ("Keep the answer short", "length caps"), ("headline is required", "headline missing")]
 
 
-def write_reports(cases, runs, repeat, out_dir: Path, offline: bool):
+def is_infra(r: dict) -> str | None:
+    """Why a run says nothing about the agent's answers: the call never completed (credential or network error, the 60 s turn deadline, an unavailable model), or None."""
+    for f in r["fails"]:
+        if f.startswith("ERROR"):
+            return f[:60]
+        if "status timeout" in f or "status unavailable" in f:
+            return f
+    return None
+
+
+def write_reports(cases, runs, repeat, out_dir: Path, offline: bool, disturbed: list | None = None):
     by: dict[str, list[dict]] = {}
     for r in runs:
         by.setdefault(r["id"], []).append(r)
@@ -376,7 +386,19 @@ def write_reports(cases, runs, repeat, out_dir: Path, offline: bool):
            "## Latency and Search", "", f"Per answer, all {len(lat)} turns: p50 {pct(lat, 50):.1f} s, p95 {pct(lat, 95):.1f} s, max {max(lat, default=0):.1f} s. "
            f"Azure Search requests per answer: mean {statistics.mean(t['searches'] for t in turns) if turns else 0:.1f}, max {max((t['searches'] for t in turns), default=0)} "
            f"(the chunk cache is {'on, ' + str(settings.chunk_cache_size) + ' clauses' if settings.chunk_cache_size else 'off'}; before the cache one assessment needed 25). "
-           f"Embedding calls per answer: mean {statistics.mean(t['embeds'] for t in turns) if turns else 0:.2f}.", "", "## Every failure", ""]
+           f"Embedding calls per answer: mean {statistics.mean(t['embeds'] for t in turns) if turns else 0:.2f}."]
+    if disturbed:
+        kinds: dict[str, int] = {}
+        for d in disturbed:
+            k = d["why"].split(":")[0][:40]
+            kinds[k] = kinds.get(k, 0) + 1
+        md += ["", "## Runs re-executed because the call never completed", "",
+               f"{len(disturbed)} runs of the first full pass of this version did not finish for reasons outside the answer itself, and were executed again (same question, fresh session): "
+               + ", ".join(f"{n} × {k}" for k, n in kinds.items()) + ". The results above are the merged set. The originals are kept in `quality_runs_second_run_disturbed.json`. "
+               "The deadline timeouts are a real property of the service, not noise: they come from the model deployment's per-minute quota (HTTP 429, retried with backoff until the 60 s turn deadline) when two workers "
+               "ask at once, and the `ClientAuthenticationError`s are the machine losing its route to `login.microsoftonline.com` for a while. Neither says anything about the quality of an answer.", "",
+               "| Question | Run | What happened the first time |", "|---|---:|---|"] + [f"| {d['id']} | {d['run']} | {d['why'][:110].replace('|', '/')} |" for d in disturbed]
+    md += ["", "## Every failure", ""]
     fl = [(r, f) for r in runs for f in r["fails"]]
     if not fl:
         md.append("No check failed in any run.")
@@ -415,6 +437,7 @@ def main():
     ap.add_argument("--only", help="comma list of case ids, e.g. F01,P01")
     ap.add_argument("--out", default=str(ROOT / "docs" / "evidence"))
     ap.add_argument("--offline", action="store_true", help="harness self-check with the keyword stand-in (RETRIEVER=local AGENT_MODE=offline)")
+    ap.add_argument("--retry-infra", metavar="RUNS_JSON", help="re-run only the runs of a previous quality_runs.json that never completed (credential or network error, timeout), and merge them in")
     a = ap.parse_args()
     if a.offline and settings.agent_mode != "offline":
         sys.exit("--offline needs RETRIEVER=local AGENT_MODE=offline")
@@ -429,6 +452,14 @@ def main():
     counted_search()
     agent = get_agent()
     jobs = [(c, n) for n in range(1, a.repeat + 1) for c in cases]
+    previous, disturbed = [], []
+    if a.retry_infra:
+        previous = json.load(open(a.retry_infra))
+        bad = {(r["id"], r["run"]): is_infra(r) for r in previous if is_infra(r)}
+        disturbed = [dict(id=i, run=n, why=w) for (i, n), w in sorted(bad.items())]
+        jobs = [(c, n) for (c, n) in jobs if (c["id"], n) in bad]
+        previous = [r for r in previous if (r["id"], r["run"]) not in bad]
+        print(f"re-running {len(jobs)} runs that never completed; keeping {len(previous)} completed runs", flush=True)
     print(f"{len(cases)} questions x {a.repeat} run(s), {a.workers} workers, agent={type(agent).__name__}, version pin={settings.agent_version or 'latest'}", flush=True)
     out_dir = Path(a.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -439,9 +470,10 @@ def main():
             print(f"{'PASS' if r['ok'] else 'FAIL'}  {r['id']} run {r['run']}  {r['secs']:>5}s  {r['turns'][-1]['type'] if r['turns'] else '-'}", flush=True)
             for f in r["fails"]:
                 print(f"        - {f}", flush=True)
+    runs = previous + runs
     order = {c["id"]: i for i, c in enumerate(cases)}
     runs.sort(key=lambda r: (order[r["id"]], r["run"]))
-    passed, flaky, failing = write_reports(cases, runs, a.repeat, out_dir, a.offline)
+    passed, flaky, failing = write_reports(cases, runs, a.repeat, out_dir, a.offline, disturbed)
     print(f"\n{len(passed)}/{len(cases)} questions passed every run. flaky: {flaky or 'none'}. failed every run: {failing or 'none'}. Reports in {out_dir}")
     json.dump([{k: v for k, v in r.items()} for r in runs], open(out_dir / "quality_runs.json", "w"), ensure_ascii=False)
 

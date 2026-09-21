@@ -72,6 +72,8 @@ def allowed_from(outputs: list) -> dict:
             return
         if isinstance(o, (int, float)):
             nums.add(_r(o))
+            if isinstance(o, float):
+                nums.add(float(round(o)))                  # the assessment shows whole rupees: 129333.33 is shown as ₹1,29,333
             if isinstance(o, float) and 0 < o <= 1:
                 nums.add(_r(o * 100))
         elif isinstance(o, str):
