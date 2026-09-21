@@ -359,7 +359,7 @@ def write_reports(cases, runs, repeat, out_dir: Path, offline: bool, disturbed: 
     md = ["# Quality report", "",
           f"Agent `{settings.agent_name}`{' pinned to version ' + settings.agent_version if settings.agent_version else ' (latest version)'} · model `{settings.model_deployment}` · retriever `{settings.retriever}` · mode `{settings.agent_mode}` · "
           f"{len(cases)} customer questions × {repeat} run(s) · generated {time.strftime('%Y-%m-%d %H:%M')}" + (" · **OFFLINE stand-in: harness check only, not the agent**" if offline else ""), "",
-          "Every question is asked as a customer whose claim was built from `demo/documents`. The expectations are in `scripts/eval/quality_suite.py`; they were written before the first run and were not changed to make a case pass. "
+          "Every question is asked as a customer whose claim was built from `demo/documents`. The expectations are in `scripts/eval/quality_suite.py`; they were written before the first run and were not changed to make a case pass, with one disclosed exception: D03's wording was corrected to the clause text after the first run (see the analysis at the end). "
           "Expected amounts come from the documents or from the deterministic engine, not from the agent. What the customer sees for every question in run 1 is in `quality_transcripts.md`.", "",
           f"**{len(passed)}/{len(order)} questions passed every run · {sum(r['ok'] for r in runs)}/{len(runs)} runs passed** · flaky: {', '.join(flaky) or 'none'} · failed every run: {', '.join(failing) or 'none'}", "",
           "## By category", "", "| Category | Questions | Runs passed | Latency p50 / p95 (s) | Search requests per answer (mean / max) |", "|---|---:|---:|---|---|"]

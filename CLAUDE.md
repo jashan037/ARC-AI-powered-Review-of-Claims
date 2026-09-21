@@ -13,7 +13,7 @@ Served by FastAPI: **`/` is the customer page** (screen 1 upload and document ch
 - CS student, **new to Azure**. For portal steps give exact click paths and wait for confirmation.
 - Never ask them to paste keys into chat. Secrets go only into `.env`. Never print, log or commit secrets.
 - Small, reviewable diffs; explain in plain language. Commits: one-line message, no co-author line, only when asked.
-- Keep the tests green (588, all offline; the markdown test needs Node, the browser tests need Playwright with the installed Chrome and skip themselves without them).
+- Keep the tests green (661, all offline; the markdown test needs Node, the browser tests need Playwright with the installed Chrome and skip themselves without them).
 - Ask before any destructive or costly Azure action (deleting an index or agent, changing tiers, creating resources). Do not touch the old index `rag-1789575754829` or the portal agent `claims-adjudication-agent` (v1).
 
 ## 3. Azure resources (all exist and are in use)
@@ -23,7 +23,7 @@ Served by FastAPI: **`/` is the customer page** (screen 1 upload and document ch
 | Subscription / RG | Azure for Students, `rg-claims-agent`. Regions allowed by policy: Korea Central, Central India, East Asia, Malaysia West, UAE North. |
 | Azure AI Search | `claims-search-37`, **Free tier**, Central India. Index **`claims-kb-v2`** (186 clause-level chunks, semantic config `default`, 1536-dim vectors), API-key auth. |
 | Models | In the Foundry resource `claims-agent-project-res` (Korea Central): `gpt-5-mini` and **`text-embedding-3-large`** (requested with `dimensions=1536`). Embeddings use the OpenAI endpoint and key from `.env`. |
-| Foundry | Project `jashanpreetsingh3999-6322`; agent **`claims-adjudication-agent-v2`, latest version 9 (see docs/evidence for what changed); pin an older one with `AGENT_VERSION=7` in `.env` to roll back, nothing is deleted** (prompt = `app/agent/instructions.py`, tools = `app/tools/registry.py:SCHEMAS`). Auth is `DefaultAzureCredential` (`az login`, role **Foundry User**). |
+| Foundry | Project `jashanpreetsingh3999-6322`; agent **`claims-adjudication-agent-v2`, latest version 11; pin an older one with `AGENT_VERSION=7` in `.env` to roll back, nothing is deleted** (prompt = `app/agent/instructions.py`, tools = `app/tools/registry.py:SCHEMAS`). Auth is `DefaultAzureCredential` (`az login`, role **Foundry User**). |
 | Other | Storage `claimsagentjp2026` and Application Insights/Log Analytics exist but the app does not use them. |
 
 `python scripts/setup/check_env.py` validates `.env` (see `.env.example`). Function tools cannot be added in the portal; `scripts/setup/create_agent.py` adds a new agent version from the local prompt and schemas (run it only when the prompt or schemas changed).
@@ -44,8 +44,9 @@ question -> Foundry agent (fresh conversation per turn) -> tools run in the back
 4. Function tools run in the backend loop (`responses.create` -> execute calls -> `function_call_output`). Chat history is kept by the backend and passed as a short text block.
 5. `LocalRetriever` (BM25) and `OfflineAgent` (keyword router) are **test and development only** (`RETRIEVER=local`, `AGENT_MODE=offline`; `tests/conftest.py` forces them). The live app needs `RETRIEVER=azure`, `AGENT_MODE=foundry`.
 6. Retrieval is version-aware (`uin`, `doc_id` on every chunk). Only wording HDFHLIP25041V062425 is indexed. A newer wording (HDFHLIP26058V082526) exists; `tools/chunk_policy.py` refuses it, use `tools/chunk_generic.py`.
-7. **Developer detail stays server-side:** `/chat` and `/assess` return no `tool_trace`, `trace_summary`, tool arguments or `chunk_key` unless the server sets `DEBUG_TRACE=1` (default off; no client parameter can enable it). Customer answers use plain names for policy clauses (`app/rendering/customer_labels.py`); the officer wording is locked by the golden files.
-8. Hardening (`app/resilience.py`, `app/observability.py`): timeouts everywhere, 60 s turn deadline, retry of 429/5xx, JSON log per turn without content, clean error bodies, body-size limits.
+7. **Customer answers (final pass):** a customer's simple facts, single-topic payment questions, follow-ups and small talk get a `direct_answer` (`reply` of at most 4 sentences and about 80 words, `details` ids that open code-built "Show more" sections). A **number guard** rejects any amount, percentage, date or count in a reply that no tool returned this turn (or the customer gave), then drops the sentence, then rebuilds the reply in code. A **voice guard** and a **figures guard** rewrite officer voice and figure-less payment answers once. Hostile requests and an unready claim are answered in code before the model (`app/tools/canned.py`); text from documents is cleaned and quoted (`app/tools/sanitize.py`); the deduction focus follows the question (`app/tools/focus.py`). Evidence: `docs/evidence/quality_report.md` (34/40 questions clean in all 3 runs; open issues listed there: latency, model quota, policy-question routing).
+8. **Developer detail stays server-side:** `/chat` and `/assess` return no `tool_trace`, `trace_summary`, tool arguments or `chunk_key` unless the server sets `DEBUG_TRACE=1` (default off; no client parameter can enable it). Customer answers use plain names for policy clauses (`app/rendering/customer_labels.py`); the officer wording is locked by the golden files.
+9. Hardening (`app/resilience.py`, `app/observability.py`): timeouts everywhere, 60 s turn deadline, retry of 429/5xx, JSON log per turn without content, clean error bodies, body-size limits.
 
 ## 5. Repo map
 
@@ -69,7 +70,7 @@ Answer types: `claim_assessment`, `coverage_answer`, `waiting_period_answer`, `d
 
 ```bash
 pip install -r requirements-dev.txt          # runtime is requirements.txt (pinned); dev adds pytest, httpx, playwright
-python -m pytest tests -q                    # 588 pass
+python -m pytest tests -q                    # 661 pass
 scripts/run_demo.sh                          # http://127.0.0.1:8765/ (refuses unless .env is azure + foundry)
 python scripts/dev/render_samples.py && python scripts/dev/render_examples.py      # -> demo/examples/
 python scripts/eval/eval_retrieval.py --verbose
