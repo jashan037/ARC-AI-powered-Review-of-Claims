@@ -98,7 +98,7 @@ def test_it_is_independent_of_the_other_once_only_guards():
 
 # ---------------------------------------------------------------- what the model is told
 def test_the_prompt_and_the_tool_schema_state_the_caps():
-    for phrase in ("at most 2 short sentences", "at most 3, most important first", "150 characters", "At most 3 next_steps"):
+    for phrase in ("at most 2 short sentences", "at most 3 of at most 150 characters", "next_steps: at most 3"):     # the prompt was shortened; the guards enforce the caps
         assert phrase in SYSTEM_PROMPT, phrase
     schema = {s["name"]: s for s in SCHEMAS}["final_answer"]["parameters"]["properties"]
     assert "At most 2 short sentences" in schema["headline"]["description"] and "At most 3 points" in schema["points"]["description"] and "150 characters" in schema["points"]["description"]

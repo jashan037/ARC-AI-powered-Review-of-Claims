@@ -199,7 +199,7 @@ def test_over_the_api_a_customer_gets_one_line_and_no_show_more():
 def test_the_prompt_says_when_not_to_assess_and_what_to_say_when_it_is_not_in_the_documents():
     assert "Call assess_claim only when the question is about payment, deductions, eligibility, waiting periods or documents" in SYSTEM_PROMPT
     assert "I don't see that in your documents." in SYSTEM_PROMPT and "get_claim_summary and nothing else" in SYSTEM_PROMPT
-    assert "do not call any tool" in SYSTEM_PROMPT
+    assert "call no tool" in SYSTEM_PROMPT
 
 
 def test_the_tool_description_lists_the_new_fields():

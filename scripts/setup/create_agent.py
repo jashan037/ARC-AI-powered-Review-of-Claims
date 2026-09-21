@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import FunctionTool, PromptAgentDefinition
+from azure.ai.projects.models import FunctionTool, PromptAgentDefinition, Reasoning
 from azure.identity import DefaultAzureCredential
 
 from app.agent.instructions import SYSTEM_PROMPT
@@ -21,5 +21,6 @@ project = AIProjectClient(endpoint=settings.project_endpoint, credential=Default
 tools = [FunctionTool(name=s["name"], description=s["description"], parameters=s["parameters"], strict=False) for s in SCHEMAS]
 agent = project.agents.create_version(
     agent_name=settings.agent_name,
-    definition=PromptAgentDefinition(model=settings.model_deployment, instructions=SYSTEM_PROMPT, tools=tools))
-print(f"Agent ready: name={agent.name} version={agent.version} tools={[s['name'] for s in SCHEMAS]}")
+    definition=PromptAgentDefinition(model=settings.model_deployment, instructions=SYSTEM_PROMPT, tools=tools,
+                                     **({"reasoning": Reasoning(effort=settings.reasoning_effort)} if settings.reasoning_effort else {})))
+print(f"Agent ready: name={agent.name} version={agent.version} reasoning_effort={settings.reasoning_effort or 'default'} tools={[s['name'] for s in SCHEMAS]}")
