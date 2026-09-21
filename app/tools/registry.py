@@ -269,12 +269,29 @@ def date_notes(ctx: TurnContext) -> list[str]:
     return list(dict.fromkeys(notes))
 
 
+_COVER_LEFT_Q = re.compile(r"\b(?:cover|sum insured|balance|limit)\b[^?.!]{0,40}\b(?:left|remain\w*|available|balance)\b|\b(?:left|remain\w*)\b[^?.!]{0,30}\b(?:cover|sum insured)\b|\bhow much (?:cover|of my cover)\b", re.I)
+_LAKH = re.compile(r"(\d+(?:\.\d+)?)\s*(lakh|lac|crore)s?\b", re.I)
+_RUPEES = re.compile(r"(?<![\d,.])(?:₹|rs\.?\s*)?(\d{1,3}(?:,\d{2,3})+|\d{5,})(?![\d,])", re.I)
+
+
+def question_amounts(question: str) -> list[float]:
+    """Rupee amounts the customer wrote: '3 lakh', '2 crore', '₹3,00,000', '300000'."""
+    out = [float(n) * (100000 if u.lower() in ("lakh", "lac") else 10000000) for n, u in _LAKH.findall(question)]
+    rest = _LAKH.sub(" ", question)
+    out += [float(m.replace(",", "")) for m in _RUPEES.findall(rest)]
+    return out
+
+
 def precompute(ctx: TurnContext) -> dict | None:
     """Run assess_claim in code before the model's first call, so that most questions need one model call. The result counts as a tool result of this turn."""
     if not ctx.claim:
         return None
     out = call_tool("assess_claim", {}, ctx)
     ctx.prerun = "error" not in out
+    if ctx.prerun and _COVER_LEFT_Q.search(ctx.question):
+        left = cover_left(ctx, question_amounts(ctx.question))       # "how much cover is left": worked out in code, with the amounts the customer wrote as other claims
+        out["cover_left"] = left
+        ctx.tool_outputs.append(left)
     if ctx.prerun and (notes := date_notes(ctx)):
         out["dates_you_mentioned"] = notes            # the same dict is in ctx.tool_outputs, so these dates count as tool results for the number guard
     return out if ctx.prerun else None

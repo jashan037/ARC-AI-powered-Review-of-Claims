@@ -46,8 +46,49 @@ def allowed_numbers(ctx: TurnContext) -> dict:
 _PAYMENT_Q = re.compile(r"\bhow much\b.*\b(?:paid|pay|get|receive|payment|claim)\b|\bwill (?:i|it|this|my|the)\b.*\b(?:paid|get|receive)\b|\bpayment\b|\bestimate\w*\b|\bwhat (?:will|would) i (?:get|receive)\b", re.I)
 
 
+def _required(ctx: TurnContext) -> list[tuple[float, str]]:
+    """Figures a reply must state, each with the sentence built in code that supplies it: both payment figures when something is held; the changed bill of a what-if; the cover left."""
+    res, out = ctx.results.get("assessment"), []
+    if res and _PAYMENT_Q.search(ctx.question) and res["amounts"]["held_pending"]:
+        est, now = res["amounts"]["estimated_payable_if_docs_supplied"], res["amounts"]["payable_confirmed_now"]
+        both = f"About {inr(est)} once your documents arrive; {inr(now)} is counted so far."
+        out += [(est, both), (now, both)]
+    if res and res.get("what_if") and ctx.claim:
+        was = sum(l["amount"] for l in ctx.claim["bill_lines"])
+        now_bill = res["amounts"]["gross_billed"]
+        if abs(now_bill - was) >= 1:
+            out.append((now_bill, f"In that case your bill would be {inr(now_bill)}."))
+    left = next((o for o in ctx.tool_outputs if isinstance(o, dict) and "cover_left" in o and "cover_amount" in o), None)
+    if left is not None and _COVER_LEFT.search(ctx.question):
+        out.append((left["cover_left"], f"About {inr(left['cover_left'])} of your {inr(left['cover_amount'])} cover would be left."
+                    + (" The other claims you mention are assumed paid in full; I can't verify them." if left["other_claims_you_mentioned"] else "")))
+    return out
+
+
+_COVER_LEFT = re.compile(r"\b(?:cover|sum insured|balance|limit)\b[^?.!]{0,40}\b(?:left|remain\w*|available|balance)\b|\b(?:left|remain\w*)\b[^?.!]{0,30}\b(?:cover|sum insured)\b|\bhow much (?:cover|of my cover)\b", re.I)
+_WAITING_Q = re.compile(r"\bwaiting\b|\bcataract\b|\bspecified (?:illness|disease|procedure)s?\b", re.I)
+_NOT_ACCIDENT_RULE = re.compile(r"pre-?existing|before the policy|\bPED\b|\b36\b", re.I)
+_STATED_ENDED = re.compile(r"\b(?:expired|ended|lapsed|ran out|has expired|is over)\b", re.I)
+
+
+def _mentions(ctx: TurnContext) -> list[tuple]:
+    """(does the reply contain it?, what to tell the model, the sentence built in code)."""
+    out = []
+    if _WAITING_Q.search(ctx.question) and not _NOT_ACCIDENT_RULE.search(ctx.question):
+        out.append((lambda t: bool(re.search(r"accident", t, re.I)), "A waiting-period answer must say that accidents are exempt.", "Accidents are exempt from this waiting period."))
+    period = (ctx.claim or {}).get("policy_period")
+    if period and all(period) and _STATED_ENDED.search(ctx.question) and "policy" in ctx.question.lower():
+        from .fmt import d_fmt
+        from .number_guard import scan
+        y, m, d = (int(x) for x in period[1].split("-"))
+        end = d_fmt(period[1])
+        out.append((lambda t: any(k == (y, m, d) for k, _ in scan(t)["dates"]), f"The customer says the policy has ended: say first what the documents show, that the policy period ends on {end}.",
+                    f"Your documents show the policy period ending on {end}."))
+    return out
+
+
 def _both_figures(ctx: TurnContext):
-    """When something is held for a document, a payment answer states BOTH figures: the estimate once the documents arrive and what is counted so far. Returns (estimate, counted) or None."""
+    """Kept for callers that want the two payment figures: (estimate, counted) or None."""
     res = ctx.results.get("assessment")
     if not res or not _PAYMENT_Q.search(ctx.question) or not res["amounts"]["held_pending"]:
         return None
@@ -84,9 +125,13 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
         problems.append(("decision", "Do not open with Yes or No on a question about whether the claim will be paid. Open with what appears likely and what it rests on, and say a claims officer decides."))
     if _VOICE.search(text):
         problems.append(("voice", "Speak to the customer: 'you' and 'your claim', never 'the insured', 'the claimant' or 'the customer'."))
-    both = _both_figures(ctx)
-    if both and not all(_has_number(text, v) for v in both):
-        problems.append(("figures", f"Give both figures when something is waiting for a document: {inr(both[0])} once your documents arrive and {inr(both[1])} counted so far."))
+    missing = [v for v, _ in _required(ctx) if not _has_number(text, v)]
+    if missing:
+        problems.append(("figures", "The answer must state these figures from the tools: " + ", ".join(inr(v) for v in missing)
+                         + " (both payment figures when something is waiting for a document; the changed bill of a what-if; the cover left)."))
+    for has, msg, _ in _mentions(ctx):
+        if not has(text):
+            problems.append(("figures", msg))
     items = verify.verdict_problems(text, ctx)
     if items:
         problems.append(("verdict", verify.verdict_message(items)))
@@ -122,9 +167,12 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
     text = verify.hedge_fix(text)
     text = verify.drop_entities(text, ctx)
     text = verify.drop_policy(text, ctx)
-    both = _both_figures(ctx)
-    if both and not all(_has_number(text, v) for v in both):
-        text = f"{text}\n\nAbout {inr(both[0])} once your documents arrive; {inr(both[1])} is counted so far.".strip()
+    for v, sentence in _required(ctx):
+        if sentence and not _has_number(text, v) and sentence not in text:
+            text = f"{text}\n\n{sentence}".strip()
+    for has, _, sentence in _mentions(ctx):
+        if not has(text):
+            text = f"{text}\n\n{sentence}".strip()
     text = format_guard.repair(text, ctx.question, ctx.session.get("history", []))
     text = re.sub(r"[ \t]{2,}", " ", re.sub(r"\n{3,}", "\n\n", text)).strip()
     return text or fallback_reply(ctx)

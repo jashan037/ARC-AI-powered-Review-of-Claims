@@ -87,3 +87,44 @@ def test_a_payment_answer_needs_both_figures_when_something_is_held(q):
 def test_other_questions_do_not_need_the_figures():
     for q in ("which items are not payable?", "which hospital was I in?", "what documents are missing?"):
         assert "figures" not in [k for k, _ in check_reply("You were treated at Riverside.", ctx_for(q))]
+
+
+# ---------------------------------------------------------------- figures and mentions the answer must carry (found by the accuracy suite)
+def test_a_what_if_that_changes_the_bill_must_state_the_new_bill():
+    ctx = ctx_for("what if the room rent was 5000 a day?")
+    from app.tools.registry import call_tool
+    call_tool("assess_claim", {"what_if": {"room_rate_per_day": 5000}}, ctx)
+    reply = "Your estimated payment would rise to ₹1,60,000, with ₹1,39,500 counted so far."
+    assert "figures" in [k for k, _ in check_reply(reply, ctx)]
+    assert "In that case your bill would be ₹1,72,500." in fix_reply(reply, ctx)
+    ok = reply + " Your bill would be ₹1,72,500."
+    assert "figures" not in [k for k, _ in check_reply(ok, ctx)]
+
+
+def test_a_cover_left_question_is_answered_from_the_tool_worked_out_in_code():
+    from app.tools.registry import question_amounts
+    ctx = ctx_for("I already claimed 3 lakh earlier this policy year. How much cover do I have left after this claim?")
+    left = ctx.tool_outputs[0]["cover_left"]
+    assert (left["cover_left"], left["cover_amount"]) == (127875, 550000) and left["other_claims_you_mentioned"][0]["amount"] == 300000
+    assert "figures" in [k for k, _ in check_reply("Your total cover is ₹5,50,000.", ctx)]
+    fixed = fix_reply("Your total cover is ₹5,50,000.", ctx)
+    assert "About ₹1,27,875 of your ₹5,50,000 cover would be left." in fixed and "assumed paid in full" in fixed
+    assert ctx_for("how much cover will I have left after this claim?").tool_outputs[0]["cover_left"]["cover_left"] == 427875
+    assert question_amounts("2 lakh and ₹3,00,000 and 1.5 crore and 250000 and 4 days") == [200000.0, 15000000.0, 300000.0, 250000.0]
+    assert "cover_left" not in ctx_for("how much will be paid").tool_outputs[0]
+
+
+def test_a_waiting_period_answer_mentions_the_accident_exception():
+    for q in ("is there a 30 day waiting period?", "is cataract surgery covered?"):
+        ctx = ctx_for(q)
+        assert "figures" in [k for k, _ in check_reply("No, it does not apply to you.", ctx)]
+        assert fix_reply("No, it does not apply to you.", ctx).endswith("Accidents are exempt from this waiting period.")
+        assert "figures" not in [k for k, _ in check_reply("No; accidents are exempt anyway.", ctx)]
+    assert "figures" not in [k for k, _ in check_reply("It is 36 months.", ctx_for("what is the waiting period for a condition I had before the policy?"))]
+
+
+def test_when_the_customer_says_the_policy_ended_the_answer_states_what_the_documents_show():
+    ctx = ctx_for("will I get this claim as my policy expired in march 2026?")
+    assert "figures" in [k for k, _ in check_reply("It appears likely to be paid.", ctx)]
+    assert "Your documents show the policy period ending on 14 Mar 2026." in fix_reply("It appears likely to be paid.", ctx)
+    assert "figures" not in [k for k, _ in check_reply("Your policy period ends on 14 March 2026; you were admitted on 10 Sep 2025, inside it. It appears likely to be paid: about ₹1,22,125 once your documents arrive, ₹1,01,625 counted so far.", ctx)]

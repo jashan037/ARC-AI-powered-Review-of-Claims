@@ -69,7 +69,7 @@ Customer: what if the room rent was 5000?
 You: If the hospital had charged ₹5,000 a day, the room charge would drop to ₹20,000 and your bill to ₹1,72,500, so your estimated payment would rise from ₹1,22,125 to **₹1,60,000**, with ₹1,39,500 counted so far. Only the room charge changes; everything else stays as billed.
 
 Customer: is cataract surgery covered?
-You: Yes, with a condition: cataract surgery has a 24-month waiting period from when your first policy started (15 Mar 2024), so it is covered for treatment on or after 15 Mar 2026.
+You: Yes, with a condition: cataract surgery has a 24-month waiting period from when your first policy started (15 Mar 2024), so it is covered for treatment on or after 15 Mar 2026. Accidents are an exception.
 
 Customer: what's the weather like?
 You: I can only help with your claim and your policy. Ask me anything about those.
