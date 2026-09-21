@@ -78,7 +78,8 @@ def _rules(ctx):
         missing = [d["name"] for d in res["documents"]["missing"] + res["documents"]["incomplete"]]
         out.append(("documents", not missing,
                     re.compile(r"\b(?:all|every) (?:of )?(?:your |the )?documents\b[^.?!]*\b(?:are|have been|were) (?:received|here|in|sent|complete)\b|\bnothing (?:is|else is) (?:missing|needed|outstanding)\b|\bno (?:documents?|paperwork) (?:is|are) (?:missing|needed|outstanding)\b|\bdocuments look complete\b", re.I),
-                    re.compile(r"\b(?:is|are) (?:still )?(?:missing|outstanding|not (?:yet )?(?:received|sent|attached))\b|\bstill (?:need|needed|waiting for)\b|\bwaiting for (?:a|the|your) (?:document|prescription)\b", re.I),
+                    re.compile(r"(?<!nothing )(?<!nothing else )\b(?:is|are) (?:still )?(?:missing|outstanding|not (?:yet )?(?:received|sent|attached))\b"
+                               r"|\bstill (?:need|needed|waiting for)\b|\bwaiting for (?:a|the|your) (?:document|prescription)\b", re.I),
                     ("Still missing: " + "; ".join(missing) + ".") if missing else "No document is missing."))
     if res:
         rec = res["recommendation"]
@@ -267,6 +268,62 @@ def drop_policy(text: str, ctx) -> str:
         text = text.replace(s, "")
     text = re.sub(r"[ \t]{2,}", " ", re.sub(r"\n{3,}", "\n\n", text)).strip()
     return text or CANNOT_CONFIRM
+
+
+# ---------------------------------------------------------------- an amount offered as "what we will pay" must be a payment figure
+# A real figure from the documents (the sum insured, the bill total) can be put in a sentence that makes it the payment. The number guard
+# cannot see that - the number IS in the claim - so the sentence itself is checked: what is paid, got or received must be a payment figure.
+_PAYS = re.compile(r"(?:will|would|shall|can|could|to)\s+(?:pay|be paid|get|receive)\b[^.?!]{0,40}?(₹\s?[\d,]+|\b\d[\d,]{3,}\b)"
+                   r"|\b(?:pays?|paying|pay out)\b[^.?!]{0,30}?(₹\s?[\d,]+|\b\d[\d,]{3,}\b)"
+                   r"|\b(?:your|the) (?:estimated )?payment (?:is|would be|comes to|will be)\s*(₹\s?[\d,]+|\b\d[\d,]{3,}\b)"
+                   r"|(₹\s?[\d,]+|\b\d[\d,]{3,}\b)\s+(?:will|would) be paid\b", re.I)
+
+
+def _payment_figures(ctx) -> set[float]:
+    """Every amount the engine is willing to call a payment this turn: the estimate, what is counted now, what waits for a document, zero,
+    and the same three from a what-if and its baseline."""
+    out = {0.0}
+    for res in (_assessment(ctx),):
+        if not res:
+            continue
+        a = res["amounts"]
+        out |= {round(float(a[k]), 2) for k in ("estimated_payable_if_docs_supplied", "payable_confirmed_now", "held_pending")}
+        if res.get("baseline"):
+            out |= {round(float(v), 2) for v in res["baseline"].values()}
+    for o in ctx.tool_outputs:
+        if isinstance(o, dict):
+            for k in ("estimated_payment_once_documents_arrive", "payment_counted_so_far", "held_until_documents_arrive", "cover_left"):
+                if isinstance(o.get(k), (int, float)):
+                    out.add(round(float(o[k]), 2))
+    return out
+
+
+def payment_problems(text: str, ctx) -> list[tuple[str, float]]:
+    """[(sentence, the amount)] where an amount is presented as the payment but is not one the engine produced."""
+    ok, out = _payment_figures(ctx), []
+    if not _assessment(ctx):
+        return out
+    for s in sentences(text):
+        if _HYPO.search(s):
+            continue
+        for m in _PAYS.finditer(s):
+            raw = next(g for g in m.groups() if g)
+            value = round(float(re.sub(r"[^\d.]", "", raw) or 0), 2)
+            if value and not any(abs(value - v) < 1 for v in ok):
+                out.append((s, value))
+    return out
+
+
+def payment_message(items) -> str:
+    from .fmt import inr
+    return ("These amounts are presented as what would be paid, but the tools did not return them as a payment: "
+            + ", ".join(inr(v) for _, v in items[:3]) + ". State the estimate and what is counted so far, exactly as the assessment gives them.")
+
+
+def drop_payment_claims(text: str, ctx) -> str:
+    for s, _ in payment_problems(text, ctx):
+        text = text.replace(s, "")
+    return re.sub(r"[ \t]{2,}", " ", re.sub(r"\n{3,}", "\n\n", text)).strip()
 
 
 # ---------------------------------------------------------------- names: plans, hospitals and documents must be the ones in the customer's documents

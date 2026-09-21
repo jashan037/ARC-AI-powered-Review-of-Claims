@@ -159,6 +159,9 @@ def check_reply(text: str, ctx: TurnContext) -> list[tuple[str, str]]:
     items = verify.policy_problems(text, ctx)
     if items:
         problems.append(("policy", verify.policy_message(items)))
+    items = verify.payment_problems(text, ctx)
+    if items:
+        problems.append(("amounts", verify.payment_message(items)))
     problems += [("timing", m) for m in timing.problems(text, ctx)]
     problems += [("focus", m) for m in focus.problems(text, ctx)]
     problems += [("format", m) for m in format_guard.problems(text, ctx.question, ctx.session.get("history", []))]
@@ -186,6 +189,7 @@ def fix_reply(text: str, ctx: TurnContext) -> str:
     text = verify.hedge_fix(text)
     text = verify.drop_entities(text, ctx)
     text = verify.drop_policy(text, ctx)
+    text = verify.drop_payment_claims(text, ctx)
     text = timing.repair(text, ctx)
     for v, sentence in _required(ctx):
         if sentence and not _has_number(text, v) and sentence not in text:
