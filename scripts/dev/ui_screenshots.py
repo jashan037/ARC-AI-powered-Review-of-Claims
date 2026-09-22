@@ -57,7 +57,7 @@ def main():
             page = ctx.new_page()
             shot = lambda name: page.screenshot(path=str(OUT / f"{name}_{label}.png"))   # noqa: E731
             page.goto(server.url + "/")
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(2600)                  # let the one-time entrance finish
             shot("1_landing")
 
             page.click("#landing-start")
@@ -72,7 +72,7 @@ def main():
             hold[0] = False
             for r in held:
                 r.continue_()
-            expect(page.locator("#files li").first).to_have_text(f"{DOCS[0].name}, ready", timeout=15000)
+            expect(page.locator("#files .fstatus").first).to_have_text("ready", timeout=15000)
             page.wait_for_timeout(600)
 
             page.goto(server.url + "/upload")

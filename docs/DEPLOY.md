@@ -1,6 +1,6 @@
 # Deploying ARC (one instance, student subscription)
 
-**Nothing in this file has been run.** It is the path I would take, written out so you can follow it click by click when you want to.
+**Nothing in this file has been run** (the commands were written against the `az` CLI 2.60+ documentation, not executed). It is the path I would take, written out so you can follow it click by click when you want to.
 Everything here costs money on a student subscription, so read section 0 first.
 
 ARC is a single-instance app on purpose: sessions live in memory (`app/main.py: SESSIONS`) and the rate limit is per process. Two
@@ -16,6 +16,23 @@ need a session store (Redis) and a real limiter in front.
 | What does a turn cost? | Two model calls minimum (a conversation and a response), three or four with a tool or a rewrite, plus up to eight Search queries. The turn log records the token counts. |
 | Where do the keys live? | Only in the container's environment, never in the image (`.dockerignore` excludes `.env`). Prefer `AUTH_MODE=entra` and a managed identity, so there is no key to leak. |
 | Which regions? | The subscription policy allows Korea Central, Central India, East Asia, Malaysia West and UAE North. The Foundry project is in Korea Central and the Search service in Central India; put the app in one of those two to keep the hops short. |
+
+## 0a. What you need before any command below (prerequisites)
+
+| # | You provide | How to check / get it |
+|---|---|---|
+| 1 | Azure CLI 2.60+ signed in to the **Azure for Students** subscription | `az version`, then `az login` and `az account show --query name -o tsv` |
+| 2 | The subscription selected | `az account set --subscription "Azure for Students"` |
+| 3 | Resource providers registered (once per subscription) | `az provider register -n Microsoft.ContainerRegistry`, `-n Microsoft.Web` (App Service), `-n Microsoft.ContainerInstance` (ACI), `-n Microsoft.App` (Container Apps) |
+| 4 | A registry name that is globally unique, lowercase letters and digits only | e.g. `arcregistry<yourinitials>` → used as `<acr>` below |
+| 5 | An app name that is globally unique (App Service) or a DNS label (ACI) | e.g. `arc-<yourinitials>` → `<app>` below |
+| 6 | The non-secret settings from your `.env` | `AZURE_SEARCH_ENDPOINT`, `AZURE_OPENAI_ENDPOINT`, `FOUNDRY_PROJECT_ENDPOINT` (never paste keys into chat or into a shell history you share) |
+| 7 | Permission to assign roles | You must be **Owner** or **User Access Administrator** on the resource group, or ask the owner to run the role commands in section 4 |
+| 8 | Docker running locally **only if** you build locally | Not needed with `az acr build`, which builds the image inside Azure from this folder |
+
+The Foundry agent always signs in with `DefaultAzureCredential` (`app/agent/runner.py`), so **every** deployed option needs a managed
+identity with the **Foundry User** role on the project, whatever `AUTH_MODE` is. `AUTH_MODE` only decides whether Search and the
+embeddings use keys (`key`) or that same identity (`entra`).
 
 ## 1. Build the image
 
@@ -34,6 +51,12 @@ az acr create  --resource-group rg-claims-agent --name <yourregistry> --sku Basi
 az acr login   --name <yourregistry>
 docker tag arc:latest <yourregistry>.azurecr.io/arc:1
 docker push <yourregistry>.azurecr.io/arc:1
+```
+
+No Docker on your machine (or the daemon is not running)? Build in Azure instead; it reads this folder and the `.dockerignore`:
+
+```bash
+az acr build --registry <yourregistry> --image arc:1 .
 ```
 
 Basic ACR is a small monthly cost. If you would rather not pay it, skip the registry and deploy with
@@ -104,3 +127,94 @@ az acr delete --name <yourregistry> --resource-group rg-claims-agent
 
 The Search service, the index, the Foundry project and the agent are **not** part of this and must not be deleted: the
 demo needs them.
+
+
+---
+
+## 7. Option B: Azure App Service (Web App for Containers)
+
+Always-on HTTPS URL, one instance, pulls the image from ACR with its own identity. A B1 Linux plan is a fixed monthly cost.
+
+```bash
+RG=rg-claims-agent; LOC=centralindia; ACR=<acr>; APP=<app>
+
+# 1. registry + image (built in Azure, no local Docker needed)
+az acr create --resource-group $RG --name $ACR --sku Basic --location $LOC
+az acr build  --registry $ACR --image arc:1 .
+
+# 2. plan + web app, one worker
+az appservice plan create --resource-group $RG --name arc-plan --is-linux --sku B1 --location $LOC --number-of-workers 1
+az webapp create --resource-group $RG --plan arc-plan --name $APP \
+  --container-image-name $ACR.azurecr.io/arc:1
+
+# 3. the app's own identity: pull from ACR, and (section 4) talk to Foundry / Search / OpenAI
+PRINCIPAL=$(az webapp identity assign --resource-group $RG --name $APP --query principalId -o tsv)
+az role assignment create --assignee $PRINCIPAL --role AcrPull \
+  --scope $(az acr show --name $ACR --query id -o tsv)
+az webapp config set --resource-group $RG --name $APP \
+  --generic-configurations '{"acrUseManagedIdentityCreds": true}' --always-on true
+
+# 4. settings (the container listens on 8000)
+az webapp config appsettings set --resource-group $RG --name $APP --settings \
+  WEBSITES_PORT=8000 RETRIEVER=azure AGENT_MODE=foundry AUTH_MODE=entra \
+  AZURE_SEARCH_ENDPOINT=<...> AZURE_SEARCH_INDEX=claims-kb-v2 \
+  AZURE_OPENAI_ENDPOINT=<...> EMBEDDING_DEPLOYMENT=text-embedding-3-large EMBEDDING_DIMENSIONS=1536 \
+  FOUNDRY_PROJECT_ENDPOINT=<...> MODEL_DEPLOYMENT=gpt-5-mini AGENT_NAME=claims-adjudication-agent-v2 DEFAULT_UIN=HDFHLIP25041V062425
+
+# 5. roles for $PRINCIPAL: the three rows of section 4 (Search Index Data Reader, Cognitive Services OpenAI User, Foundry User)
+
+# 6. check
+az webapp restart --resource-group $RG --name $APP
+curl -s https://$APP.azurewebsites.net/health      # {"status":"ok"}
+curl -s https://$APP.azurewebsites.net/ready       # both true once the roles have applied
+az webapp log tail --resource-group $RG --name $APP
+```
+
+With `AUTH_MODE=key` instead, add `AZURE_SEARCH_KEY` and `AZURE_OPENAI_KEY` as app settings from your own terminal (app settings are
+encrypted at rest; better still, store them in Key Vault and use `@Microsoft.KeyVault(SecretUri=...)` references). Do not scale
+the plan out: sessions live in memory.
+
+Remove it: `az webapp delete -g $RG -n $APP && az appservice plan delete -g $RG -n arc-plan --yes`.
+
+## 8. Option C: Azure Container Instances (quickest, no HTTPS)
+
+One container with a public IP and a DNS name. Good for a short live demo; it serves plain HTTP on port 8000, so do not use it
+for anything but a demo, and delete it afterwards (it bills per second while running).
+
+```bash
+RG=rg-claims-agent; LOC=centralindia; ACR=<acr>; DNS=<app>
+
+az acr build --registry $ACR --image arc:1 .                     # skip if the image is already there
+
+# a user-assigned identity, so the roles can be granted BEFORE the container starts
+az identity create --resource-group $RG --name arc-id --location $LOC
+ID=$(az identity show -g $RG -n arc-id --query id -o tsv)
+PRINCIPAL=$(az identity show -g $RG -n arc-id --query principalId -o tsv)
+CLIENT=$(az identity show -g $RG -n arc-id --query clientId -o tsv)
+az role assignment create --assignee $PRINCIPAL --role AcrPull --scope $(az acr show -n $ACR --query id -o tsv)
+# + the three roles of section 4 for $PRINCIPAL; wait a few minutes for them to apply
+
+az container create --resource-group $RG --name arc --location $LOC \
+  --image $ACR.azurecr.io/arc:1 --acr-identity $ID --assign-identity $ID \
+  --os-type Linux --cpu 1 --memory 1.5 --ports 8000 --dns-name-label $DNS \
+  --environment-variables RETRIEVER=azure AGENT_MODE=foundry AUTH_MODE=entra AZURE_CLIENT_ID=$CLIENT \
+     AZURE_SEARCH_ENDPOINT=<...> AZURE_SEARCH_INDEX=claims-kb-v2 \
+     AZURE_OPENAI_ENDPOINT=<...> EMBEDDING_DEPLOYMENT=text-embedding-3-large EMBEDDING_DIMENSIONS=1536 \
+     FOUNDRY_PROJECT_ENDPOINT=<...> MODEL_DEPLOYMENT=gpt-5-mini AGENT_NAME=claims-adjudication-agent-v2 DEFAULT_UIN=HDFHLIP25041V062425
+
+az container show -g $RG -n arc --query ipAddress.fqdn -o tsv   # then open http://<fqdn>:8000/
+az container logs -g $RG -n arc
+```
+
+`AZURE_CLIENT_ID` tells `DefaultAzureCredential` which user-assigned identity to use. With `AUTH_MODE=key`, pass the two keys with
+`--secure-environment-variables AZURE_SEARCH_KEY=... AZURE_OPENAI_KEY=...` (hidden from `az container show`), typed in your own terminal.
+
+Remove it: `az container delete -g $RG -n arc --yes` (and `az identity delete -g $RG -n arc-id` if you are done).
+
+## Which one?
+
+| | Container Apps (section 3) | App Service (7) | ACI (8) |
+|---|---|---|---|
+| HTTPS URL | yes | yes | no (HTTP, port 8000) |
+| Cost when idle | low (min 1 replica) | fixed plan price | per second while running |
+| Best for | the recommended path | an always-on demo URL | a one-hour live demo |
