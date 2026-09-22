@@ -36,7 +36,7 @@ def test_every_view_path_serves_the_one_page_with_the_security_headers(path):
 def test_the_page_carries_the_font_the_icon_and_the_theme_colour():
     html = text("index.html")
     assert 'rel="preload" href="/static/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin' in html
-    assert 'rel="icon" href="/static/logo.svg" type="image/svg+xml"' in html and 'name="theme-color" content="#F7F7F5"' in html
+    assert 'rel="icon" href="/static/logo.svg" type="image/svg+xml"' in html and 'name="theme-color" content="#FFFFFF"' in html
     for asset in ("/static/fonts/InterVariable.woff2", "/static/logo.svg", "/static/fonts/Inter-OFL.txt"):
         assert client.get(asset).status_code == 200, asset
     assert "SIL Open Font License" in (STATIC / "fonts" / "Inter-OFL.txt").read_text(encoding="utf-8")
@@ -73,8 +73,8 @@ def test_the_static_assets_are_served_with_the_right_types():
 def test_the_design_tokens_are_defined_once_at_the_top_of_the_stylesheet():
     css = text("app.css")
     root = css[css.index(":root"):css.index("}", css.index(":root"))]
-    for token, value in (("--bg", "#F7F7F5"), ("--card", "#FFFFFF"), ("--line", "#E7E7E3"), ("--text", "#1F2933"), ("--muted", "#5E6A75"),
-                         ("--tint", "#EEF3F6"), ("--navy", "#0B2545"), ("--teal", "#0FA3B1"), ("--amber", "#F2A541")):
+    for token, value in (("--ink", "#0B0B0C"), ("--bg", "#FFFFFF"), ("--surface-2", "#F4F4F5"), ("--line", "#E7E7EA"), ("--muted", "#62626A"),
+                         ("--accent", "#38C6EC"), ("--accent-tint", "#EAF8FD"), ("--band", "#0DB5ED")):
         assert f"{token}: {value};" in root
     for step in ("4px", "8px", "12px", "16px", "24px", "32px", "48px", "72px"):
         assert step in root                                                        # the spacing scale lives here too
@@ -88,15 +88,18 @@ def _luminance(hex_colour: str) -> float:
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
-def test_muted_text_has_enough_contrast_on_the_background():
-    a, b = _luminance("#5E6A75"), _luminance("#F7F7F5")
-    ratio = (max(a, b) + 0.05) / (min(a, b) + 0.05)
-    assert ratio >= 4.5, ratio
+def test_muted_text_has_enough_contrast_on_the_backgrounds():
+    for bg in ("#FFFFFF", "#F4F4F5", "#F2F2F2"):                                  # the page, the customer's card, the product picture
+        a, b = _luminance("#62626A"), _luminance(bg)
+        ratio = (max(a, b) + 0.05) / (min(a, b) + 0.05)
+        assert ratio >= 4.5, (bg, ratio)
 
 
-def test_the_only_gradient_is_the_fade_above_the_composer():
+def test_gradients_are_drawn_in_css_and_load_nothing():
     css = text("app.css")
-    assert "linear-gradient" not in css.replace("linear-gradient(to bottom, transparent, var(--bg) 24px)", "")
+    for g in re.findall(r"(?:linear|radial|conic)-gradient\(", css):
+        assert g                                                                  # gradients are fine; what they may not do is fetch
+    assert "image-set(" not in css and css.count("url(") == 1
 
 
 def test_the_api_still_answers_json_errors_next_to_the_page():
@@ -106,10 +109,11 @@ def test_the_api_still_answers_json_errors_next_to_the_page():
 def test_every_string_the_customer_reads_is_in_one_block():
     js = text("app.js")
     block = js[js.index("var TEXT = {"):js.index("var BATCH")]
-    for phrase in ("Know where your claim stands before it's decided.", "Upload your documents", "Try with sample documents",
+    for phrase in ("Know where your claim stands\\nbefore it's decided.", "Upload your documents", "Try with sample documents", "Add your claim documents",
                    "Drop your documents here, or click to upload", "Ask about your claim", "Download report", "Start over", "Drop to add documents"):
         assert phrase in block, phrase
         assert js.count(phrase) == 1, phrase                                        # and nowhere else in the file
+    assert "enter.js" in text("index.html") and "location" in text("enter.js")      # the one head script: arms the landing entrance, nothing else
     assert "Know where your claim stands" not in text("index.html")                 # the page itself carries no copy
 
 
